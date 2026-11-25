@@ -6302,3 +6302,89 @@ test('Hardened fork: dual / topbar / sidebar modes work when DevToolsActivePort 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Clicking top bar capsule opens host sidebar extension while preserving hover quick-view', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const { telemetryStore } = await import('../src/store/telemetryStore.js');
+  const { uiStore } = await import('../src/store/uiStore.js');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevNav = globalThis.navigator;
+  const prevTel = { ...telemetryStore.getState() };
+  const prevUi = { ...uiStore.getState() };
+
+  const { body, document: mockDoc, makeElement } = createMockDom();
+  const auxToggle = makeElement('button');
+  auxToggle.setAttribute('data-testid', 'toggle-aux-sidebar');
+  let auxToggleClicks = 0;
+  let sidebarTabClicks = 0;
+  let sidebarTab = null;
+
+  auxToggle.click = () => {
+    auxToggleClicks += 1;
+    if (!sidebarTab) {
+      sidebarTab = makeElement('button');
+      sidebarTab.setAttribute('role', 'tab');
+      sidebarTab.setAttribute('aria-label', 'Usage Monitor');
+      sidebarTab.setRect({ left: 1180, right: 1260, top: 44, bottom: 72, width: 80, height: 28 });
+      sidebarTab.click = () => {
+        sidebarTabClicks += 1;
+        sidebarTab.setAttribute('aria-selected', 'true');
+      };
+      body.appendChild(sidebarTab);
+    }
+  };
+  body.appendChild(auxToggle);
+
+  globalThis.document = mockDoc;
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 820,
+    location: { pathname: '/' },
+    addEventListener() {},
+    removeEventListener() {},
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { language: 'en-US' },
+    configurable: true,
+  });
+
+  const ov = mountWindowOverlay();
+  try {
+    const capsuleHost = mockDoc.getElementById('ag-usage-monitor-capsule');
+    const portalHost = mockDoc.getElementById('ag-usage-monitor-portal');
+    const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+    const hoverTipEl = portalHost.shadowRoot.querySelector('.wm-hover-tip');
+    const popoverEl = portalHost.shadowRoot.querySelector('.wm-popover-panel');
+
+    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 960, clientY: 18 });
+    assert.equal(hoverTipEl.hasAttribute('hidden'), false);
+
+    capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 90));
+    assert.equal(hoverTipEl.hasAttribute('hidden'), true);
+    assert.equal(popoverEl.hasAttribute('hidden'), true);
+    assert.equal(auxToggleClicks, 1);
+    assert.equal(sidebarTabClicks, 1);
+
+    capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(auxToggleClicks, 1);
+    assert.equal(sidebarTabClicks, 1);
+  } finally {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel);
+    uiStore.setState(prevUi);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: prevNav,
+      configurable: true,
+    });
+    if (globalThis.window && globalThis.window[WINDOW_OVERLAY_KEY]) {
+      delete globalThis.window[WINDOW_OVERLAY_KEY];
+    }
+  }
+});

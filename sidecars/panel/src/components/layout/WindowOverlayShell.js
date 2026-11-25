@@ -909,6 +909,118 @@ function findNativeTopRightAnchor() {
   }
 }
 
+const SIDEBAR_EXTENSION_LABEL_RE =
+  /usage\s*(?:&\s*speed\s*)?monitor|usage-monitor/i;
+
+function isHostElementVisible(el) {
+  if (!el || el.hasAttribute?.('hidden') || el.getAttribute?.('aria-hidden') === 'true') {
+    return false;
+  }
+  if (typeof el.getBoundingClientRect === 'function') {
+    const rect = el.getBoundingClientRect();
+    if (rect && rect.width === 0 && rect.height === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isSidebarTabActive(el) {
+  if (!el) return false;
+  if (
+    el.getAttribute?.('aria-selected') === 'true' ||
+    el.getAttribute?.('aria-pressed') === 'true' ||
+    el.getAttribute?.('data-state') === 'active'
+  ) {
+    return true;
+  }
+  return Boolean(el.classList?.contains?.('active') || el.classList?.contains?.('is-active'));
+}
+
+function findSidebarExtensionTab() {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+    return null;
+  }
+  try {
+    const candidates = document.querySelectorAll('button, [role="tab"], [role="button"], a');
+    for (const el of candidates) {
+      if (!el || el.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`)) continue;
+      if (!isHostElementVisible(el)) continue;
+      const aria = String(el.getAttribute?.('aria-label') || '');
+      const title = String(el.getAttribute?.('title') || '');
+      const testId = String(el.getAttribute?.('data-testid') || '');
+      const id = String(el.id || '');
+      const text = String(el.textContent || '').trim();
+      const attrMatch =
+        SIDEBAR_EXTENSION_LABEL_RE.test(aria) ||
+        SIDEBAR_EXTENSION_LABEL_RE.test(title) ||
+        SIDEBAR_EXTENSION_LABEL_RE.test(testId) ||
+        /usage-monitor/i.test(id);
+      const exactTextMatch =
+        text.length > 0 && text.length <= 40 && SIDEBAR_EXTENSION_LABEL_RE.test(text);
+      if (attrMatch || exactTextMatch) {
+        return el;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function findAuxSidebarToggle() {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+    return null;
+  }
+  try {
+    return (
+      document.querySelector('[data-testid="toggle-aux-sidebar"]') ||
+      document.querySelector('[aria-label*="Secondary Side Bar" i]') ||
+      document.querySelector('[title*="Secondary Side Bar" i]') ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function triggerHostElementClick(el) {
+  if (!el) return false;
+  if (typeof el.click === 'function') {
+    el.click();
+    return true;
+  }
+  if (typeof el.dispatchEvent === 'function') {
+    el.dispatchEvent({ type: 'click', bubbles: true, stopPropagation() {} });
+    return true;
+  }
+  return false;
+}
+
+function openSidebarExtension() {
+  const existingTab = findSidebarExtensionTab();
+  if (existingTab) {
+    if (!isSidebarTabActive(existingTab)) {
+      triggerHostElementClick(existingTab);
+    }
+    return true;
+  }
+  const auxToggle = findAuxSidebarToggle();
+  if (!auxToggle) {
+    return false;
+  }
+  triggerHostElementClick(auxToggle);
+  for (const delayMs of [60, 180]) {
+    setTimeout(() => {
+      const tab = findSidebarExtensionTab();
+      if (tab && !isSidebarTabActive(tab)) {
+        triggerHostElementClick(tab);
+      }
+    }, delayMs);
+  }
+  return true;
+}
+
 function getLeftSidebarRightEdge(vw) {
   try {
     if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
@@ -1323,6 +1435,16 @@ export function mountWindowOverlay() {
       'aria-expanded': 'false',
       onClick: (e) => {
         e.stopPropagation();
+        setTooltipOpen(false);
+        if (multiOpen && !multiPinned) {
+          setMultiOpen(false);
+        }
+        if (openSidebarExtension()) {
+          if (popoverOpen) {
+            setPopoverOpen(false);
+          }
+          return;
+        }
         setPopoverOpen(!popoverOpen);
       },
       onContextmenu: (e) => {
