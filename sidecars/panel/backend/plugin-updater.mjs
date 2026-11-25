@@ -408,7 +408,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
       reason: 'auto_update_disabled_in_hardened_fork',
       previousVersion,
       currentVersion: previousVersion,
-      message: '已禁用后台自动更新，请使用手动更新',
+      message: 'Background auto-updates are disabled; please use manual update',
       updatedAtMs: Date.now(),
     };
     pluginUpdateState.lastResult = result;
@@ -432,7 +432,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
       if (hasGit) {
         // 0. 开发仓库（非 ~/.gemini/config/plugins/）一律禁止后台自动更新
         if (isAuto && !isInstalledPluginDir) {
-          const msg = '当前处于本地开发仓库，已自动禁用后台静默更新';
+          const msg = 'Local dev repository detected; background silent update is disabled';
           const result = {
             ok: false,
             skipped: true,
@@ -452,8 +452,8 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
         const isDirty = statusRes.stdout.trim().length > 0;
         if (isDirty) {
           const msg = isInstalledPluginDir
-            ? '本地文件有改动，已跳过覆盖更新'
-            : '开发目录有未提交修改，已跳过更新';
+            ? 'Local files have modifications; update skipped'
+            : 'Development directory has uncommitted changes; update skipped';
           pluginUpdateState.lastError = isAuto ? null : msg;
           pluginUpdateState.lastResult = {
             ok: false,
@@ -482,7 +482,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           currentBranch === 'main' ||
           /^release\/[0-9A-Za-z._-]+$/.test(currentBranch);
         if (!isAllowedBranch) {
-          const msg = `当前分支为 ${currentBranch}，已跳过更新`;
+          const msg = `Current branch is ${currentBranch}; update skipped`;
           pluginUpdateState.lastError = isAuto ? null : msg;
           pluginUpdateState.lastResult = {
             ok: false,
@@ -548,7 +548,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
 
         // 5. 强制版本门禁：远端版本无法确认或不高于当前版本时，严禁执行 git pull 降级/覆盖
         if (!remoteVersion || compareSemver(remoteVersion, previousVersion) <= 0) {
-          const msg = `当前已是最新版本 (v${previousVersion})`;
+          const msg = `Already up to date (v${previousVersion})`;
           const result = {
             ok: false,
             skipped: true,
@@ -576,7 +576,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
             remoteRef,
           ]);
         } catch {
-          const msg = '本地分支存在未推送提交，已跳过更新';
+          const msg = 'Local branch has unpushed commits; update skipped';
           pluginUpdateState.lastError = isAuto ? null : msg;
           pluginUpdateState.lastResult = {
             ok: false,
@@ -602,7 +602,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           previousVersion,
           currentVersion,
           restarting: true,
-          message: `已升级至 v${currentVersion}，正在重启面板…`,
+          message: `Upgraded to v${currentVersion}; restarting panel…`,
           updatedAtMs: Date.now(),
         };
         pluginUpdateState.lastResult = result;
@@ -613,7 +613,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
       // Release ZIP 归档更新通道（适用于无 .git 的压缩包安装目录）
       const targetVersion = cloudSyncState.latestPluginVersion || '';
       if (!isValidSemver(targetVersion) || compareSemver(targetVersion, previousVersion) <= 0) {
-        const msg = `当前已是最新版本 (v${previousVersion})`;
+        const msg = `Already up to date (v${previousVersion})`;
         const result = {
           ok: false,
           skipped: true,
@@ -632,7 +632,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
 
       const zipUrl = cloudSyncState.downloadUrl || DEFAULT_DOWNLOAD_URL;
       if (!zipUrl) {
-        throw new Error('未配置有效的更新包下载地址');
+        throw new Error('No valid update download URL configured');
       }
 
       const stagingDir = join(DATA_DIR, `.update-staging-${Date.now()}`);
@@ -646,12 +646,12 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           signal: AbortSignal.timeout(25000),
         });
         if (!res.ok || (res.status !== undefined && res.status !== 200)) {
-          throw new Error(`下载更新包失败 (HTTP ${res.status ?? 'unknown'})`);
+          throw new Error(`Failed to download update package (HTTP ${res.status ?? 'unknown'})`);
         }
         const buf = Buffer.from(await res.arrayBuffer());
         // 校验 ZIP 文件头魔数 ('PK') 与最小合法体积
         if (buf.length < 22 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
-          throw new Error('下载的更新包格式校验未通过');
+          throw new Error('Downloaded update package failed format check');
         }
 
         // 强制 SHA-256 校验：必须存在且成功返回 HTTP 200 的 .sha256 校验文件
@@ -661,22 +661,22 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           signal: AbortSignal.timeout(15000),
         });
         if (!shaRes.ok || (shaRes.status !== undefined && shaRes.status !== 200)) {
-          throw new Error(`更新包 SHA-256 校验文件下载失败 (HTTP ${shaRes.status ?? 'unknown'})`);
+          throw new Error(`Failed to download SHA-256 checksum (HTTP ${shaRes.status ?? 'unknown'})`);
         }
         const shaText = await shaRes.text();
         const shaCheck = verifyZipSha256(buf, shaText);
         if (!shaCheck.ok) {
           throw new Error(
             shaCheck.reason === 'malformed_sha256'
-              ? '更新包 SHA-256 校验文件格式无效'
-              : '更新包 SHA-256 校验不匹配，已拒绝更新'
+              ? 'Update package SHA-256 checksum file is malformed'
+              : 'Update package SHA-256 mismatch; update rejected'
           );
         }
 
         // 解压前强制校验 PKZIP Central Directory，防止 Zip Slip 路径穿越与符号链接攻击
         const zipSafety = validateZipEntriesSafe(buf);
         if (!zipSafety.ok) {
-          throw new Error(`更新包条目安全校验未通过 (${zipSafety.reason})`);
+          throw new Error(`Update package entry safety check failed (${zipSafety.reason})`);
         }
 
         writeFileSync(zipFile, buf);
@@ -700,7 +700,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           !existsSync(join(extractedRoot, 'sidecars', 'panel', 'styles.css')) ||
           !existsSync(join(extractedRoot, 'sidecars', 'panel', 'index.html'))
         ) {
-          throw new Error('更新包缺少核心插件文件');
+          throw new Error('Update package is missing core plugin files');
         }
 
         const extractedManifest = loadJson(join(extractedRoot, 'plugin.json'), null);
@@ -713,7 +713,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           : '';
         if (!extractedVer || compareSemver(extractedVer, previousVersion) <= 0) {
           throw new Error(
-            `下载包版本 (v${extractedVer || '未知'}) 不高于当前已安装版本 (v${previousVersion})，已拒绝降级覆盖`
+            `Downloaded version (v${extractedVer || 'unknown'}) is not newer than installed version (v${previousVersion}); downgrade rejected`
           );
         }
 
@@ -758,7 +758,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
           previousVersion,
           currentVersion,
           restarting: true,
-          message: `已下载并更新至 v${currentVersion}，正在重载面板…`,
+          message: `Downloaded and updated to v${currentVersion}; reloading panel…`,
           updatedAtMs: Date.now(),
         };
         pluginUpdateState.lastResult = result;
@@ -773,7 +773,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
         throw err;
       }
     } catch (err) {
-      const errMsg = err?.message || '插件更新失败';
+      const errMsg = err?.message || 'Plugin update failed';
       pluginUpdateState.lastError = errMsg;
       const result = {
         ok: false,
@@ -855,7 +855,7 @@ export async function syncCloudCatalog({ force = false, urls = CLOUD_CATALOG_URL
           lastErr = err;
         }
       }
-      cloudSyncState.lastError = lastErr?.message || '云端价格表同步失败';
+      cloudSyncState.lastError = lastErr?.message || 'Cloud pricing catalog sync failed';
       return getCloudStatus();
     } finally {
       cloudSyncState.isSyncing = false;

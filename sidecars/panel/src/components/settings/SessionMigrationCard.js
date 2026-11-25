@@ -37,14 +37,13 @@ function smigFormatAge(epochMs) {
   const ts = Number(epochMs || 0);
   if (!Number.isFinite(ts) || ts <= 0) return '';
   const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  const isEn = isEnglishLocale();
-  if (diffSec < 60) return isEn ? 'just now' : '刚刚';
+  if (diffSec < 60) return 'just now';
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return isEn ? `${diffMin}m ago` : `${diffMin}分钟前`;
+  if (diffMin < 60) return `${diffMin}m ago`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return isEn ? `${diffHr}h ago` : `${diffHr}小时前`;
+  if (diffHr < 24) return `${diffHr}h ago`;
   const diffDay = Math.floor(diffHr / 24);
-  return isEn ? `${diffDay}d ago` : `${diffDay}天前`;
+  return `${diffDay}d ago`;
 }
 
 export const SessionMigrationCard = defineComponent({

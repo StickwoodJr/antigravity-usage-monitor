@@ -126,7 +126,7 @@ export function isCompactionStepItem(st) {
   if (!st || typeof st !== 'object') return false;
   if (st.isCompactionStep) return true;
   const raw = `${st.activeModelShort ?? st.modelShort ?? ''} ${st.activeModelLabel ?? st.modelLabel ?? ''} ${st.activeModelUpstream ?? st.modelUpstream ?? ''}`;
-  return /·(?:压缩|compact)(?=\s|$)|\[自动压缩\]/iu.test(raw);
+  return /·compact(?=\s|$)|\[auto[- ]?compact\]/iu.test(raw);
 }
 
 export const STEP_COLUMN_REGISTRY = Object.freeze({

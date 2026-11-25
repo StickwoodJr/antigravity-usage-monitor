@@ -378,17 +378,17 @@ test('converges multi-level nested subagents to ultimate root and preserves metr
   assert.equal(p.activeConversation.agents[0].liveActivity,null);
   assert.equal(p.activeConversation.agents[2].liveActivity.phase,'thinking');
   assert.equal(p.activeConversation.aggregated.liveActivity.agentId,'sub-l2');
-  assert.equal(p.activeConversation.aggregated.liveActivity.agentBadge,'子2');
+  assert.equal(p.activeConversation.aggregated.liveActivity.agentBadge,'Sub2');
   // runningConversations includes root-multi with main summary and collapsible subagents summary
   assert.equal(p.runningConversations.length,1);
   assert.equal(p.runningConversations[0].cascadeId,'root-multi');
   assert.equal(p.runningConversations[0].title,'Multi-Level Task');
   assert.equal(p.runningConversations[0].subagentCount,2);
   assert.equal(p.runningConversations[0].runningSubagentCount,1);
-  assert.equal(p.runningConversations[0].mainActivity.label,'等待子代理');
+  assert.equal(p.runningConversations[0].mainActivity.label,'Waiting for Subagent');
   assert.equal(p.runningConversations[0].subagents[0].role,'Level 1 Orchestrator');
   assert.equal(p.runningConversations[0].subagents[0].isRunning,false);
-  assert.equal(p.runningConversations[0].subagents[0].liveActivity.label,'已完成');
+  assert.equal(p.runningConversations[0].subagents[0].liveActivity.label,'Completed');
   assert.equal(p.runningConversations[0].subagents[1].role,'Level 2 Deep Worker');
   assert.equal(p.runningConversations[0].subagents[1].isRunning,true);
 });
@@ -432,7 +432,7 @@ test('trendSeries buckets hourly for <=72h windows (today/24h) and daily for >72
   const trend24h = p24h.consumption.trendSeries;
   assert.ok(trend24h.length >= 24 && trend24h.length <= 26);
   assert.equal(trend24h[0].granularity, 'hour');
-  assert.match(trend24h[0].fullLabel, /\d+月\d+日 \d{2}:00 - \d{2}:00/);
+  assert.match(trend24h[0].fullLabel, /\d+\/\d+ \d{2}:00 - \d{2}:00/);
   assert.equal(trend24h.reduce((sum, b) => sum + b.tokens, 0), 900);
   assert.equal(trend24h.reduce((sum, b) => sum + b.calls, 0), 1);
 
@@ -440,7 +440,7 @@ test('trendSeries buckets hourly for <=72h windows (today/24h) and daily for >72
   const trend7d = p7d.consumption.trendSeries;
   assert.ok(trend7d.length >= 7 && trend7d.length <= 8);
   assert.equal(trend7d[0].granularity, 'day');
-  assert.match(trend7d[0].fullLabel, /\d+月\d+日 \(周[日一二三四五六]\)/);
+  assert.match(trend7d[0].fullLabel, /\d+\/\d+ \((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)\)/);
   assert.equal(trend7d.reduce((sum, b) => sum + b.tokens, 0), 900);
 });
 
@@ -645,7 +645,7 @@ test('trendSeries preserves 1-day-per-slot granularity for >90 day spans and rec
   const trendAll = pAll.consumption.trendSeries;
   assert.ok(trendAll.length >= 120 && trendAll.length <= 122, `Expected ~121 daily slots, got ${trendAll.length}`);
   assert.equal(trendAll[0].granularity, 'day');
-  assert.match(trendAll[0].fullLabel, /^\d{4}年\d+月\d+日 \(周[日一二三四五六]\)$/);
+  assert.match(trendAll[0].fullLabel, /^\d{4}\/\d+\/\d+ \((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)\)$/);
   assert.equal(trendAll.reduce((sum, b) => sum + b.tokens, 0), 30700 + 37800);
   assert.equal(trendAll.reduce((sum, b) => sum + b.calls, 0), 2);
 
@@ -884,8 +884,8 @@ test('modelBreakdown exposes avgTtftSec, cacheHitPct, and subagent scoped breakd
   );
   assert.ok(loessCache[6] > 90, 'Tail fit tracks steady warm cache region');
 
-  // Group key strips [自动压缩] and thinking tier suffixes
-  assert.equal(getStepModelGroupKey({ modelLabel: 'Gemini 3.1 Pro (High) [自动压缩]' }), 'Gemini 3.1 Pro');
+  // Group key strips [Auto-Compact] and thinking tier suffixes
+  assert.equal(getStepModelGroupKey({ modelLabel: 'Gemini 3.1 Pro (High) [Auto-Compact]' }), 'Gemini 3.1 Pro');
   assert.equal(getStepModelGroupKey({ modelLabel: 'Orchestrator (Carbon)' }), 'Orchestrator (Carbon)');
 
   const chrono = toChronologicalSteps(
@@ -2529,7 +2529,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
       color: false,
     }
   );
-  assert.equal(freshBar, '● 0 运行中   空闲 | 余 98% | 上下文 16%');
+  assert.equal(freshBar, '● 0 active   Idle | 5h 98% | Ctx 16%');
 
   // 5b. Dedicated 5h / weekly / context slots in NO_COLOR and pill ANSI modes (zh-CN & en-US)
   const quotaBarCtx = {
@@ -2550,7 +2550,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
       language: 'zh-CN',
       color: false,
     }),
-    'G5h 64% | G周 88% | C5h 96% | C周 14% | 上下文 56%'
+    'G5h 64% | Gw 88% | C5h 96% | Cw 14% | Ctx 56%'
   );
   const quotaPillAnsi = h.formatCliStatusLineCapsule(quotaBarCtx, {
     slots: ['gemini_5h', 'claude_weekly', 'context'],
@@ -2563,7 +2563,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
   assert.equal(/\x1b\[48;2;36;72;128m/.test(quotaPillAnsi), true, '56% context uses blue pill fill');
   assert.equal(
     quotaPillAnsi.replace(/\x1b\[[0-9;]*m/g, ''),
-    ' G5h 64%  |  C周 14%  |  上下文 56% '
+    ' G5h 64%  |  Cw 14%  |  Ctx 56% '
   );
   assert.equal(
     h.formatCliStatusLineCapsule(quotaBarCtx, {
@@ -2645,7 +2645,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
   );
   assert.equal(/\x1b\[48;2;36;72;128m/.test(withAnom), true);
   assert.equal(/\x1b\]/.test(withAnom), false);
-  assert.equal(withAnom.replace(/\x1b\[[0-9;]*m/g, ''), '● 1 运行中   44.2 t/s | 2.1s |  上下文 35%  | ! 503');
+  assert.equal(withAnom.replace(/\x1b\[[0-9;]*m/g, ''), '● 1 active   44.2 t/s | 2.1s |  Ctx 35%  | ! 503');
 
   const withoutAnom = h.formatCliStatusLineCapsule(
     {
@@ -2664,7 +2664,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
       color: false,
     }
   );
-  assert.equal(withoutAnom, '● 1 运行中   44.2 t/s | 2.1s | 上下文 35%');
+  assert.equal(withoutAnom, '● 1 active   44.2 t/s | 2.1s | Ctx 35%');
 
   // 7. Narrow 72-column terminal progressively sheds lower-priority slots without wrapping
   const narrow72 = h.formatCliStatusLineCapsule(
@@ -2690,7 +2690,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
     }
   );
   assert.ok(h.cliDisplayWidth(narrow72) <= 71, `Expected <= 71 cols, got ${h.cliDisplayWidth(narrow72)}`);
-  assert.ok(narrow72.includes('上下文 34%'));
+  assert.ok(narrow72.includes('Ctx 34%'));
   assert.ok(narrow72.includes('48.2 t/s'));
 
   // 8. Subprocess E2E: inline flags & --install preserving custom flags
@@ -2850,7 +2850,7 @@ test('v1.5 feedback settings schema: custom token combo DSL, 3-way model display
     'cache',
   ]);
   assert.equal(h.normalizeStepTokenComboFormat('in / out / cache'), 'in:out:cache');
-  assert.equal(h.normalizeStepTokenComboFormat('上下文:输入:正文:思考:总计'), 'context:in:reply:think');
+  assert.equal(h.normalizeStepTokenComboFormat('ctx:new:body:thinking:total'), 'context:in:reply:think');
   assert.equal(h.normalizeStepTokenComboFormat('invalid:foo'), 'context:in:cache');
 
   // 2. 3-way model display mode & legacy showUpstreamModel round-trip
@@ -3437,7 +3437,7 @@ test('CLI statusLine supports --style pill|bar|compact switching, flag persisten
   });
   assert.doesNotMatch(compactOut, /\x1b\[48;2;/);
   assert.doesNotMatch(compactOut, /[█⢕]/);
-  assert.match(compactOut, /上下文.*42%/);
+  assert.match(compactOut, /Ctx.*42%/);
   assert.match(compactOut, /G5h.*40%/);
 
   // 4. Structured JSON output includes model, speed, context, and quota pool snapshots

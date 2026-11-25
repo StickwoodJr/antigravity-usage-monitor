@@ -61,8 +61,8 @@ export function resolveQuotaCapsuleSummary(quotas) {
   const weekly = quotas.weekly;
   const pools = Array.isArray(quotas.pools) ? quotas.pools : [];
   const candidates = [];
-  const defaultPoolName = isEnglishLocale() ? 'Active Pool' : '当前池';
-  const wkTag = isEnglishLocale() ? 'Wk' : '周';
+  const defaultPoolName = 'Active Pool';
+  const wkTag = 'Wk';
 
   if (activePool && Number.isFinite(Number(activePool.remainingPct))) {
     candidates.push({
@@ -81,7 +81,7 @@ export function resolveQuotaCapsuleSummary(quotas) {
   if (!candidates.length && weekly && Number.isFinite(Number(weekly.remainingPct))) {
     candidates.push({
       pct: Number(weekly.remainingPct),
-      label: weekly.poolFamily || (isEnglishLocale() ? 'Weekly' : '周限额'),
+      label: weekly.poolFamily || 'Weekly',
       windowTag: wkTag,
     });
   }
@@ -111,7 +111,7 @@ export function resolveQuotaCapsuleSummary(quotas) {
   const tightestIsArgon = !tightestIsClaude && /\bargon\b/i.test(String(tightest.label || ''));
   const tightestIsGemini =
     !tightestIsClaude && !tightestIsArgon && /gemini|carbon|neon|flash|pro/i.test(String(tightest.label || ''));
-  const tightestWinShort = tightest.windowTag === '5h' ? '5h' : isEnglishLocale() ? 'w' : '周';
+  const tightestWinShort = tightest.windowTag === '5h' ? '5h' : 'w';
   const poolPrefix = tightestIsClaude
     ? `C${tightestWinShort}`
     : tightestIsArgon
@@ -120,9 +120,7 @@ export function resolveQuotaCapsuleSummary(quotas) {
         ? `G${tightestWinShort}`
         : tightest.windowTag === '5h'
           ? '5h'
-          : isEnglishLocale()
-            ? 'Wk'
-            : '周';
+          : 'Wk';
   return {
     roundedPct: rounded,
     shortText: t('capsule.quotaLeft', { pct: rounded }),
@@ -138,14 +136,13 @@ export function resolveQuotaCapsuleSummary(quotas) {
 }
 
 function resolveQuotaCapsulePrefix(metricKey, quotaSum) {
-  const isEn = isEnglishLocale();
   if (metricKey === 'gemini_5h') return 'G5h';
-  if (metricKey === 'gemini_weekly') return isEn ? 'Gw' : 'G周';
-  if (metricKey === 'argon_weekly') return isEn ? 'Aw' : 'A周';
+  if (metricKey === 'gemini_weekly') return 'Gw';
+  if (metricKey === 'argon_weekly') return 'Aw';
   if (metricKey === 'claude_5h') return 'C5h';
-  if (metricKey === 'claude_weekly') return isEn ? 'Cw' : 'C周';
+  if (metricKey === 'claude_weekly') return 'Cw';
   if (quotaSum?.poolPrefix) return quotaSum.poolPrefix;
-  return isEn ? 'Q' : '余';
+  return 'Q';
 }
 
 /**

@@ -1814,7 +1814,7 @@ export async function enumerateAndSyncConversations({
             item?.summary,
             localSum?.title,
             cached?.title,
-          ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
+          ]) || (isSideQuestion ? 'Side Question' : cascadeId.slice(0, 8)),
         stepCount: modelStepCount,
         rawStepCount: rawSummaryStepCount,
         status: isKilled ? 'IDLE' : item?.status || '',
@@ -1847,7 +1847,7 @@ export async function enumerateAndSyncConversations({
             sqParentInfo?.title,
             localSum?.title,
             cached.title,
-          ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
+          ]) || (isSideQuestion ? 'Side Question' : cascadeId.slice(0, 8)),
         stepCount: cachedStepCount,
         rawStepCount: localSum?.stepCount || cached.rawStepCount || cachedStepCount,
         status: localStatus,
@@ -1882,7 +1882,7 @@ export async function enumerateAndSyncConversations({
           pickFirstMeaningfulTitle(cidLower, [
             sqParentInfo?.title,
             localSum?.title,
-          ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
+          ]) || (isSideQuestion ? 'Side Question' : cascadeId.slice(0, 8)),
         stepCount: 0,
         rawStepCount: localSum?.stepCount || 0,
         status: localStatus,
@@ -2104,7 +2104,7 @@ export async function enumerateAndSyncConversations({
                   nonShortTitle(conv.title) ||
                   ''
               ).trim();
-              const cleanSqRole = sqTitle && sqTitle !== '旁路提问' ? sqTitle : '';
+              const cleanSqRole = sqTitle && sqTitle !== 'Side Question' ? sqTitle : '';
               conv.isSideQuestion = true;
               conv.parentConversationId = parentCid;
               const extRoot = String(extractedMeta.rootConversationId || '').trim().toLowerCase();
@@ -2114,10 +2114,10 @@ export async function enumerateAndSyncConversations({
                 (prevConvRoot && prevConvRoot !== cidLower ? prevConvRoot : '') ||
                 parentCid ||
                 '';
-              conv.title = cleanSqRole || '旁路提问';
+              conv.title = cleanSqRole || 'Side Question';
               conv.subagentSpec = {
                 typeName: 'side_question',
-                role: cleanSqRole || '旁路提问',
+                role: cleanSqRole || 'Side Question',
               };
               conv.agentScriptName = '';
               conv.createdTimeMs =

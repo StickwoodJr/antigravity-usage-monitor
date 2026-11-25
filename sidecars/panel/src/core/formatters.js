@@ -105,9 +105,9 @@ export function formatDateSpanBadge(startMs, endMs) {
     return `${sMon} ${s.getDate()} ~ ${eMon} ${e.getDate()}`;
   }
   if (s.getFullYear() !== e.getFullYear()) {
-    return `${s.getFullYear()}年${s.getMonth() + 1}月${s.getDate()}日 ~ ${e.getFullYear()}年${e.getMonth() + 1}月${e.getDate()}日`;
+    return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')} ~ ${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, '0')}-${String(e.getDate()).padStart(2, '0')}`;
   }
-  return `${s.getMonth() + 1}月${s.getDate()}日 ~ ${e.getMonth() + 1}月${e.getDate()}日`;
+  return `${String(s.getMonth() + 1).padStart(2, '0')}/${String(s.getDate()).padStart(2, '0')} ~ ${String(e.getMonth() + 1).padStart(2, '0')}/${String(e.getDate()).padStart(2, '0')}`;
 }
 
 export function formatUsd(amount, { precise = false } = {}) {
@@ -480,7 +480,7 @@ export function stripVendorModelPrefix(rawText) {
 
 function stripCompactionMarker(rawText) {
   return String(rawText || '')
-    .replace(/(?:·(?:压缩|compact)|\[自动压缩\]|\[auto[- ]?compact\])\s*$/iu, '')
+    .replace(/(?:·compact|\[auto[- ]?compact\])\s*$/iu, '')
     .trim();
 }
 
@@ -646,7 +646,7 @@ export function resolveModelDisplayInfo(target, settings = {}, options = {}) {
 
   const isCompaction =
     Boolean(target.isCompactionStep) ||
-    /·(?:压缩|compact)(?=\s|$)|\[自动压缩\]/iu.test(rawCompactionText);
+    /·compact(?=\s|$)|\[auto[- ]?compact\]/iu.test(rawCompactionText);
 
   const compactionSuffix = isCompaction ? t('fmt.compactionSuffix') : '';
 
@@ -1059,8 +1059,6 @@ function normalizeSwarmMemberHandle(rawText) {
   const inner = (wrapper ? wrapper[1] : trimmed).replace(/^@+/, '').trim();
   if (
     !inner ||
-    inner === '蜂群' ||
-    inner === '工蜂' ||
     inner.toLowerCase() === 'swarm' ||
     inner.toLowerCase() === 'worker' ||
     inner.toLowerCase() === 'swarm worker'

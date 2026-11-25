@@ -972,12 +972,12 @@ test('QuotaPoolsWidget & SettingsOtherTab render experimental reservation bar/te
     assert.equal(legendEl.hidden, true);
     const metasOff = widget.el.querySelectorAll('.quota-win-meta');
     assert.equal(metasOff.length, 2);
-    assert.match(metasOff[0].textContent, /· 已用 4\.1%$/);
-    assert.doesNotMatch(metasOff[0].textContent, /[()（）]|预占|余/);
-    assert.match(metasOff[1].textContent, /· 已用 16\.2%$/);
-    assert.doesNotMatch(metasOff[1].textContent, /[()（）]|预占|余/);
+    assert.match(metasOff[0].textContent, /· 95\.9% left$/);
+    assert.doesNotMatch(metasOff[0].textContent, /[()（）]|Reserved|Used/);
+    assert.match(metasOff[1].textContent, /· 83\.8% left$/);
+    assert.doesNotMatch(metasOff[1].textContent, /[()（）]|Reserved|Used/);
     const fillBarsOff = widget.el.querySelectorAll('.progress-fill');
-    assert.equal(fillBarsOff[0].style.getPropertyValue('--fill-w'), '4.1%');
+    assert.equal(fillBarsOff[0].style.getPropertyValue('--fill-w'), '95.9%');
 
     // Toggle ON: violet reserved bar segment + hover tooltip + bottom solid/dashed legend, without parenthetical inline text
     widget.refs.update({
@@ -987,23 +987,23 @@ test('QuotaPoolsWidget & SettingsOtherTab render experimental reservation bar/te
     assert.equal(legendEl.hidden, false);
     assert.ok(legendEl.querySelector('.quota-legend-line.is-actual'));
     assert.ok(legendEl.querySelector('.quota-legend-line.is-reserved'));
-    assert.match(legendEl.textContent, /实占/);
-    assert.match(legendEl.textContent, /预占/);
+    assert.match(legendEl.textContent, /Remaining/);
+    assert.match(legendEl.textContent, /Reserved/);
     const metasOn = widget.el.querySelectorAll('.quota-win-meta');
-    assert.match(metasOn[0].textContent, /· 已用 4\.1%$/);
-    assert.doesNotMatch(metasOn[0].textContent, /[()（）]|预占|余/);
+    assert.match(metasOn[0].textContent, /· 95\.9% left$/);
+    assert.doesNotMatch(metasOn[0].textContent, /[()（）]|Reserved|Used/);
     assert.match(metasOn[0].getAttribute('title') || '', /1\.0%/);
-    assert.match(metasOn[1].textContent, /· 已用 16\.2%$/);
-    assert.doesNotMatch(metasOn[1].textContent, /[()（）]|预占|余/);
+    assert.match(metasOn[1].textContent, /· 83\.8% left$/);
+    assert.doesNotMatch(metasOn[1].textContent, /[()（）]|Reserved|Used/);
     assert.match(metasOn[1].getAttribute('title') || '', /0\.5%/);
 
     const fillBarsOn = widget.el.querySelectorAll('.progress-fill');
     const rsvBarsOn = widget.el.querySelectorAll('.progress-fill-reserved');
-    assert.equal(fillBarsOn[0].style.getPropertyValue('--fill-w'), '3.1%');
+    assert.equal(fillBarsOn[0].style.getPropertyValue('--fill-w'), '95.9%');
     assert.equal(rsvBarsOn[0].style.getPropertyValue('--reserved-w'), '1%');
     assert.equal(rsvBarsOn[0].classList.contains('is-active'), true);
     assert.equal(rsvBarsOn[0].classList.contains('has-sep'), true);
-    assert.equal(fillBarsOn[1].style.getPropertyValue('--fill-w'), '15.7%');
+    assert.equal(fillBarsOn[1].style.getPropertyValue('--fill-w'), '83.8%');
     assert.equal(rsvBarsOn[1].style.getPropertyValue('--reserved-w'), '0.5%');
     assert.equal(rsvBarsOn[1].classList.contains('has-sep'), true);
 
@@ -1012,7 +1012,7 @@ test('QuotaPoolsWidget & SettingsOtherTab render experimental reservation bar/te
     othTab.refs.renderSettings({ experimentalQuotaReservation: false }, []);
     const badge = othTab.el.querySelector('.settings-experimental-badge');
     assert.ok(badge, 'experimental badge rendered');
-    assert.equal(badge.textContent, '试验性');
+    assert.equal(badge.textContent, 'Experimental');
 
     const toggleBtns = othTab.refs.quotaReserveToggle.el.querySelectorAll('.seg-btn');
     assert.equal(toggleBtns.length, 2);
@@ -1357,7 +1357,7 @@ test('QuotaPoolsWidget renders circle-? hover popover for account-isolated model
     helpBtn.dispatchEvent({ type: 'mouseenter' });
     assert.equal(popover.hidden, false);
     assert.equal(helpBtn.getAttribute('aria-expanded'), 'true');
-    assert.match(popover.textContent, /暂未采集到足够的单模型干净样本/);
+    assert.match(popover.textContent, /Not enough clean single-model samples yet/);
 
     // Populated multi-model rateEstimate for current account
     const dualData = {
@@ -1414,17 +1414,17 @@ test('QuotaPoolsWidget renders circle-? hover popover for account-isolated model
     assert.equal(rows.length, 2);
     assert.match(rows[0].textContent, /Gemini 4 Carbon/);
     assert.match(rows[0].textContent, /3x/);
-    assert.match(rows[0].textContent, /5h 满池≈ \$50/);
-    assert.match(rows[0].textContent, /周限满池≈ \$200/);
-    assert.match(rows[0].textContent, /5h 2%\/\$ · 26 样本/);
+    assert.match(rows[0].textContent, /5h full≈ \$50/);
+    assert.match(rows[0].textContent, /Weekly full≈ \$200/);
+    assert.match(rows[0].textContent, /5h 2%\/\$ · 26 samples/);
     assert.equal(rows[0].querySelector('.quota-rate-mult-badge').classList.contains('is-high'), true);
     assert.equal(rows[0].querySelector('.quota-rate-eq-grid').classList.contains('is-single'), false);
 
     assert.match(rows[1].textContent, /Gemini 4 Neon/);
     assert.match(rows[1].textContent, /1x/);
-    assert.match(rows[1].textContent, /5h 满池≈ \$150/);
-    assert.match(rows[1].textContent, /周限满池≈ \$600/);
-    assert.match(rows[1].textContent, /5h 0\.67%\/\$ · 12 样本/);
+    assert.match(rows[1].textContent, /5h full≈ \$150/);
+    assert.match(rows[1].textContent, /Weekly full≈ \$600/);
+    assert.match(rows[1].textContent, /5h 0\.67%\/\$ · 12 samples/);
     assert.equal(rows[1].querySelector('.quota-rate-mult-badge').classList.contains('is-high'), false);
 
     // Switching to another account with pool-average-only fallback refreshes popover cleanly
@@ -1458,9 +1458,9 @@ test('QuotaPoolsWidget renders circle-? hover popover for account-isolated model
     assert.equal(acctPill.textContent, 'b***b@example.com');
     const fallbackRow = popover.querySelector('.quota-rate-model-row.is-fallback');
     assert.ok(fallbackRow, 'renders pool-average fallback before per-model reaches 3 samples');
-    assert.match(fallbackRow.textContent, /池综合均值/);
-    assert.match(fallbackRow.textContent, /周限满池≈ \$200/);
-    assert.match(fallbackRow.textContent, /周限 0\.5%\/\$ · 8 样本/);
+    assert.match(fallbackRow.textContent, /Pool average/);
+    assert.match(fallbackRow.textContent, /Weekly full≈ \$200/);
+    assert.match(fallbackRow.textContent, /Weekly 0\.5%\/\$ · 8 samples/);
     assert.equal(fallbackRow.querySelector('.quota-rate-eq-grid').classList.contains('is-single'), true);
 
     // Locale switch renders English copy

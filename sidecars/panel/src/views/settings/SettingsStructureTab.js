@@ -123,7 +123,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
       const val = Number.isFinite(Number(safeCtx.avgTps)) ? Number(safeCtx.avgTps).toFixed(1) : '59.6';
       return {
         prefix: '',
-        text: isEn ? `avg ${val}` : `均 ${val}`,
+        text: `avg ${val}`,
         tone: 'info',
         pillPct: null,
       };
@@ -146,7 +146,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
         : 95;
       return {
         prefix: '',
-        text: isEn ? `cache ${pct}%` : `缓 ${pct}%`,
+        text: `cache ${pct}%`,
         tone: 'good',
         pillPct: null,
       };
@@ -160,7 +160,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
     case 'quota_auto': {
       const pct = quotaPct('quota_auto', 64);
       return {
-        prefix: isEn ? '5h ' : '余 ',
+        prefix: '5h ',
         text: `${pct}%`,
         tone: 'good',
         pillPct: pct,
@@ -178,7 +178,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
     case 'gemini_weekly': {
       const pct = quotaPct('gemini_weekly', 52);
       return {
-        prefix: isEn ? 'Gw ' : 'G周 ',
+        prefix: 'Gw ',
         text: `${pct}%`,
         tone: 'good',
         pillPct: pct,
@@ -187,7 +187,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
     case 'argon_weekly': {
       const pct = quotaPct('argon_weekly', 42);
       return {
-        prefix: isEn ? 'Aw ' : 'A周 ',
+        prefix: 'Aw ',
         text: `${pct}%`,
         tone: 'good',
         pillPct: pct,
@@ -205,7 +205,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
     case 'claude_weekly': {
       const pct = quotaPct('claude_weekly', 59);
       return {
-        prefix: isEn ? 'Cw ' : 'C周 ',
+        prefix: 'Cw ',
         text: `${pct}%`,
         tone: 'good',
         pillPct: pct,
@@ -217,7 +217,7 @@ function formatCliPreviewSlot(slotKey, slotCtx, isEn) {
         ? Math.round(Number(safeCtx.usedPct))
         : 56;
       return {
-        prefix: isEn ? 'Ctx ' : '上下文 ',
+        prefix: 'Ctx ',
         text: `${pct}%`,
         tone: 'accent',
         pillPct: pct,

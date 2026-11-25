@@ -20,14 +20,14 @@ import { buildXlsxWorkbookBytes } from './xlsxBuilder.js';
 const PLAIN_SIGNED_NUMBER_RE = /^[+-]?\d+(\.\d+)?$/;
 
 const RANGE_LABELS_ZH = Object.freeze({
-  today: '今日',
-  '24h': '近24小时',
-  '7d': '近7天',
-  '14d': '近14天',
-  '30d': '近30天',
-  all: '全部时间',
-  cycle: '当前周期',
-  custom: '自定义区间',
+  today: 'Today',
+  '24h': 'Last 24 Hours',
+  '7d': 'Last 7 Days',
+  '14d': 'Last 14 Days',
+  '30d': 'Last 30 Days',
+  all: 'All Time',
+  cycle: 'Current Cycle',
+  custom: 'Custom Range',
 });
 
 const RANGE_LABELS_EN = Object.freeze({
@@ -42,16 +42,16 @@ const RANGE_LABELS_EN = Object.freeze({
 });
 
 const ANOMALY_LABELS_ZH = Object.freeze({
-  timeout: '流空闲 / 连接超时',
-  rate_limit: '429 限流 / 配额耗尽',
-  capacity: '503 上游算力不足',
-  disconnect: '连接中断 / 断流',
-  upstream: '上游 5xx 内部错误',
-  model_output: '模型输出 / 工具参数无效',
-  safety: '内容安全过滤',
-  auth_or_model: '请求受限 / 模型不可用',
-  error: '调用异常',
-  canceled: '用户取消',
+  timeout: 'Stream Idle / Connect Timeout',
+  rate_limit: '429 Rate Limit / Quota Reached',
+  capacity: '503 No Capacity Available',
+  disconnect: 'Connection Reset / Stream Interrupted',
+  upstream: 'Upstream 5xx Internal Error',
+  model_output: 'Invalid Model Output / Tool Call',
+  safety: 'Content Safety Filter',
+  auth_or_model: 'Request / Model Rejected',
+  error: 'Call Error',
+  canceled: 'Canceled by User',
 });
 
 const ANOMALY_LABELS_EN = Object.freeze({
@@ -67,11 +67,8 @@ const ANOMALY_LABELS_EN = Object.freeze({
   canceled: 'Canceled by User',
 });
 
-function resolveExportEnglish(locale) {
-  if (typeof locale === 'string' && locale.trim()) {
-    return locale.trim().toLowerCase().startsWith('en');
-  }
-  return isEnglishLocale();
+function resolveExportEnglish() {
+  return true;
 }
 
 function formatExportDateTime(ms, includeSeconds = true) {
@@ -97,7 +94,7 @@ function resolveLocalizedRangeLabel(range, en) {
   if (en) {
     return RANGE_LABELS_EN[key] || r.label || key || 'All Time';
   }
-  return r.label || RANGE_LABELS_ZH[key] || key || '全部时间';
+  return r.label || RANGE_LABELS_ZH[key] || key || 'All Time';
 }
 
 function resolveRangeSpanNote(range) {
@@ -145,13 +142,13 @@ function formatStepAnomaliesText(st, en, explicitLocale) {
   return formatLocalizedAnomalyKind(anom?.primaryKind || 'error', en, explicitLocale);
 }
 
-function formatStepAgentLabel(st, en) {
+function formatStepAgentLabel(st) {
   const explicit = String(st?.agentLabel || st?.agentBadge || '').trim();
   if (explicit) return explicit;
   if (st?.isSubagent) {
-    return st?.agentId ? String(st.agentId) : en ? 'Subagent' : '子代理';
+    return st?.agentId ? String(st.agentId) : 'Subagent';
   }
-  return en ? 'Main' : '主会话';
+  return 'Main';
 }
 
 function formatTrendWindowLabel(slot, isHourly) {
@@ -362,17 +359,11 @@ export function sanitizeExportFilename(baseName, ext = 'xlsx', nowMs = Date.now(
  */
 export function buildConsumptionExportBaseName(
   consumption,
-  fallbackRange = 'all',
-  { locale } = {}
+  fallbackRange = 'all'
 ) {
-  const en = resolveExportEnglish(locale);
   const range = consumption?.selectedRange || { key: fallbackRange };
   const rKey = range.key || fallbackRange || 'all';
-  if (en) {
-    return `usage-${rKey}`;
-  }
-  const zhLabel = resolveLocalizedRangeLabel(range, false);
-  return `用量统计-${zhLabel}`;
+  return `usage-${rKey}`;
 }
 
 /**
@@ -383,13 +374,9 @@ export function buildConsumptionExportBaseName(
  * @param {{ locale?: string }} [opts]
  * @returns {string}
  */
-export function buildStepsExportBaseName(title = '', cascadeId = '', { locale } = {}) {
-  const en = resolveExportEnglish(locale);
+export function buildStepsExportBaseName(title = '', cascadeId = '') {
   const name = String(title || cascadeId || '').trim();
-  if (en) {
-    return `steps-${name || 'session'}`;
-  }
-  return `调用明细-${name || '当前会话'}`;
+  return `steps-${name || 'session'}`;
 }
 
 function escapeMdCell(value) {
@@ -546,13 +533,7 @@ export function buildStepsXlsx(
         : null;
     const costVal =
       st.costUsd != null && Number.isFinite(Number(st.costUsd)) ? Number(st.costUsd) : null;
-    const typeLabel = st.isCompactionStep
-      ? en
-        ? 'Compaction'
-        : '自动压缩'
-      : en
-        ? 'Normal'
-        : '常规';
+    const typeLabel = st.isCompactionStep ? 'Compaction' : 'Normal';
     const tone = anomCount > 0 ? 'danger' : st.isCompactionStep ? 'info' : '';
 
     stepRows.push({
@@ -588,12 +569,8 @@ export function buildStepsXlsx(
         '',
         '',
         '',
-        en ? `Total (${list.length} steps)` : `合计（共 ${list.length} 步）`,
-        agg.compactionCount > 0
-          ? en
-            ? `${agg.compactionCount} compact`
-            : `含 ${agg.compactionCount} 次压缩`
-          : '',
+        `Total (${list.length} steps)`,
+        agg.compactionCount > 0 ? `${agg.compactionCount} compact` : '',
         agg.tpsSecSum > 0 ? +(agg.tpsTokSum / agg.tpsSecSum).toFixed(1) : null,
         agg.ttftCnt > 0 ? +(agg.ttftSum / agg.ttftCnt).toFixed(2) : null,
         agg.sumDuration > 0 ? +agg.sumDuration.toFixed(2) : null,
@@ -605,11 +582,7 @@ export function buildStepsXlsx(
         agg.maxContext,
         overallCacheRatio,
         agg.sumCost,
-        agg.anomTotal > 0
-          ? en
-            ? `${agg.anomTotal} events (${agg.anomSteps} steps)`
-            : `共 ${agg.anomTotal} 次（${agg.anomSteps} 步）`
-          : '',
+        agg.anomTotal > 0 ? `${agg.anomTotal} events (${agg.anomSteps} steps)` : '',
         '',
       ],
     });
@@ -617,26 +590,26 @@ export function buildStepsXlsx(
 
   const sheets = [
     {
-      name: en ? 'Steps' : '步骤明细',
+      name: 'Steps',
       columns: [
-        { header: en ? 'Step' : '步骤', type: 'int', minWidth: 9 },
-        { header: en ? 'Time' : '时间', type: 'center', minWidth: 21 },
-        { header: en ? 'Agent' : '执行体', type: 'center', minWidth: 11 },
-        { header: en ? 'Model' : '模型', type: 'text', minWidth: 18, maxWidth: 38 },
-        { header: en ? 'Type' : '类型', type: 'center', minWidth: 11 },
-        { header: en ? 'Speed (tok/s)' : '速率 (tok/s)', type: 'dec1', minWidth: 14 },
-        { header: en ? 'TTFT (s)' : '首字延迟 (s)', type: 'dec2', minWidth: 13 },
-        { header: en ? 'Duration (s)' : '总耗时 (s)', type: 'dec2', minWidth: 13 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 13 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 14 },
-        { header: en ? 'Thinking' : '思考', type: 'int', minWidth: 11 },
-        { header: en ? 'Reply' : '回复', type: 'int', minWidth: 11 },
-        { header: en ? 'Output' : '总输出', type: 'int', minWidth: 12 },
-        { header: en ? 'Context' : '上下文', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Cost (USD)' : '费用 (USD)', type: 'usd4', minWidth: 14 },
-        { header: en ? 'Anomalies' : '异常诊断', type: 'text', minWidth: 14, maxWidth: 38 },
-        { header: en ? 'Turn Prompt' : '用户指令', type: 'text', minWidth: 24, maxWidth: 52 },
+        { header: 'Step', type: 'int', minWidth: 9 },
+        { header: 'Time', type: 'center', minWidth: 21 },
+        { header: 'Agent', type: 'center', minWidth: 11 },
+        { header: 'Model', type: 'text', minWidth: 18, maxWidth: 38 },
+        { header: 'Type', type: 'center', minWidth: 11 },
+        { header: 'Speed (tok/s)', type: 'dec1', minWidth: 14 },
+        { header: 'TTFT (s)', type: 'dec2', minWidth: 13 },
+        { header: 'Duration (s)', type: 'dec2', minWidth: 13 },
+        { header: 'Fresh Input', type: 'int', minWidth: 13 },
+        { header: 'Cache Read', type: 'int', minWidth: 14 },
+        { header: 'Thinking', type: 'int', minWidth: 11 },
+        { header: 'Reply', type: 'int', minWidth: 11 },
+        { header: 'Output', type: 'int', minWidth: 12 },
+        { header: 'Context', type: 'int', minWidth: 14 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Cost (USD)', type: 'usd4', minWidth: 14 },
+        { header: 'Anomalies', type: 'text', minWidth: 14, maxWidth: 38 },
+        { header: 'Turn Prompt', type: 'text', minWidth: 24, maxWidth: 52 },
       ],
       rows: stepRows,
     },
@@ -661,7 +634,7 @@ export function buildStepsXlsx(
     modelRows.push({
       tone: 'summary',
       values: [
-        en ? 'Total' : '合计',
+        'Total',
         list.length,
         agg.sumIn,
         agg.sumCache,
@@ -674,18 +647,18 @@ export function buildStepsXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Model Summary' : '模型汇总',
+      name: 'Model Summary',
       columns: [
-        { header: en ? 'Model' : '模型', type: 'text', minWidth: 20, maxWidth: 42 },
-        { header: en ? 'Steps' : '步数', type: 'int', minWidth: 10 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '总输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Avg Speed (tok/s)' : '平均速率 (tok/s)', type: 'dec1', minWidth: 16 },
-        { header: en ? 'Avg TTFT (s)' : '平均首字 (s)', type: 'dec2', minWidth: 14 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd4', minWidth: 16 },
+        { header: 'Model', type: 'text', minWidth: 20, maxWidth: 42 },
+        { header: 'Steps', type: 'int', minWidth: 10 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Avg Speed (tok/s)', type: 'dec1', minWidth: 16 },
+        { header: 'Avg TTFT (s)', type: 'dec2', minWidth: 14 },
+        { header: 'Est. Cost (USD)', type: 'usd4', minWidth: 16 },
       ],
       rows: modelRows,
     });
@@ -715,40 +688,24 @@ export function buildStepsMarkdownReport(
   const avgTps =
     agg.tpsSecSum > 0 ? formatSpeedMetric(agg.tpsTokSum / agg.tpsSecSum, ' tok/s') : '—';
   const avgTtft = agg.ttftCnt > 0 ? formatMetric(agg.ttftSum / agg.ttftCnt, 's') : '—';
-  const heading = title
-    ? `# ${title}`
-    : en
-      ? '# Session Telemetry Report'
-      : '# 会话遥测诊断报告';
+  const heading = title ? `# ${title}` : '# Session Telemetry Report';
 
-  const lines = en
-    ? [
-        heading,
-        '',
-        ...(cascadeId ? [`- **Session ID**: \`${cascadeId}\``] : []),
-        ...(filterNote ? [`- **Scope**: ${filterNote}`] : []),
-        `- **Steps**: ${list.length}${agg.compactionCount > 0 ? ` (${agg.compactionCount} compaction)` : ''}${agg.anomTotal > 0 ? ` · **Anomalies**: ${agg.anomTotal} across ${agg.anomSteps} steps` : ''}`,
-        `- **Total Tokens**: ${formatTokensPrecise(totalTok)} (Input ${formatTokensPrecise(agg.sumIn)} / Cache ${formatTokensPrecise(agg.sumCache)} · ${cacheHitPct}% / Output ${formatTokensPrecise(agg.sumOut)})`,
-        `- **Est. Cost**: ${formatUsd(agg.sumCost, { precise: agg.sumCost > 0 && agg.sumCost < 0.1 })} · **Avg Speed**: ${avgTps} · **Avg TTFT**: ${avgTtft}`,
-      ]
-    : [
-        heading,
-        '',
-        ...(cascadeId ? [`- **会话 ID**: \`${cascadeId}\``] : []),
-        ...(filterNote ? [`- **筛选范围**: ${filterNote}`] : []),
-        `- **调用步数**: ${list.length}${agg.compactionCount > 0 ? `（含 ${agg.compactionCount} 次自动压缩）` : ''}${agg.anomTotal > 0 ? ` · **异常事件**: ${agg.anomTotal} 次（涉及 ${agg.anomSteps} 步）` : ''}`,
-        `- **总 Token**: ${formatTokensPrecise(totalTok)}（新输入 ${formatTokensPrecise(agg.sumIn)} / 缓存读取 ${formatTokensPrecise(agg.sumCache)} · ${cacheHitPct}% / 输出 ${formatTokensPrecise(agg.sumOut)}）`,
-        `- **预估费用**: ${formatUsd(agg.sumCost, { precise: agg.sumCost > 0 && agg.sumCost < 0.1 })} · **平均速率**: ${avgTps} · **平均首字**: ${avgTtft}`,
-      ];
+  const lines = [
+    heading,
+    '',
+    ...(cascadeId ? [`- **Session ID**: \`${cascadeId}\``] : []),
+    ...(filterNote ? [`- **Scope**: ${filterNote}`] : []),
+    `- **Steps**: ${list.length}${agg.compactionCount > 0 ? ` (${agg.compactionCount} compaction)` : ''}${agg.anomTotal > 0 ? ` · **Anomalies**: ${agg.anomTotal} across ${agg.anomSteps} steps` : ''}`,
+    `- **Total Tokens**: ${formatTokensPrecise(totalTok)} (Input ${formatTokensPrecise(agg.sumIn)} / Cache ${formatTokensPrecise(agg.sumCache)} · ${cacheHitPct}% / Output ${formatTokensPrecise(agg.sumOut)})`,
+    `- **Est. Cost**: ${formatUsd(agg.sumCost, { precise: agg.sumCost > 0 && agg.sumCost < 0.1 })} · **Avg Speed**: ${avgTps} · **Avg TTFT**: ${avgTtft}`,
+  ];
 
   if (agg.sortedModels.length > 0) {
     lines.push(
       '',
-      en ? '## Model Breakdown' : '## 模型分布',
+      '## Model Breakdown',
       '',
-      en
-        ? '| Model | Calls | Total Tokens | Cache Hit | Avg Speed | Est. Cost |'
-        : '| 模型 | 调用次数 | 总 Token | 缓存命中率 | 平均速率 | 预估费用 |',
+      '| Model | Calls | Total Tokens | Cache Hit | Avg Speed | Est. Cost |',
       '| --- | ---: | ---: | ---: | ---: | ---: |'
     );
     for (const m of agg.sortedModels) {
@@ -772,11 +729,9 @@ export function buildStepsMarkdownReport(
   if (topCostly.length > 0) {
     lines.push(
       '',
-      en ? '## Top Costliest Steps' : '## 高成本步骤 Top 5',
+      '## Top Costliest Steps',
       '',
-      en
-        ? '| Step | Time | Model | Speed | TTFT | Context | Cost |'
-        : '| 步骤 | 时间 | 模型 | 速率 | 首字延迟 | 上下文 | 费用 |',
+      '| Step | Time | Model | Speed | TTFT | Context | Cost |',
       '| ---: | --- | --- | ---: | ---: | ---: | ---: |'
     );
     for (const st of topCostly) {
@@ -805,8 +760,8 @@ export function buildStepsMarkdownReport(
       const summary = Array.from(anomKindTotals.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([k, v]) => `${formatLocalizedAnomalyKind(k, en, explicitLocale)} ×${v}`)
-        .join(en ? ', ' : '、');
-      lines.push('', en ? `**Anomaly Summary**: ${summary}` : `**异常汇总**: ${summary}`);
+        .join(', ');
+      lines.push('', `**Anomaly Summary**: ${summary}`);
     }
   }
 
@@ -980,85 +935,81 @@ export function buildConsumptionXlsx(
   const accSaved = Math.max(0, Number(acc.savedCostUsd || 0));
 
   const overviewRows = [
-    [en ? 'Time Range' : '统计周期', { value: rangeLabel, type: 'text_right' }, spanNote],
-    [en ? 'Exported At' : '导出时间', { value: formatExportDateTime(nowMs, true), type: 'text_right' }, ''],
+    ['Time Range', { value: rangeLabel, type: 'text_right' }, spanNote],
+    ['Exported At', { value: formatExportDateTime(nowMs, true), type: 'text_right' }, ''],
     [
-      en ? 'Total Calls' : '调用次数',
+      'Total Calls',
       { value: accCalls, type: 'int' },
-      en ? 'Completed model requests' : '有效模型请求步数',
+      'Completed model requests',
     ],
     [
-      en ? 'Total Tokens' : '总 Token',
+      'Total Tokens',
       { value: accTotal, type: 'int' },
-      en ? 'Fresh input + Cache read + Output' : '新输入 + 缓存读取 + 总输出',
+      'Fresh input + Cache read + Output',
     ],
     [
-      en ? 'Fresh Input Tokens' : '新输入 Token',
+      'Fresh Input Tokens',
       { value: accIn, type: 'int' },
-      en ? 'Uncached prompt tokens' : '未命中缓存的新增提示词',
+      'Uncached prompt tokens',
     ],
     [
-      en ? 'Cache Read Tokens' : '缓存读取 Token',
+      'Cache Read Tokens',
       { value: accCache, type: 'int' },
-      en ? 'Prompt cache hit tokens' : '命中 Prompt Cache 的复用输入',
+      'Prompt cache hit tokens',
     ],
     [
-      en ? 'Total Output Tokens' : '总输出 Token',
+      'Total Output Tokens',
       { value: accOut, type: 'int' },
       accThink > 0
-        ? en
-          ? `Thinking ${accThink.toLocaleString('en-US')} / Reply ${accReply.toLocaleString('en-US')}`
-          : `思考 ${accThink.toLocaleString('en-US')} / 回复 ${accReply.toLocaleString('en-US')}`
-        : en
-          ? 'Generated completion tokens'
-          : '模型生成输出总量',
+        ? `Thinking ${accThink.toLocaleString('en-US')} / Reply ${accReply.toLocaleString('en-US')}`
+        : 'Generated completion tokens',
     ],
   ];
 
   if (accThink > 0 || accReply > 0) {
     overviewRows.push(
       [
-        en ? 'Thinking Tokens' : '思考 Token',
+        'Thinking Tokens',
         { value: accThink, type: 'int' },
-        en ? 'Reasoning output tokens' : '内部推理过程消耗',
+        'Reasoning output tokens',
       ],
       [
-        en ? 'Reply Tokens' : '回复 Token',
+        'Reply Tokens',
         { value: accReply, type: 'int' },
-        en ? 'Visible response tokens' : '正文可见回复消耗',
+        'Visible response tokens',
       ]
     );
   }
 
   overviewRows.push(
     [
-      en ? 'Cache Hit Rate' : '缓存命中率',
+      'Cache Hit Rate',
       { value: accCacheRatio, type: 'pct' },
-      en ? 'Cache read / (Fresh input + Cache read)' : '缓存读取 / (新输入 + 缓存读取)',
+      'Cache read / (Fresh input + Cache read)',
     ],
     [
-      en ? 'Cache Saved (USD)' : '缓存节省 (USD)',
+      'Cache Saved (USD)',
       { value: accSaved, type: 'usd2' },
-      en ? 'Estimated savings from prompt caching' : '相比全量未缓存输入估算节省的费用',
+      'Estimated savings from prompt caching',
     ],
     {
       tone: 'summary',
       values: [
-        en ? 'Est. Cost (USD)' : '预估费用 (USD)',
+        'Est. Cost (USD)',
         { value: accCost, type: 'usd2' },
-        en ? 'Estimated from official model list pricing' : '按模型官方阶梯定价汇总估算',
+        'Estimated from official model list pricing',
       ],
     }
   );
 
   const sheets = [
     {
-      name: en ? 'Overview' : '用量总览',
+      name: 'Overview',
       autoFilter: false,
       columns: [
-        { header: en ? 'Metric' : '指标项', type: 'text', minWidth: 20 },
-        { header: en ? 'Value' : '数值', type: 'text_right', align: 'right', minWidth: 22 },
-        { header: en ? 'Notes' : '说明', type: 'text', minWidth: 32, maxWidth: 56 },
+        { header: 'Metric', type: 'text', minWidth: 20 },
+        { header: 'Value', type: 'text_right', align: 'right', minWidth: 22 },
+        { header: 'Notes', type: 'text', minWidth: 32, maxWidth: 56 },
       ],
       rows: overviewRows,
     },
@@ -1123,7 +1074,7 @@ export function buildConsumptionXlsx(
       tone: 'summary',
       values: [
         '',
-        en ? 'Total' : '合计',
+        'Total',
         mCalls,
         mIn,
         mCache,
@@ -1135,18 +1086,18 @@ export function buildConsumptionXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Models' : '模型排行',
+      name: 'Models',
       columns: [
-        { header: en ? 'Rank' : '排名', type: 'center', minWidth: 8 },
-        { header: en ? 'Model' : '模型', type: 'text', minWidth: 20, maxWidth: 42 },
-        { header: en ? 'Calls' : '调用次数', type: 'int', minWidth: 11 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Avg Speed (tok/s)' : '平均速率 (tok/s)', type: 'dec1', minWidth: 17 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd2', minWidth: 16 },
+        { header: 'Rank', type: 'center', minWidth: 8 },
+        { header: 'Model', type: 'text', minWidth: 20, maxWidth: 42 },
+        { header: 'Calls', type: 'int', minWidth: 11 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Avg Speed (tok/s)', type: 'dec1', minWidth: 17 },
+        { header: 'Est. Cost (USD)', type: 'usd2', minWidth: 16 },
       ],
       rows: modelRows,
     });
@@ -1181,7 +1132,7 @@ export function buildConsumptionXlsx(
       wCost += cost;
       return [
         idx + 1,
-        w.label || w.workspacePath || (en ? 'Unbound' : '未绑定工作区'),
+        w.label || w.workspacePath || 'Unbound',
         w.workspacePath || '',
         sess,
         calls,
@@ -1197,7 +1148,7 @@ export function buildConsumptionXlsx(
       tone: 'summary',
       values: [
         '',
-        en ? 'Total' : '合计',
+        'Total',
         '',
         wSess,
         wCalls,
@@ -1210,19 +1161,19 @@ export function buildConsumptionXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Projects' : '项目排行',
+      name: 'Projects',
       columns: [
-        { header: en ? 'Rank' : '排名', type: 'center', minWidth: 8 },
-        { header: en ? 'Project' : '项目名称', type: 'text', minWidth: 18, maxWidth: 36 },
-        { header: en ? 'Workspace Path' : '工作区路径', type: 'text', minWidth: 22, maxWidth: 52 },
-        { header: en ? 'Sessions' : '会话数', type: 'int', minWidth: 10 },
-        { header: en ? 'Calls' : '调用次数', type: 'int', minWidth: 11 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd2', minWidth: 16 },
+        { header: 'Rank', type: 'center', minWidth: 8 },
+        { header: 'Project', type: 'text', minWidth: 18, maxWidth: 36 },
+        { header: 'Workspace Path', type: 'text', minWidth: 22, maxWidth: 52 },
+        { header: 'Sessions', type: 'int', minWidth: 10 },
+        { header: 'Calls', type: 'int', minWidth: 11 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Est. Cost (USD)', type: 'usd2', minWidth: 16 },
       ],
       rows: wsRows,
     });
@@ -1269,7 +1220,7 @@ export function buildConsumptionXlsx(
       tone: 'summary',
       values: [
         '',
-        en ? 'Total' : '合计',
+        'Total',
         '',
         sCalls,
         sIn,
@@ -1281,18 +1232,18 @@ export function buildConsumptionXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Sessions' : '会话排行',
+      name: 'Sessions',
       columns: [
-        { header: en ? 'Rank' : '排名', type: 'center', minWidth: 8 },
-        { header: en ? 'Session Title' : '会话标题', type: 'text', minWidth: 24, maxWidth: 48 },
-        { header: en ? 'Client Source' : '客户端来源', type: 'text', minWidth: 16 },
-        { header: en ? 'Calls' : '调用次数', type: 'int', minWidth: 11 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd2', minWidth: 16 },
+        { header: 'Rank', type: 'center', minWidth: 8 },
+        { header: 'Session Title', type: 'text', minWidth: 24, maxWidth: 48 },
+        { header: 'Client Source', type: 'text', minWidth: 16 },
+        { header: 'Calls', type: 'int', minWidth: 11 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Est. Cost (USD)', type: 'usd2', minWidth: 16 },
       ],
       rows: sessRows,
     });
@@ -1321,13 +1272,7 @@ export function buildConsumptionXlsx(
       tOut += outTok;
       tTot += totTok;
       tCost += cost;
-      const granLabel = isHourly
-        ? en
-          ? 'Hourly'
-          : '按小时'
-        : en
-          ? 'Daily'
-          : '按天';
+      const granLabel = isHourly ? 'Hourly' : 'Daily';
       return [
         formatTrendWindowLabel(slot, isHourly),
         granLabel,
@@ -1342,7 +1287,7 @@ export function buildConsumptionXlsx(
     trendRows.push({
       tone: 'summary',
       values: [
-        en ? 'Total' : '合计',
+        'Total',
         '',
         tCalls,
         tIn,
@@ -1353,16 +1298,16 @@ export function buildConsumptionXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Trend' : '时间趋势',
+      name: 'Trend',
       columns: [
-        { header: en ? 'Time Window' : '时间段', type: 'text', minWidth: 19 },
-        { header: en ? 'Granularity' : '粒度', type: 'center', minWidth: 11 },
-        { header: en ? 'Calls' : '调用次数', type: 'int', minWidth: 11 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd2', minWidth: 16 },
+        { header: 'Time Window', type: 'text', minWidth: 19 },
+        { header: 'Granularity', type: 'center', minWidth: 11 },
+        { header: 'Calls', type: 'int', minWidth: 11 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Est. Cost (USD)', type: 'usd2', minWidth: 16 },
       ],
       rows: trendRows,
     });
@@ -1406,7 +1351,7 @@ export function buildConsumptionXlsx(
     srcRows.push({
       tone: 'summary',
       values: [
-        en ? 'Total' : '合计',
+        'Total',
         srcCalls,
         srcIn,
         srcCache,
@@ -1417,16 +1362,16 @@ export function buildConsumptionXlsx(
       ],
     });
     sheets.push({
-      name: en ? 'Client Sources' : '客户端来源',
+      name: 'Client Sources',
       columns: [
-        { header: en ? 'Client Source' : '客户端来源', type: 'text', minWidth: 18 },
-        { header: en ? 'Calls' : '调用次数', type: 'int', minWidth: 11 },
-        { header: en ? 'Fresh Input' : '新输入', type: 'int', minWidth: 14 },
-        { header: en ? 'Cache Read' : '缓存读取', type: 'int', minWidth: 15 },
-        { header: en ? 'Output' : '输出', type: 'int', minWidth: 13 },
-        { header: en ? 'Total Tokens' : '总 Token', type: 'int', minWidth: 15 },
-        { header: en ? 'Cache Hit %' : '缓存命中率', type: 'pct', minWidth: 13 },
-        { header: en ? 'Est. Cost (USD)' : '预估费用 (USD)', type: 'usd2', minWidth: 16 },
+        { header: 'Client Source', type: 'text', minWidth: 18 },
+        { header: 'Calls', type: 'int', minWidth: 11 },
+        { header: 'Fresh Input', type: 'int', minWidth: 14 },
+        { header: 'Cache Read', type: 'int', minWidth: 15 },
+        { header: 'Output', type: 'int', minWidth: 13 },
+        { header: 'Total Tokens', type: 'int', minWidth: 15 },
+        { header: 'Cache Hit %', type: 'pct', minWidth: 13 },
+        { header: 'Est. Cost (USD)', type: 'usd2', minWidth: 16 },
       ],
       rows: srcRows,
     });
@@ -1459,30 +1404,20 @@ export function buildConsumptionMarkdownReport(
   const sessions = Array.isArray(cons.topConversations) ? cons.topConversations : [];
 
   const rangeLabel = resolveLocalizedRangeLabel(range, en);
-  const lines = en
-    ? [
-        `# Usage Report · ${rangeLabel}`,
-        '',
-        `- **Total Tokens**: ${formatTokensPrecise(acc.totalTokens || 0)} (${Number(acc.calls || 0)} calls)`,
-        `- **Est. Cost**: ${formatUsd(acc.costUsd || 0)} (Cache Saved ${formatUsd(acc.savedCostUsd || 0)})`,
-        `- **Cache Hit Rate**: ${formatPctNumber(acc.cacheHitPct || 0, { withSymbol: true })} (Input ${formatTokensPrecise(acc.inputTokens || 0)} / Cache ${formatTokensPrecise(acc.cacheReadTokens || 0)} / Output ${formatTokensPrecise(acc.outputTokens || 0)})`,
-      ]
-    : [
-        `# 用量统计报告 · ${rangeLabel}`,
-        '',
-        `- **总 Token**: ${formatTokensPrecise(acc.totalTokens || 0)}（共 ${Number(acc.calls || 0)} 次调用）`,
-        `- **预估费用**: ${formatUsd(acc.costUsd || 0)}（缓存节省 ${formatUsd(acc.savedCostUsd || 0)}）`,
-        `- **缓存命中率**: ${formatPctNumber(acc.cacheHitPct || 0, { withSymbol: true })}（新输入 ${formatTokensPrecise(acc.inputTokens || 0)} / 缓存读取 ${formatTokensPrecise(acc.cacheReadTokens || 0)} / 输出 ${formatTokensPrecise(acc.outputTokens || 0)}）`,
-      ];
+  const lines = [
+    `# Usage Report · ${rangeLabel}`,
+    '',
+    `- **Total Tokens**: ${formatTokensPrecise(acc.totalTokens || 0)} (${Number(acc.calls || 0)} calls)`,
+    `- **Est. Cost**: ${formatUsd(acc.costUsd || 0)} (Cache Saved ${formatUsd(acc.savedCostUsd || 0)})`,
+    `- **Cache Hit Rate**: ${formatPctNumber(acc.cacheHitPct || 0, { withSymbol: true })} (Input ${formatTokensPrecise(acc.inputTokens || 0)} / Cache ${formatTokensPrecise(acc.cacheReadTokens || 0)} / Output ${formatTokensPrecise(acc.outputTokens || 0)})`,
+  ];
 
   if (models.length > 0) {
     lines.push(
       '',
-      en ? '## Models' : '## 模型排行',
+      '## Models',
       '',
-      en
-        ? '| Model | Calls | Tokens | Cache Hit | Avg Speed | Est. Cost |'
-        : '| 模型 | 调用次数 | 总 Token | 缓存命中率 | 平均速率 | 预估费用 |',
+      '| Model | Calls | Tokens | Cache Hit | Avg Speed | Est. Cost |',
       '| --- | ---: | ---: | ---: | ---: | ---: |'
     );
     for (const m of models) {
@@ -1495,16 +1430,14 @@ export function buildConsumptionMarkdownReport(
   if (workspaces.length > 0) {
     lines.push(
       '',
-      en ? '## Projects' : '## 项目排行',
+      '## Projects',
       '',
-      en
-        ? '| Project | Sessions | Calls | Tokens | Cache Hit | Est. Cost |'
-        : '| 项目 | 会话数 | 调用次数 | 总 Token | 缓存命中率 | 预估费用 |',
+      '| Project | Sessions | Calls | Tokens | Cache Hit | Est. Cost |',
       '| --- | ---: | ---: | ---: | ---: | ---: |'
     );
     for (const w of workspaces) {
       lines.push(
-        `| ${escapeMdCell(w.label || w.workspacePath || (en ? 'Unbound' : '未绑定工作区'))} | ${Number(w.sessionCount || 0)} | ${Number(w.calls || 0)} | ${formatTokensPrecise(w.totalTokens || 0)} | ${formatPctNumber(w.cacheHitPct || 0, { withSymbol: true })} | ${formatUsd(w.costUsd || 0)} |`
+        `| ${escapeMdCell(w.label || w.workspacePath || 'Unbound')} | ${Number(w.sessionCount || 0)} | ${Number(w.calls || 0)} | ${formatTokensPrecise(w.totalTokens || 0)} | ${formatPctNumber(w.cacheHitPct || 0, { withSymbol: true })} | ${formatUsd(w.costUsd || 0)} |`
       );
     }
   }
@@ -1512,11 +1445,9 @@ export function buildConsumptionMarkdownReport(
   if (sessions.length > 0) {
     lines.push(
       '',
-      en ? '## Top Sessions' : '## 热门会话',
+      '## Top Sessions',
       '',
-      en
-        ? '| Session | Calls | Tokens | Cache Hit | Est. Cost |'
-        : '| 会话 | 调用次数 | 总 Token | 缓存命中率 | 预估费用 |',
+      '| Session | Calls | Tokens | Cache Hit | Est. Cost |',
       '| --- | ---: | ---: | ---: | ---: |'
     );
     for (const c of sessions.slice(0, 8)) {

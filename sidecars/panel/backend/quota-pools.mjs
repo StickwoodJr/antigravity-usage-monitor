@@ -121,7 +121,7 @@ function classifyQuotaPoolIdentity({
     return {
       poolKey: 'Carbon',
       poolLabel: 'Gemini 4 Carbon',
-      poolName: 'Gemini 4 Carbon 模型池',
+      poolName: 'Gemini 4 Carbon Pool',
     };
   }
   if (
@@ -135,7 +135,7 @@ function classifyQuotaPoolIdentity({
     return {
       poolKey: 'Argon',
       poolLabel: 'Gemini 4 Argon',
-      poolName: 'Gemini 4 Argon 模型池',
+      poolName: 'Gemini 4 Argon Pool',
     };
   }
   if (
@@ -145,21 +145,21 @@ function classifyQuotaPoolIdentity({
     return {
       poolKey: 'Claude & GPT',
       poolLabel: 'Claude & GPT',
-      poolName: 'Claude & GPT 模型池',
+      poolName: 'Claude & GPT Pool',
     };
   }
   if (/gemini/i.test(`${primaryText} ${gDesc}`)) {
     return {
       poolKey: 'Gemini',
       poolLabel: 'Gemini',
-      poolName: 'Gemini 模型池',
+      poolName: 'Gemini Pool',
     };
   }
   const cleanLabel = (gName || bId || 'Other').trim();
   return {
     poolKey: cleanLabel,
     poolLabel: cleanLabel,
-    poolName: `${cleanLabel} 模型池`,
+    poolName: `${cleanLabel} Pool`,
   };
 }
 
@@ -302,7 +302,7 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
       const argonBuilder = ensurePoolBuilder({
         poolKey: 'Argon',
         poolLabel: 'Gemini 4 Argon',
-        poolName: 'Gemini 4 Argon 模型池',
+        poolName: 'Gemini 4 Argon Pool',
       });
       argonBuilder.bucketWeekly = {
         ...sampleArgonCfgQuota,
@@ -334,7 +334,7 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
       const carbonBuilder = ensurePoolBuilder({
         poolKey: 'Carbon',
         poolLabel: 'Gemini 4 Carbon',
-        poolName: 'Gemini 4 Carbon 模型池',
+        poolName: 'Gemini 4 Carbon Pool',
       });
       carbonBuilder.bucketWeekly = {
         ...sampleCarbonCfgQuota,
@@ -357,12 +357,12 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
     const isGemini = info.family === 'Gemini';
     const targetIdent =
       isCarbon && hasDedicatedCarbonPool
-        ? { poolKey: 'Carbon', poolLabel: 'Gemini 4 Carbon', poolName: 'Gemini 4 Carbon 模型池' }
+        ? { poolKey: 'Carbon', poolLabel: 'Gemini 4 Carbon', poolName: 'Gemini 4 Carbon Pool' }
         : isArgon && hasDedicatedArgonPool
-          ? { poolKey: 'Argon', poolLabel: 'Gemini 4 Argon', poolName: 'Gemini 4 Argon 模型池' }
+          ? { poolKey: 'Argon', poolLabel: 'Gemini 4 Argon', poolName: 'Gemini 4 Argon Pool' }
           : isGemini
-            ? { poolKey: 'Gemini', poolLabel: 'Gemini', poolName: 'Gemini 模型池' }
-            : { poolKey: 'Claude & GPT', poolLabel: 'Claude & GPT', poolName: 'Claude & GPT 模型池' };
+            ? { poolKey: 'Gemini', poolLabel: 'Gemini', poolName: 'Gemini Pool' }
+            : { poolKey: 'Claude & GPT', poolLabel: 'Claude & GPT', poolName: 'Claude & GPT Pool' };
 
     const builder = ensurePoolBuilder(targetIdent);
     if (cfg?.label && !builder.models.includes(cfg.label)) {
@@ -399,11 +399,11 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
   }
 
   // 确保基础的 Gemini 与 Claude & GPT 模型池始终存在
-  ensurePoolBuilder({ poolKey: 'Gemini', poolLabel: 'Gemini', poolName: 'Gemini 模型池' });
+  ensurePoolBuilder({ poolKey: 'Gemini', poolLabel: 'Gemini', poolName: 'Gemini Pool' });
   ensurePoolBuilder({
     poolKey: 'Claude & GPT',
     poolLabel: 'Claude & GPT',
-    poolName: 'Claude & GPT 模型池',
+    poolName: 'Claude & GPT Pool',
   });
 
   const quotaPoolsMap = new Map();

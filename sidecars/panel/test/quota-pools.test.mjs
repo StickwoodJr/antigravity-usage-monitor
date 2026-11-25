@@ -85,7 +85,7 @@ test('Ultra user: Argon and Flash sharing Gemini Models remain a single Gemini p
   assert.equal(p.quotas.activePool.family, 'Gemini');
   assert.equal(p.quotas.activePool.weeklyRemainingPct, 8.7);
   assert.equal(p.quotas.weekly.poolFamily, 'Gemini');
-  assert.equal(p.quotas.weekly.title, '每周限额 (Gemini)');
+  assert.equal(p.quotas.weekly.title, 'Weekly Limit (Gemini)');
 });
 
 test('Pro user Shape 1: dedicated weekly-only Argon group in RetrieveUserQuotaSummary', async () => {
@@ -174,14 +174,14 @@ test('Pro user Shape 1: dedicated weekly-only Argon group in RetrieveUserQuotaSu
   // Active Argon conversation binds to Argon pool
   assert.equal(argonPayload.quotas.activePool.family, 'Argon');
   assert.equal(argonPayload.quotas.weekly.poolFamily, 'Argon');
-  assert.equal(argonPayload.quotas.weekly.title, '每周限额 (Gemini 4 Argon)');
+  assert.equal(argonPayload.quotas.weekly.title, 'Weekly Limit (Gemini 4 Argon)');
   assert.equal(argonPayload.quotas.weekly.remainingPct, 35);
 
   // Active Flash conversation binds to Gemini pool
   const flashPayload = await h.buildTelemetryPayloadInternal('flashConv');
   assert.equal(flashPayload.quotas.activePool.family, 'Gemini');
   assert.equal(flashPayload.quotas.weekly.poolFamily, 'Gemini');
-  assert.equal(flashPayload.quotas.weekly.title, '每周限额 (Gemini)');
+  assert.equal(flashPayload.quotas.weekly.title, 'Weekly Limit (Gemini)');
   assert.equal(flashPayload.quotas.weekly.remainingPct, 90);
 });
 
@@ -799,7 +799,7 @@ test('argon_weekly capsule & CLI slot enables only when user has an Argon weekly
     34.56
   );
   assert.equal(presPro.hidden, false);
-  assert.equal(presPro.prefix, 'A周');
+  assert.equal(presPro.prefix, 'Aw');
   assert.equal(presPro.text, '42%');
 
   const presUltra = resolveCapsuleMetricPresentation(
@@ -809,18 +809,18 @@ test('argon_weekly capsule & CLI slot enables only when user has an Argon weekly
   );
   assert.equal(presUltra.hidden, true);
 
-  // CLI status line renders A周 42% for Pro and omits argon_weekly cleanly for Ultra
+  // CLI status line renders Aw 42% for Pro and omits argon_weekly cleanly for Ultra
   const cliPro = formatCliStatusLineCapsule(
     { hasTelemetry: true, stepCount: 3, tps: 50, usedPct: 30, quotas: proQuotas },
     { slots: ['tps', 'argon_weekly', 'context'], language: 'zh-CN', color: false }
   );
-  assert.match(cliPro, /A周 42%/);
+  assert.match(cliPro, /Aw 42%/);
 
   const cliUltra = formatCliStatusLineCapsule(
     { hasTelemetry: true, stepCount: 3, tps: 50, usedPct: 30, quotas: ultraQuotas },
     { slots: ['tps', 'argon_weekly', 'context'], language: 'zh-CN', color: false }
   );
-  assert.doesNotMatch(cliUltra, /A周/);
+  assert.doesNotMatch(cliUltra, /Aw/);
 });
 
 test('formatPctNumber collapses boundary 0.0 -> 0 and 100.0 -> 100 while preserving intermediate decimals', async () => {

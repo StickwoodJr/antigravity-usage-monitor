@@ -153,7 +153,7 @@ export function filterStepsBySearchAndChip(
         st.agentLabel || '',
         st.agentRole || '',
         st.agentBadge || '',
-        st.isCompactionStep ? 'compaction 压缩' : '',
+        st.isCompactionStep ? 'compaction' : '',
         anomalyKinds,
         anomalyEventsText,
         anomalyItemsText,

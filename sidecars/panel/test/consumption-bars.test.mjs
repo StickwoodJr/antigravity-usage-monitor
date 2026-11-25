@@ -463,7 +463,7 @@ test('ConsumptionView: Top Models color dot + % bar, clutter-free Client Sources
   assert.equal(popover.hasAttribute('hidden'), false);
   assert.equal(popover.querySelector('.trend-tip-time')?.textContent, 'Antigravity App');
   assert.match(popover.querySelector('.trend-tip-tokens')?.textContent || '', /80\.0k TOKEN/);
-  assert.equal((popover.textContent || '').includes('模型细分'), false);
+  assert.equal((popover.textContent || '').includes('Model Breakdown'), false);
   const popRows = popover.querySelectorAll('.cons-pop-model-row');
   assert.equal(popRows.length, 4);
   assert.equal(popRows[0].querySelector('.cons-pop-model-name')?.textContent, '4-argon');
@@ -477,13 +477,13 @@ test('ConsumptionView: Top Models color dot + % bar, clutter-free Client Sources
     .querySelectorAll('.progress-seg')
     .reduce((s, el) => s + parsePctVar(el, '--seg-w'), 0);
   assert.ok(Math.abs(popArgonBarSum - 50) < 0.1, `Expected 50% 4-seg width in source popover, got ${popArgonBarSum}`);
-  assert.equal(popRows[3].querySelector('.cons-pop-model-name')?.textContent, '其他 (3)');
+  assert.equal(popRows[3].querySelector('.cons-pop-model-name')?.textContent, 'Others (3)');
   const popChannelsEl = popover.querySelector('.cons-pop-channels');
   assert.equal(popChannelsEl?.hasAttribute('hidden'), false);
   assert.equal(popover.children[popover.children.length - 1], popChannelsEl);
   assert.deepEqual(
     popChannelsEl.querySelectorAll('.cons-pop-chan-label').map((el) => el.textContent),
-    ['输入', '缓存', '思考', '输出']
+    ['Input', 'Cache', 'Think', 'Output']
   );
 
   appBarHit.dispatchEvent({ type: 'mouseleave' });
@@ -516,7 +516,7 @@ test('ConsumptionView: Top Models color dot + % bar, clutter-free Client Sources
 
   novCol.dispatchEvent({ type: 'mouseenter' });
   assert.equal(popover.hasAttribute('hidden'), false);
-  assert.equal(popover.querySelector('.trend-tip-time')?.textContent, '2026年 11月');
+  assert.equal(popover.querySelector('.trend-tip-time')?.textContent, 'M11, 2026');
   assert.equal(popover.querySelectorAll('.cons-pop-model-row').length, 4);
   assert.equal(popover.querySelector('.cons-pop-channels')?.hasAttribute('hidden'), false);
 
@@ -529,7 +529,7 @@ test('ConsumptionView: Top Models color dot + % bar, clutter-free Client Sources
   const trendTip = view.el.querySelector('.trend-tooltip');
   assert.equal(trendTip?.hasAttribute('hidden'), false);
   assert.match(trendTip.querySelector('.trend-tip-tokens')?.textContent || '', /100\.0k TOKEN/);
-  assert.equal((trendTip.textContent || '').includes('模型细分'), false);
+  assert.equal((trendTip.textContent || '').includes('Model Breakdown'), false);
   const trendTipModelRows = trendTip.querySelectorAll('.cons-pop-model-row');
   assert.equal(trendTipModelRows.length, 4);
   assert.equal(trendTipModelRows[0].querySelector('.cons-pop-model-name')?.textContent, '4-argon');
@@ -541,7 +541,7 @@ test('ConsumptionView: Top Models color dot + % bar, clutter-free Client Sources
   );
   const trendArgonSum = trendArgonSegs.reduce((s, el) => s + parsePctVar(el, '--seg-w'), 0);
   assert.ok(Math.abs(trendArgonSum - 50) < 0.1, `Expected 50% 4-seg width in trend tooltip, got ${trendArgonSum}`);
-  assert.equal(trendTipModelRows[3].querySelector('.cons-pop-model-name')?.textContent, '其他 (3)');
+  assert.equal(trendTipModelRows[3].querySelector('.cons-pop-model-name')?.textContent, 'Others (3)');
   const trendChannelsEl = trendTip.querySelector('.cons-pop-channels');
   assert.equal(trendChannelsEl?.hasAttribute('hidden'), false);
   assert.equal(trendTip.children[trendTip.children.length - 1], trendChannelsEl);

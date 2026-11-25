@@ -136,7 +136,7 @@ function resolveTimeWindow(
           : getStartOfCurrentWeekMs(now);
       return {
         key: 'cycle',
-        label: isCustomWeeklyMode ? '本周' : '当前周期',
+        label: isCustomWeeklyMode ? 'This Week' : 'Current Cycle',
         startMs: startCycleMs,
         endMs: nowMs,
       };
@@ -149,15 +149,15 @@ function resolveTimeWindow(
           : nowMs - 5 * 3600 * 1000;
       return {
         key: '5h',
-        label: reset5hMs > nowMs ? '当前 5h 周期' : '近 5 小时',
+        label: reset5hMs > nowMs ? 'Current 5h Cycle' : 'Last 5 Hours',
         startMs: start5hMs,
         endMs: nowMs,
       };
     }
     case 'today':
-      return { key: 'today', label: '今日', startMs: getStartOfLocalDayMs(now), endMs: nowMs };
+      return { key: 'today', label: 'Today', startMs: getStartOfLocalDayMs(now), endMs: nowMs };
     case '24h':
-      return { key: '24h', label: '近 24 小时', startMs: nowMs - 24 * 3600 * 1000, endMs: nowMs };
+      return { key: '24h', label: 'Last 24 Hours', startMs: nowMs - 24 * 3600 * 1000, endMs: nowMs };
     case 'week': {
       const resetWkMs = cycleAnchors.weeklyResetMs || 0;
       const startWkMs =
@@ -166,7 +166,7 @@ function resolveTimeWindow(
           : getStartOfCurrentWeekMs(now);
       return {
         key: 'week',
-        label: resetWkMs > nowMs ? '当前周限周期' : '本周',
+        label: resetWkMs > nowMs ? 'Current Weekly Cycle' : 'This Week',
         startMs: startWkMs,
         endMs: nowMs,
       };
@@ -174,21 +174,21 @@ function resolveTimeWindow(
     case '7d':
       return {
         key: '7d',
-        label: '近 7 天',
+        label: 'Last 7 Days',
         startMs: getStartOfLocalOffsetDaysMs(nowMs, 7),
         endMs: nowMs,
       };
     case '14d':
       return {
         key: '14d',
-        label: '近 14 天',
+        label: 'Last 14 Days',
         startMs: getStartOfLocalOffsetDaysMs(nowMs, 14),
         endMs: nowMs,
       };
     case '30d':
       return {
         key: '30d',
-        label: '近 30 天',
+        label: 'Last 30 Days',
         startMs: getStartOfLocalOffsetDaysMs(nowMs, 30),
         endMs: nowMs,
       };
@@ -197,14 +197,14 @@ function resolveTimeWindow(
       const e = Number(customEndMs) > 0 ? Number(customEndMs) : nowMs;
       return {
         key: 'custom',
-        label: '自定义时段',
+        label: 'Custom Range',
         startMs: Math.min(s, e),
         endMs: Math.max(s, e),
       };
     }
     case 'all':
     default:
-      return { key: 'all', label: '全部时间', startMs: 0, endMs: Infinity };
+      return { key: 'all', label: 'All Time', startMs: 0, endMs: Infinity };
   }
 }
 
@@ -859,7 +859,7 @@ function buildUsageTrendSeries(
   );
   const { start: trendStartMs, end: trendEndMs, hourly: useHourly } = trend;
   const pad2 = (n) => String(n).padStart(2, '0');
-  const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const trendSeries = [];
   if (useHourly) {
@@ -896,7 +896,7 @@ function buildUsageTrendSeries(
       const endHh = `${pad2(ed.getHours())}:00`;
       const dateStr = `${sd.getMonth() + 1}/${pad2(sd.getDate())}`;
       const axisLabel = isSameDay ? hh : `${dateStr} ${hh}`;
-      const fullLabel = `${sd.getMonth() + 1}月${sd.getDate()}日 ${hh} - ${endHh}`;
+      const fullLabel = `${sd.getMonth() + 1}/${sd.getDate()} ${hh} - ${endHh}`;
       trendSeries.push({
         index: idx,
         startMs: sMs,
@@ -948,8 +948,8 @@ function buildUsageTrendSeries(
 
       const sd = new Date(sMs);
       const axisLabel = `${sd.getMonth() + 1}/${pad2(sd.getDate())}`;
-      const datePrefix = showFullYear ? `${sd.getFullYear()}年` : '';
-      const fullLabel = `${datePrefix}${sd.getMonth() + 1}月${sd.getDate()}日 (${WEEKDAY_NAMES[sd.getDay()]})`;
+      const datePrefix = showFullYear ? `${sd.getFullYear()}/` : '';
+      const fullLabel = `${datePrefix}${sd.getMonth() + 1}/${sd.getDate()} (${WEEKDAY_NAMES[sd.getDay()]})`;
 
       trendSeries.push({
         index: i,
@@ -1402,7 +1402,7 @@ export function aggregateMultiWindowUsage({
   const nextYearStartMs = monthBoundsMs[12];
   const monthlySeries = Array.from({ length: 12 }, (_, idx) => ({
     month: idx + 1,
-    label: `${idx + 1}月`,
+    label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][idx],
     calls: 0,
     inputTokens: 0,
     cacheReadTokens: 0,

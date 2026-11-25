@@ -1036,7 +1036,7 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
         : [];
     const hasMedia = mediaArr.length > 0;
     const cleanText = cleaned.length > 180 ? `${cleaned.slice(0, 179)}…` : cleaned;
-    const legacyRaw = !cleaned ? (hasMedia ? '[图片/附件提问]' : '') : hasMedia ? `${cleaned} [附图]` : cleaned;
+    const legacyRaw = !cleaned ? (hasMedia ? '[Image/Attachment Prompt]' : '') : hasMedia ? `${cleaned} [Attachment]` : cleaned;
     const legacyPrompt = legacyRaw.length > 180 ? `${legacyRaw.slice(0, 179)}…` : legacyRaw;
     return { cleanText, legacyPrompt, hasMedia };
   };
@@ -2161,7 +2161,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'run_command',
       isAskUser: false,
-      label: '执行命令',
+      label: 'Run Command',
       detail,
     };
   }
@@ -2188,7 +2188,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'read_file',
       isAskUser: false,
-      label: '读取文件',
+      label: 'Read File',
       detail: file ? `${file}${rangeSuffix}` : '',
     };
   }
@@ -2206,7 +2206,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'edit_file',
       isAskUser: false,
-      label: '修改文件',
+      label: 'Edit File',
       detail: file || '',
     };
   }
@@ -2219,7 +2219,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'write_file',
       isAskUser: false,
-      label: '写入文件',
+      label: 'Write File',
       detail: file || '',
     };
   }
@@ -2235,7 +2235,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'grep_search',
       isAskUser: false,
-      label: '搜索代码',
+      label: 'Search Code',
       detail,
     };
   }
@@ -2247,7 +2247,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'find_file',
       isAskUser: false,
-      label: '查找文件',
+      label: 'Find Files',
       detail: pattern && dir ? `${pattern} (${dir})` : pattern || dir || '',
     };
   }
@@ -2259,7 +2259,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: isUrl ? 'read_url' : 'search_web',
       isAskUser: false,
-      label: isUrl ? '读取网页' : '网页搜索',
+      label: isUrl ? 'Read Web' : 'Web Search',
       detail: cleanSingleLineSnippet(target, 52) || '',
     };
   }
@@ -2275,7 +2275,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'invoke_subagent',
       isAskUser: false,
-      label: '调用子代理',
+      label: 'Invoke Subagent',
       detail: role || '',
     };
   }
@@ -2286,7 +2286,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'send_message',
       isAskUser: false,
-      label: '通信子代理',
+      label: 'Message Subagent',
       detail: recipient ? recipient.slice(0, 8) : '',
     };
   }
@@ -2297,7 +2297,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'manage_subagents',
       isAskUser: false,
-      label: '管理子代理',
+      label: 'Manage Subagents',
       detail: subName || '',
     };
   }
@@ -2322,7 +2322,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
         toolName: nameLower,
         actionKey: 'swarm_add',
         isAskUser: false,
-        label: '派生工蜂',
+        label: 'Spawn Swarm Worker',
         detail,
       };
     }
@@ -2331,7 +2331,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
         toolName: nameLower,
         actionKey: 'swarm_title',
         isAskUser: false,
-        label: '命名蜂群',
+        label: 'Name Swarm',
         detail: cleanSingleLineSnippet(pickField(['title', 'Title']), 44) || '',
       };
     }
@@ -2340,7 +2340,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
         toolName: nameLower,
         actionKey: 'swarm_kill',
         isAskUser: false,
-        label: '终止工蜂',
+        label: 'Terminate Worker',
         detail: memberName ? `@${memberName}` : '',
       };
     }
@@ -2351,7 +2351,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
         toolName: nameLower,
         actionKey: 'swarm_model',
         isAskUser: false,
-        label: '切换工蜂模型',
+        label: 'Switch Worker Model',
         detail: nextModel ? `${target} -> ${nextModel}` : target,
       };
     }
@@ -2362,7 +2362,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
         toolName: nameLower,
         actionKey: 'swarm_channel',
         isAskUser: false,
-        label: '蜂群频道',
+        label: 'Swarm Channel',
         detail: ch ? `${op ? `${op} ` : ''}#${ch}` : op || '',
       };
     }
@@ -2370,7 +2370,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'swarm_status',
       isAskUser: false,
-      label: '巡检蜂群',
+      label: 'Inspect Swarm',
       detail: action || 'status',
     };
   }
@@ -2386,7 +2386,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'post_message',
       isAskUser: false,
-      label: '发布看板',
+      label: 'Post to Board',
       detail,
     };
   }
@@ -2419,7 +2419,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'read_board',
       isAskUser: false,
-      label: '读取看板',
+      label: 'Read Board',
       detail,
     };
   }
@@ -2435,7 +2435,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       actionKey: 'swarm_wait',
       isAskUser: false,
       isSwarmWait: true,
-      label: '看板待命',
+      label: 'Waiting on Board',
       detail,
     };
   }
@@ -2447,7 +2447,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'manage_task',
       isAskUser: false,
-      label: '后台任务',
+      label: 'Background Task',
       detail: taskId ? `${action || 'status'} (${taskId})` : action || '',
     };
   }
@@ -2459,7 +2459,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'schedule',
       isAskUser: false,
-      label: '定时任务',
+      label: 'Scheduled Task',
       detail: dur ? `${dur}s` : cron || '',
     };
   }
@@ -2476,7 +2476,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'ask_question',
       isAskUser: true,
-      label: '等待用户选择',
+      label: 'Waiting for Input',
       detail: cleanSingleLineSnippet(qText, 50) || '',
     };
   }
@@ -2488,7 +2488,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'search_marketplace',
       isAskUser: false,
-      label: '查询插件',
+      label: 'Query Plugin',
       detail: cleanSingleLineSnippet(q, 48) || '',
     };
   }
@@ -2499,7 +2499,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       toolName: nameLower,
       actionKey: 'mcp_tool',
       isAskUser: false,
-      label: '调用 MCP',
+      label: 'Call MCP',
       detail: mcpClean || '',
     };
   }
@@ -2508,7 +2508,7 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
     toolName: nameLower || 'tool',
     actionKey: 'tool_call',
     isAskUser: false,
-    label: '调用工具',
+    label: 'Call Tool',
     detail: nameLower || '',
   };
 }
@@ -2557,7 +2557,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
       actionKey: 'thinking',
       waitingApproval: false,
       detailKey: '',
-      label: '推理中',
+      label: 'Reasoning',
       detail: '',
       stepProgress: '',
       startedAtMs: startMs,
@@ -2609,7 +2609,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
         actionKey: 'compacting',
         waitingApproval: false,
         detailKey: '',
-        label: '上下文压缩',
+        label: 'Context Compaction',
         detail: '',
         stepProgress: '',
         startedAtMs: startMs,
@@ -2649,7 +2649,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
           actionKey: 'responding',
           waitingApproval: false,
           detailKey: '',
-          label: '正在输出回复',
+          label: 'Generating Reply',
           detail: snippet,
           stepProgress: '',
           startedAtMs: startMs,
@@ -2664,7 +2664,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
           actionKey: 'thinking',
           waitingApproval: false,
           detailKey: '',
-          label: '推理中',
+          label: 'Reasoning',
           detail: snippet,
           stepProgress: '',
           startedAtMs: startMs,
@@ -2677,7 +2677,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
         actionKey: 'thinking',
         waitingApproval: false,
         detailKey: '',
-        label: '推理中',
+        label: 'Reasoning',
         detail: '',
         stepProgress: '',
         startedAtMs: startMs,
@@ -2713,7 +2713,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     const waiting = isWaitingStepStatus(lastStep?.status) || info.isAskUser || Boolean(info.isSwarmWait);
     const waitingApproval = Boolean(waiting && !info.isAskUser && !info.isSwarmWait);
     const resolvedStartMs = startMs || prevStepEndMs || 0;
-    const label = waitingApproval ? `等待确认 · ${info.label}` : info.label;
+    const label = waitingApproval ? `Waiting for Approval · ${info.label}` : info.label;
 
     return {
       phase: waiting ? 'waiting' : 'tool',
@@ -2764,8 +2764,8 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
         actionKey: 'compacting',
         waitingApproval: false,
         detailKey: cpFinishMs > 0 ? 'compaction_resuming' : '',
-        label: '上下文压缩',
-        detail: cpFinishMs > 0 ? '已完成压缩，正在恢复推理' : '',
+        label: 'Context Compaction',
+        detail: cpFinishMs > 0 ? 'Compaction complete, resuming reasoning' : '',
         stepProgress: '',
         startedAtMs: cpStartMs,
         signature: cpFinishMs > 0 ? `compacting-done:${cpStepId}` : `compacting:${cpStepId}`,
@@ -2916,7 +2916,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
             actionKey: 'responding',
             waitingApproval: false,
             detailKey: '',
-            label: '正在输出回复',
+            label: 'Generating Reply',
             detail: snippet,
             stepProgress: '',
             startedAtMs: startMs,
@@ -2932,7 +2932,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
             actionKey: 'thinking',
             waitingApproval: false,
             detailKey: '',
-            label: '推理中',
+            label: 'Reasoning',
             detail: snippet,
             stepProgress: '',
             startedAtMs: startMs,
@@ -2950,7 +2950,7 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     actionKey: 'thinking',
     waitingApproval: false,
     detailKey: '',
-    label: '推理中',
+    label: 'Reasoning',
     detail: '',
     stepProgress: '',
     startedAtMs: startMs,

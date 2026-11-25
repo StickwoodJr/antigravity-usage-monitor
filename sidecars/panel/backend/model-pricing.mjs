@@ -391,7 +391,7 @@ function resolveModelCatalogEntry(
     formatGenericModelSlug(rawModelKey) ||
     formatGenericModelSlug(cleanResponseModel) ||
     cleanRawFallback ||
-    '模型未知';
+    'Unknown Model';
 
   // 先生成保留档位后缀的精确 Slug（如 "Gemini 3.8 Flash (Low)" -> "gemini-3.8-flash-low"），防止被基础族名定价覆盖
   const tieredSlug = derivedDisplay

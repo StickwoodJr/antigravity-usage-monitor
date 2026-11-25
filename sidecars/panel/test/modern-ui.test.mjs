@@ -212,19 +212,19 @@ test('applyAppearanceToRoot and SettingsGeneralTab toggle data-modern-ui + data-
     pluginUpdateMode: 'manual',
   });
 
-  assert.match(tab.el.textContent, /现代化 UI/);
-  assert.doesNotMatch(tab.el.textContent, /实验性/);
+  assert.match(tab.el.textContent, /Modern UI/);
+  assert.doesNotMatch(tab.el.textContent, /Experimental/i);
   const langSegBtns = tab.refs.languageSwitch.el.querySelectorAll('.seg-btn');
   assert.deepEqual(
     langSegBtns.map((b) => b.textContent),
-    ['跟随系统', '简体中文', 'English']
+    ['Follow System', 'Chinese (English)', 'English']
   );
   assert.equal(langSegBtns[0].classList.contains('is-active'), true);
 
   const modernBtns = tab.refs.modernUiSwitch.el.querySelectorAll('.seg-btn');
   assert.deepEqual(
     modernBtns.map((b) => b.textContent),
-    ['开启', '关闭']
+    ['On', 'Off']
   );
   assert.equal(modernBtns[1].classList.contains('is-active'), true);
 
@@ -438,9 +438,9 @@ test('SegmentedControl variable-width glider snaps cleanly on reveal and glides 
   const consView = ConsumptionView({});
   const rangeBtns = consView.el.querySelector('.cons-overview-head').querySelectorAll('.seg-btn');
   assert.equal(rangeBtns[0].getAttribute('data-seg-value'), 'cycle');
-  assert.equal(rangeBtns[0].textContent, '周期');
+  assert.equal(rangeBtns[0].textContent, 'Cycle');
   assert.equal(rangeBtns[1].getAttribute('data-seg-value'), 'today');
-  assert.equal(rangeBtns[1].textContent, '今天');
+  assert.equal(rangeBtns[1].textContent, 'Today');
   assert.equal(rangeBtns[0].classList.contains('is-active'), false);
   assert.equal(rangeBtns[1].classList.contains('is-active'), true, 'Default active range remains today');
   consView.destroy();
@@ -624,7 +624,7 @@ test('SegmentedControl variable-width glider snaps cleanly on reveal and glides 
   moreBtn.onclick(); // Expand
   assert.equal(inspectorBar.style.height, '74px');
   const collapseBtn = ctxWidget.el.querySelector('.ctx-agent-pill.is-more-toggle');
-  assert.equal(collapseBtn.textContent, '收起');
+  assert.equal(collapseBtn.textContent, 'Less');
   assert.equal(collapseBtn.classList.contains('is-expanded'), true);
   inspectorBar.ontransitionend?.({ target: inspectorBar });
   assert.equal(inspectorBar.style.height, '');
@@ -660,7 +660,7 @@ test('SegmentedControl variable-width glider snaps cleanly on reveal and glides 
   });
   const liveToggleBtn = animLive.el.querySelector('.live-sub-toggle');
   const liveScrollHost = animLive.el.querySelector('.live-sub-scroll-host');
-  assert.equal(liveToggleBtn.textContent, '蜂群 (2)');
+  assert.equal(liveToggleBtn.textContent, 'Swarm (2)');
   assert.ok(liveToggleBtn.querySelector('.live-sub-toggle-chevron'));
   assert.equal(liveToggleBtn.classList.contains('is-expanded'), false);
 

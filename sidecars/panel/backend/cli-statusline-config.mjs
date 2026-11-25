@@ -798,13 +798,13 @@ function cliBuildBarGauge(label, pct, { fillFg = SGR_FG_ACCENT, valFg = SGR_FG_B
   return `${SGR_FG_MUTED}${label} ${fillFg}${filledPart}${emptyPart ? `${SGR_FG_DIM}${emptyPart}` : ''} ${valFg}${valStr}${SGR_RESET}`;
 }
 
-function cliResolveQuotaSlotPrefix(metricKey, isEn) {
+function cliResolveQuotaSlotPrefix(metricKey) {
   if (metricKey === 'gemini_5h') return 'G5h';
-  if (metricKey === 'gemini_weekly') return isEn ? 'Gw' : 'G周';
-  if (metricKey === 'argon_weekly') return isEn ? 'Aw' : 'A周';
+  if (metricKey === 'gemini_weekly') return 'Gw';
+  if (metricKey === 'argon_weekly') return 'Aw';
   if (metricKey === 'claude_5h') return 'C5h';
-  if (metricKey === 'claude_weekly') return isEn ? 'Cw' : 'C周';
-  return isEn ? '5h' : '余';
+  if (metricKey === 'claude_weekly') return 'Cw';
+  return '5h';
 }
 
 /**
@@ -825,7 +825,7 @@ function cliRenderSingleSlot(
   if (metricKey === 'context') {
     const valid = hasTelemetry && slotCtx.usedPct != null && Number.isFinite(Number(slotCtx.usedPct));
     const pctNum = valid ? Math.max(0, Math.min(100, Math.round(Number(slotCtx.usedPct)))) : null;
-    const label = isEn ? 'Ctx' : '上下文';
+    const label = 'Ctx';
     const textVal = pctNum != null ? `${pctNum}%` : '--%';
     if (!useColor) {
       return `${label} ${textVal}`;
@@ -865,12 +865,8 @@ function cliRenderSingleSlot(
     const textVal = valid
       ? `${numVal >= 100 ? Math.round(numVal) : numVal.toFixed(1)} t/s`
       : slotCtx.isRunning
-        ? isEn
-          ? 'Gen...'
-          : '生成中...'
-        : isEn
-          ? 'Idle'
-          : '空闲';
+        ? 'Gen...'
+        : 'Idle';
     if (!useColor) return textVal;
     const color = valid
       ? `${SGR_BOLD}${cliStatusSpeedSgr(numVal)}`
@@ -885,7 +881,7 @@ function cliRenderSingleSlot(
       hasTelemetry && Number.isFinite(Number(slotCtx.avgTps)) && Number(slotCtx.avgTps) > 0;
     const numVal = valid ? Number(slotCtx.avgTps) : 0;
     const needPrefix = slotSet?.has('tps');
-    const prefix = needPrefix ? (isEn ? 'avg ' : '均 ') : '';
+    const prefix = needPrefix ? 'avg ' : '';
     const textVal = valid
       ? `${prefix}${numVal >= 100 ? Math.round(numVal) : numVal.toFixed(1)} t/s`
       : `${prefix}-- t/s`;
@@ -910,7 +906,7 @@ function cliRenderSingleSlot(
         ? slotCtx.sessionCost
         : slotCtx.stepCost;
     const needPrefix =
-      metricKey === 'session_cost' && slotSet?.has('cost') ? (isEn ? 'sum ' : '总 ') : '';
+      metricKey === 'session_cost' && slotSet?.has('cost') ? 'sum ' : '';
     const textVal = `${needPrefix}${hasTelemetry ? cliFormatCompactCost(rawVal) : '--'}`;
     if (!useColor) return textVal;
     const color =
@@ -926,7 +922,7 @@ function cliRenderSingleSlot(
     const valid =
       hasTelemetry && slotCtx.cacheHitPct != null && Number.isFinite(Number(slotCtx.cacheHitPct));
     const numVal = valid ? Math.max(0, Math.min(100, Math.round(Number(slotCtx.cacheHitPct)))) : 0;
-    const prefix = isEn ? 'cache ' : '缓 ';
+    const prefix = 'cache ';
     const textVal = valid ? `${prefix}${numVal}%` : `${prefix}--%`;
     if (!useColor) return textVal;
     const color = valid
@@ -1095,33 +1091,21 @@ function cliStatusHasRenderableValue(metricKey, slotCtx) {
   return cliResolveQuotaPct(slotCtx.quotas, metricKey) != null;
 }
 
-function cliStatusFormatAnomalyTag(anomaly, { isEn = false, useColor = true } = {}) {
+function cliStatusFormatAnomalyTag(anomaly, { useColor = true } = {}) {
   if (!anomaly || !(Number(anomaly.count) > 0)) return '';
   const n = Math.max(1, Math.floor(Number(anomaly.count) || 1));
   const kind = String(anomaly.primaryKind || 'error');
   let label = '';
-  if (isEn) {
-    if (kind === 'capacity') label = n === 1 ? '503' : `503x${n}`;
-    else if (kind === 'upstream') label = n === 1 ? '500' : `500x${n}`;
-    else if (kind === 'rate_limit') label = `429x${n}`;
-    else if (kind === 'timeout') label = `TO${n}`;
-    else if (kind === 'disconnect') label = `Drop${n}`;
-    else if (kind === 'model_output') label = `Fix${n}`;
-    else if (kind === 'safety') label = `Safe${n}`;
-    else if (kind === 'mixed') label = `Warn${n}`;
-    else label = `Err${n}`;
-  } else {
-    if (kind === 'capacity') label = n === 1 ? '503' : `503×${n}`;
-    else if (kind === 'upstream') label = n === 1 ? '500' : `500×${n}`;
-    else if (kind === 'rate_limit') label = `限流${n}`;
-    else if (kind === 'timeout') label = `超时${n}`;
-    else if (kind === 'disconnect') label = `断连${n}`;
-    else if (kind === 'model_output') label = `纠偏${n}`;
-    else if (kind === 'safety') label = `过滤${n}`;
-    else if (kind === 'auth_or_model') label = `受限${n}`;
-    else if (kind === 'mixed') label = `异常${n}`;
-    else label = `报错${n}`;
-  }
+  if (kind === 'capacity') label = n === 1 ? '503' : `503x${n}`;
+  else if (kind === 'upstream') label = n === 1 ? '500' : `500x${n}`;
+  else if (kind === 'rate_limit') label = `429x${n}`;
+  else if (kind === 'timeout') label = `TO${n}`;
+  else if (kind === 'disconnect') label = `Drop${n}`;
+  else if (kind === 'model_output') label = `Fix${n}`;
+  else if (kind === 'safety') label = `Safe${n}`;
+  else if (kind === 'auth_or_model') label = `Auth${n}`;
+  else if (kind === 'mixed') label = `Warn${n}`;
+  else label = `Err${n}`;
   const plain = `! ${label}`;
   if (!useColor) return plain;
   const color =
@@ -1180,15 +1164,9 @@ export function formatCliStatusLineCapsule(slotCtx = {}, options = {}) {
     const labelText =
       runningCount > 0
         ? runningSubCount > 0
-          ? isEn
-            ? `${runningCount} active · ${runningSubCount} sub`
-            : `${runningCount} 运行中 · ${runningSubCount} 子`
-          : isEn
-            ? `${runningCount} active`
-            : `${runningCount} 运行中`
-        : isEn
-          ? '0 active'
-          : '0 运行中';
+          ? `${runningCount} active · ${runningSubCount} sub`
+          : `${runningCount} active`
+        : '0 active';
     if (!useColor) {
       multiCore = `● ${labelText}`;
     } else {

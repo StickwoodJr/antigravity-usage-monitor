@@ -99,14 +99,14 @@ function extractBearerToken(authHeader) {
 
 function renderTokenLoginHtml(hasError = false) {
   const errHtml = hasError
-    ? '<p class="err">访问令牌无效，请核对后重新输入。</p>'
+    ? '<p class="err">Invalid access token. Please check and try again.</p>'
     : '';
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>用量监控 · 访问验证</title>
+  <title>Usage Monitor · Access Verification</title>
   <style>
     :root { color-scheme: dark light; }
     * { box-sizing: border-box; }
@@ -161,10 +161,10 @@ function renderTokenLoginHtml(hasError = false) {
 <body>
   <form class="card" method="POST" action="/api/standalone-auth">
     <h1>Antigravity Usage Monitor</h1>
-    <p>当前独立监控服务已启用访问令牌保护，请输入 Token 继续。</p>
+    <p>This standalone monitor server is protected by an access token. Enter the token to continue.</p>
     ${errHtml}
-    <input type="password" name="token" placeholder="输入 --token 访问密钥" autocomplete="current-password" required autofocus>
-    <button type="submit">验证并进入面板</button>
+    <input type="password" name="token" placeholder="Enter --token access key" autocomplete="current-password" required autofocus>
+    <button type="submit">Verify & Open Panel</button>
   </form>
 </body>
 </html>`;

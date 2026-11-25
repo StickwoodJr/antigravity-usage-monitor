@@ -220,7 +220,7 @@ function enrichActiveConversationSteps(
       (mInfo.modelId && mInfo.modelId !== 'unknown' ? mInfo.modelId : mInfo.shortName);
     const annotatedUpstreamModel = formatUpstreamModelId(rawUpstreamModel, mInfo);
     const modelUpstream = st.isCompactionStep
-      ? `${annotatedUpstreamModel}·压缩`
+      ? `${annotatedUpstreamModel}·Compact`
       : annotatedUpstreamModel;
 
     const {
@@ -238,8 +238,8 @@ function enrichActiveConversationSteps(
       baseModelLabel: mInfo.label,
       baseModelShort: mInfo.shortName,
       modelUpstream,
-      modelLabel: st.isCompactionStep ? `${mInfo.label} [自动压缩]` : mInfo.label,
-      modelShort: st.isCompactionStep ? `${mInfo.shortName}·压缩` : mInfo.shortName,
+      modelLabel: st.isCompactionStep ? `${mInfo.label} [Auto-Compact]` : mInfo.label,
+      modelShort: st.isCompactionStep ? `${mInfo.shortName}·Compact` : mInfo.shortName,
       family: mInfo.family,
       tokPerSec: roundMetric(tokPerSec),
       selectedSpeedReason: metric.reason,
@@ -744,12 +744,12 @@ export function buildAgentUnitTelemetry({
       hasKnownModel: Boolean(enrichedRes.latestEnriched?.hasKnownModel),
       activeBaseModelShort: enrichedRes.latestEnriched?.baseModelShort || '',
       activeBaseModelLabel: enrichedRes.latestEnriched?.baseModelLabel || '',
-      activeModelShort: enrichedRes.latestEnriched?.modelShort || '模型未知',
-      activeModelLabel: enrichedRes.latestEnriched?.modelLabel || '模型未知',
+      activeModelShort: enrichedRes.latestEnriched?.modelShort || 'Unknown Model',
+      activeModelLabel: enrichedRes.latestEnriched?.modelLabel || 'Unknown Model',
       activeModelUpstream:
         enrichedRes.latestEnriched?.modelUpstream ||
         enrichedRes.latestEnriched?.modelShort ||
-        '模型未知',
+        'Unknown Model',
       context: ctxRes.context,
       ...(includeRecentSteps ? { recentSteps } : {}),
       modelBreakdown,
@@ -850,17 +850,16 @@ function classifySubagentDisplayMeta(subSum, subEntry, idx, counters) {
     sideIndex = ++counters.side;
     agentKind = 'side_question';
     agentOrdinal = sideIndex;
-    shortLabel = `旁路提问 #${sideIndex}`;
-    badgeText = `旁${sideIndex}`;
+    shortLabel = `Side Question #${sideIndex}`;
+    badgeText = `Q${sideIndex}`;
     const cleanSideRole =
       rawRole &&
-      rawRole !== '旁路提问' &&
       rawRole !== 'Side Question' &&
       rawRole !== 'side_question'
         ? rawRole
         : '';
     customRole = cleanSideRole;
-    roleLabel = cleanSideRole || '旁路提问';
+    roleLabel = cleanSideRole || 'Side Question';
     runningRole = cleanSideRole || shortLabel;
     typeName = 'side_question';
     agentLabel = cleanSideRole ? `${shortLabel} · ${cleanSideRole}` : shortLabel;
@@ -870,9 +869,9 @@ function classifySubagentDisplayMeta(subSum, subEntry, idx, counters) {
     agentOrdinal = swOrd;
     const memberTag = parsedSwarm.memberName ? `@${parsedSwarm.memberName}` : '';
     customRole = memberTag;
-    shortLabel = `蜂群 #${swOrd}`;
-    badgeText = `蜂${swOrd}`;
-    roleLabel = memberTag || '蜂群';
+    shortLabel = `Swarm #${swOrd}`;
+    badgeText = `Sw${swOrd}`;
+    roleLabel = memberTag || 'Swarm';
     runningRole = memberTag || shortLabel;
     typeName = 'worker';
     agentLabel = memberTag ? `${shortLabel} · ${memberTag}` : shortLabel;
@@ -882,10 +881,10 @@ function classifySubagentDisplayMeta(subSum, subEntry, idx, counters) {
     const subOrd = ++counters.normal;
     agentKind = 'subagent';
     agentOrdinal = subOrd;
-    customRole = rawRole && rawRole !== '子代理' && rawRole !== 'Subagent' ? rawRole : '';
-    shortLabel = `子代理 #${subOrd}`;
-    badgeText = `子${subOrd}`;
-    roleLabel = rawRole || '子代理';
+    customRole = rawRole && rawRole !== 'Subagent' ? rawRole : '';
+    shortLabel = `Subagent #${subOrd}`;
+    badgeText = `Sub${subOrd}`;
+    roleLabel = rawRole || 'Subagent';
     runningRole = rawRole || shortLabel;
     typeName = subSpec?.typeName || '';
     agentLabel = rawRole ? `${shortLabel} · ${rawRole}` : shortLabel;
@@ -1000,11 +999,11 @@ function buildActiveConversationAssembly({
     cascadeId: activeCascadeId,
     isMain: true,
     index: 0,
-    shortLabel: '主代理',
-    badgeText: '主',
-    role: '主代理',
+    shortLabel: 'Main',
+    badgeText: 'Main',
+    role: 'Main',
     typeName: 'root',
-    agentLabel: '主代理',
+    agentLabel: 'Main',
     status: activeConvSummary?.status || 'IDLE',
     rawSteps: activeSteps,
     liveActivity: activeConvSummary?.liveActivity || null,
@@ -1222,17 +1221,17 @@ function buildActiveConversationAssembly({
         mainAgentTelemetry;
 
     const roleSummaryParts = [];
-    if (subCounters.swarm > 0) roleSummaryParts.push(`${subCounters.swarm} 蜂群`);
-    if (subCounters.normal > 0) roleSummaryParts.push(`${subCounters.normal} 子代理`);
+    if (subCounters.swarm > 0) roleSummaryParts.push(`${subCounters.swarm} Swarm`);
+    if (subCounters.normal > 0) roleSummaryParts.push(`${subCounters.normal} Subagent`);
     if (subCounters.side > 0) {
       roleSummaryParts.push(
-        roleSummaryParts.length > 0 ? `${subCounters.side} 旁问` : `${subCounters.side} 旁路提问`
+        roleSummaryParts.length > 0 ? `${subCounters.side} Side Q` : `${subCounters.side} Side Question`
       );
     }
     const aggregatedRoleLabel =
       roleSummaryParts.length > 0
-        ? `主代理 + ${roleSummaryParts.join(' + ')}`
-        : `主代理 + ${subAgentTelemetries.length} 子代理`;
+        ? `Main + ${roleSummaryParts.join(' + ')}`
+        : `Main + ${subAgentTelemetries.length} Subagent`;
 
     const totalCostUsd = roundSessionCost(totalRawSessionCostUsd);
     const totalUnpricedCalls = allAgents.reduce(
@@ -1276,8 +1275,8 @@ function buildActiveConversationAssembly({
       agentKind: 'all',
       agentOrdinal: 0,
       index: -1,
-      shortLabel: '全部汇总',
-      badgeText: '全部',
+      shortLabel: 'All Summary',
+      badgeText: 'All',
       role: aggregatedRoleLabel,
       typeName: 'all',
       activeAgentId: activeMainlineAgent.agentId,
@@ -1325,7 +1324,7 @@ function buildActiveConversationAssembly({
 
   const activeConversation = {
     cascadeId: activeCascadeId,
-    title: activeConvSummary?.title || '当前会话',
+    title: activeConvSummary?.title || 'Current Session',
     ...(activeConvSummary?.swarmTitle ? { swarmTitle: activeConvSummary.swarmTitle } : {}),
     isRunning: activeConvSummary?.status === 'CASCADE_RUN_STATUS_RUNNING',
     status: activeConvSummary?.status || 'IDLE',
@@ -1360,10 +1359,10 @@ function buildActiveConversationAssembly({
     hasKnownModel: Boolean(latestEnriched?.hasKnownModel),
     activeBaseModelShort: latestEnriched?.baseModelShort || '',
     activeBaseModelLabel: latestEnriched?.baseModelLabel || '',
-    activeModelShort: latestEnriched?.modelShort || '模型未知',
-    activeModelLabel: latestEnriched?.modelLabel || '模型未知',
+    activeModelShort: latestEnriched?.modelShort || 'Unknown Model',
+    activeModelLabel: latestEnriched?.modelLabel || 'Unknown Model',
     activeModelUpstream:
-      latestEnriched?.modelUpstream || latestEnriched?.modelShort || '模型未知',
+      latestEnriched?.modelUpstream || latestEnriched?.modelShort || 'Unknown Model',
     context,
     recentSteps: mainRecentSteps,
     modelBreakdown: mainModelBreakdown,
@@ -1477,17 +1476,17 @@ function buildActivePoolAndWeeklyQuotas({
   const activePoolLabel = familyPoolQuota?.poolLabel || activePoolKey;
   const activePoolQuota = familyPoolQuota || {
     poolKey: activePoolKey,
-    poolLabel: activePoolKey === 'Unknown' ? '未知' : activePoolKey,
+    poolLabel: activePoolKey === 'Unknown' ? 'Unknown' : activePoolKey,
     poolName:
       activePoolKey === 'Carbon'
-        ? 'Gemini 4 Carbon 模型池'
+        ? 'Gemini 4 Carbon Pool'
         : activePoolKey === 'Argon'
-          ? 'Gemini 4 Argon 模型池'
+          ? 'Gemini 4 Argon Pool'
           : activePoolKey === 'Gemini'
-            ? 'Gemini 模型池'
+            ? 'Gemini Pool'
             : activePoolKey === 'Claude & GPT'
-              ? 'Claude & GPT 模型池'
-              : '模型池未知',
+              ? 'Claude & GPT Pool'
+              : 'Unknown Pool',
     family: activePoolKey,
     isAvailable: Boolean(activeLive5h || activeLiveWeekly),
     has5h: Boolean(activeLive5h),
@@ -1539,8 +1538,8 @@ function buildActivePoolAndWeeklyQuotas({
     isOfficial: useOfficialWeekly,
     poolFamily: activePoolKey,
     title: isCustomWeeklyMode
-      ? '每周限额 (自定义本机)'
-      : `每周限额 (${activePoolLabel && activePoolLabel !== 'Unknown' ? activePoolLabel : '当前'})`,
+      ? 'Weekly Limit (Local Custom)'
+      : `Weekly Limit (${activePoolLabel && activePoolLabel !== 'Unknown' ? activePoolLabel : 'Current'})`,
     calls: isCustomWeeklyMode
       ? weekBucket.calls
       : poolsWeeklySummary
@@ -1921,7 +1920,7 @@ export async function buildTelemetryPayloadInternal(
                 actionKey: 'swarm_killed',
                 waitingApproval: false,
                 detailKey: '',
-                label: '已终止',
+                label: 'Terminated',
                 detail: '',
                 stepProgress: '',
                 startedAtMs: subModMs,
@@ -1932,7 +1931,7 @@ export async function buildTelemetryPayloadInternal(
                 actionKey: 'swarm_waiting',
                 waitingApproval: false,
                 detailKey: '',
-                label: '待命中',
+                label: 'Idle',
                 detail: '',
                 stepProgress: '',
                 startedAtMs: subModMs,
@@ -1943,7 +1942,7 @@ export async function buildTelemetryPayloadInternal(
               actionKey: 'done',
               waitingApproval: false,
               detailKey: '',
-              label: '已完成',
+              label: 'Completed',
               detail: '',
               stepProgress: '',
               startedAtMs: subModMs,
@@ -1983,7 +1982,7 @@ export async function buildTelemetryPayloadInternal(
       const pendingCustomRole = mainLiveAct.detail || '';
       if (isPendingSwarmSpawn) {
         const pendingSwarmOrd = ++runSwarmIdx;
-        const pendingRole = pendingCustomRole || `蜂群 #${pendingSwarmOrd}`;
+        const pendingRole = pendingCustomRole || `Swarm #${pendingSwarmOrd}`;
         subItems.push({
           cascadeId: `${rootConv.cascadeId}:pending-swarm-${pendingIndex}`,
           index: pendingIndex,
@@ -1991,8 +1990,8 @@ export async function buildTelemetryPayloadInternal(
           agentOrdinal: pendingSwarmOrd,
           customRole: pendingCustomRole,
           swarmState: 'working',
-          badgeText: `蜂${pendingSwarmOrd}`,
-          shortLabel: `蜂群 #${pendingSwarmOrd}`,
+          badgeText: `Sw${pendingSwarmOrd}`,
+          shortLabel: `Swarm #${pendingSwarmOrd}`,
           role: pendingRole,
           typeName: 'worker',
           isRunning: true,
@@ -2004,7 +2003,7 @@ export async function buildTelemetryPayloadInternal(
             actionKey: 'starting',
             waitingApproval: false,
             detailKey: '',
-            label: '启动中',
+            label: 'Starting',
             detail: '',
             stepProgress: '',
             startedAtMs: mainLiveAct.startedAtMs || 0,
@@ -2013,15 +2012,15 @@ export async function buildTelemetryPayloadInternal(
         });
       } else {
         const pendingNormOrd = ++runNormalSubIdx;
-        const pendingRole = pendingCustomRole || '子代理';
+        const pendingRole = pendingCustomRole || 'Subagent';
         subItems.push({
           cascadeId: `${rootConv.cascadeId}:pending-sub-${pendingIndex}`,
           index: pendingIndex,
           agentKind: 'subagent',
           agentOrdinal: pendingNormOrd,
           customRole: pendingCustomRole,
-          badgeText: `子${pendingNormOrd}`,
-          shortLabel: `子代理 #${pendingNormOrd}`,
+          badgeText: `Sub${pendingNormOrd}`,
+          shortLabel: `Subagent #${pendingNormOrd}`,
           role: pendingRole,
           typeName: '',
           isRunning: true,
@@ -2033,7 +2032,7 @@ export async function buildTelemetryPayloadInternal(
             actionKey: 'starting',
             waitingApproval: false,
             detailKey: '',
-            label: '启动中',
+            label: 'Starting',
             detail: '',
             stepProgress: '',
             startedAtMs: mainLiveAct.startedAtMs || 0,
@@ -2054,7 +2053,7 @@ export async function buildTelemetryPayloadInternal(
             actionKey: allRunningAreSwarm ? 'waiting_swarm' : 'waiting_subagent',
             waitingApproval: false,
             detailKey: '',
-            label: allRunningAreSwarm ? '等待工蜂' : '等待子代理',
+            label: allRunningAreSwarm ? 'Waiting for Swarm' : 'Waiting for Subagent',
             detail: runningSubList.map((s) => s.customRole || s.role).join(', '),
             stepProgress: '',
             startedAtMs: runningSubList[0]?.liveActivity?.startedAtMs || rootFallbackMs,

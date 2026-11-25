@@ -1,6 +1,6 @@
 /**
  * @fileoverview Reactive lightweight i18n engine (`zh-CN` / `en-US` / `auto`).
- * Default language is `'zh-CN'` so out-of-the-box UI matches existing behavior 100%.
+ * Default language is `'en-US'` in this English-translated fork.
  */
 
 import { createReactiveStore } from '../core/reactive.js';
@@ -25,7 +25,7 @@ export function detectHostSystemLocale() {
   } catch {
     // Ignore environment navigator read errors
   }
-  return 'zh-CN';
+  return 'en-US';
 }
 
 export const i18nStore = createReactiveStore({
@@ -44,11 +44,11 @@ export function setI18nLanguage(rawLang) {
 }
 
 export function getEffectiveLocale() {
-  return i18nStore.getState().locale || 'zh-CN';
+  return i18nStore.getState().locale || 'en-US';
 }
 
 export function isEnglishLocale() {
-  return getEffectiveLocale() === 'en-US';
+  return true;
 }
 
 /**
@@ -60,8 +60,8 @@ export function isEnglishLocale() {
  */
 export function t(key, vars = undefined) {
   const locale = getEffectiveLocale();
-  const dict = I18N_DICTIONARIES[locale] || I18N_MESSAGES_ZH_CN;
-  const template = dict[key] ?? I18N_MESSAGES_ZH_CN[key] ?? key;
+  const dict = I18N_DICTIONARIES[locale] || I18N_MESSAGES_EN_US;
+  const template = dict[key] ?? I18N_MESSAGES_EN_US[key] ?? key;
   if (!vars || typeof template !== 'string') return template;
   return template.replace(/\{(\w+)\}/g, (_, k) =>
     vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : ''

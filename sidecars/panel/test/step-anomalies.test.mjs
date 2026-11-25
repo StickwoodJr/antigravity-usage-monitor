@@ -404,7 +404,7 @@ test('formatSpeedMetric drops decimals at >= 100 tok/s and STEP_COLUMN_REGISTRY.
       { showStepSpeedColor: false }
     );
     assert.equal(fastCell.refs.speedMain.textContent, '—');
-    assert.equal(fastCell.refs.speedReason.textContent, '调用报错');
+    assert.equal(fastCell.refs.speedReason.textContent, 'Call error');
 
     // Seconds >= 100s also drop decimals in ttft & duration columns
     assert.equal(formatMetric(100, 's'), '100s');
@@ -604,8 +604,8 @@ test('StepTableWidget tints entire anomaly rows with zero extra column width and
     rows[0].onmouseenter();
     assert.equal(tipEl.hasAttribute('hidden'), false);
     assert.equal(tipEl.classList.contains('is-compaction'), false);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4924.*异常 1 次/);
-    assert.equal(tipEl.querySelector('.step-anomaly-tip-sub').textContent, '退避 2.5s');
+    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4924.*1 Retries \/ Errors/);
+    assert.equal(tipEl.querySelector('.step-anomaly-tip-sub').textContent, 'Backoff 2.5s');
     assert.match(tipEl.querySelector('.step-anomaly-tip-detail').textContent, /stream idle timeout/);
 
     rows[0].onmouseleave();
@@ -616,9 +616,9 @@ test('StepTableWidget tints entire anomaly rows with zero extra column width and
     assert.equal(tipEl.hasAttribute('hidden'), false);
     assert.equal(tipEl.classList.contains('is-compaction'), true);
     assert.equal(tipEl.classList.contains('is-danger'), false);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4918.*自动压缩/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4918.*Auto-Compaction/);
     assert.equal(tipEl.querySelector('.step-anomaly-tip-sub').textContent, '4-neon');
-    assert.match(tipEl.querySelector('.step-anomaly-tip-row').textContent, /输入 520\.0k → 摘要输出 4\.4k/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-row').textContent, /Input 520\.0k → Summary 4\.4k/);
     assert.equal(tipEl.querySelector('.step-anomaly-tip-detail').classList.contains('text-mono'), false);
     rows[3].onmouseleave();
     assert.equal(tipEl.hasAttribute('hidden'), true);
@@ -638,8 +638,8 @@ test('StepTableWidget tints entire anomaly rows with zero extra column width and
     rows[4].onmouseenter();
     assert.equal(tipEl.hasAttribute('hidden'), false);
     assert.equal(tipEl.classList.contains('is-compaction'), false);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4916.*异常 1 次/);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-hint').textContent, /自动压缩/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#4916.*1 Retries \/ Errors/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-hint').textContent, /auto-compaction/i);
     rows[4].onmouseleave();
     assert.equal(tipEl.hasAttribute('hidden'), true);
 
@@ -778,7 +778,7 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
     // Session-level anomaly strip is visible with timeout tag
     const stripEl = view.refs.modelsAnomalyStripEl;
     assert.equal(stripEl.hasAttribute('hidden'), false);
-    assert.match(stripEl.textContent, /异常 2 次.*1 步/);
+    assert.match(stripEl.textContent, /2 retries\/errors \(1 steps\)/);
 
     // Model summary cards: Pro shows danger anomaly badge + integer 120 tok/s; Flash hides badge + keeps 88.2 tok/s
     const cards = view.refs.modelsListEl.querySelectorAll('.smodel-card');
@@ -786,7 +786,7 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
     const proBadge = cards[0].querySelector('.smodel-anomaly-tag');
     const flashBadge = cards[1].querySelector('.smodel-anomaly-tag');
     assert.equal(proBadge.hasAttribute('hidden'), false);
-    assert.equal(proBadge.textContent, '超时2');
+    assert.equal(proBadge.textContent, 'TO2');
     assert.equal(proBadge.classList.contains('is-danger'), true);
     assert.match(cards[0].querySelector('.smodel-perf').textContent, /120 tok\/s/);
     assert.equal(flashBadge.hasAttribute('hidden'), true);
@@ -799,7 +799,7 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
     proBadge.onmouseenter();
     assert.equal(cards[0].getAttribute('title'), null, 'Parent model card native title must be suppressed while hovering anomaly badge');
     assert.equal(view.refs.anomalyTipEl.hasAttribute('hidden'), false);
-    assert.match(view.refs.anomalyTipEl.querySelector('.step-anomaly-tip-hint').textContent, /按步查看/);
+    assert.match(view.refs.anomalyTipEl.querySelector('.step-anomaly-tip-hint').textContent, /Click to filter anomalous steps/);
     proBadge.onmouseleave();
     assert.ok(cards[0].getAttribute('title'), 'Parent model card native title restores after leaving anomaly badge');
     assert.equal(view.refs.anomalyTipEl.hasAttribute('hidden'), true);
@@ -812,7 +812,7 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
     assert.equal(view.refs.stepsTbody.children.length, 1);
     assert.match(view.refs.stepsTbody.children[0].children[0].textContent, /#10/);
 
-    // Clicking "返回全部步骤" restores all rows and hides the filterbar
+    // Clicking "Show All Steps" restores all rows and hides the filterbar
     view.refs.anomalyFilterBarEl
       .querySelector('.steps-anomaly-filter-clear')
       .dispatchEvent({ type: 'click', stopPropagation() {} });
@@ -824,12 +824,12 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
     await Promise.resolve();
     const stripTagBtn = stripEl.querySelector('.smodel-anomaly-tag');
     assert.ok(stripTagBtn, 'Session anomaly strip renders clickable category micro-tag');
-    assert.equal(stripTagBtn.textContent, '超时2');
+    assert.equal(stripTagBtn.textContent, 'TO2');
     stripTagBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
     await Promise.resolve();
     assert.equal(uiStore.getState().stepsSubTab, 'steps');
     assert.equal(view.refs.anomalyFilterBarEl.hasAttribute('hidden'), false);
-    assert.match(view.refs.anomalyFilterBarEl.textContent, /流空闲 \/ 连接超时/);
+    assert.match(view.refs.anomalyFilterBarEl.textContent, /Stream Idle \/ Connect Timeout/);
     assert.equal(view.refs.stepsTbody.children.length, 1);
 
     // Line chart (>64 points still renders anomaly ring overlay!) and Fit chart scatter anomaly overlay + hover tooltip linkage
@@ -964,15 +964,15 @@ test('buildStepTimingDiagnostic and StepTableWidget TTFT/duration hover tooltips
     assert.equal(hasStepTimingData(slowToolStep), true);
     const slowDiag = buildStepTimingDiagnostic(slowToolStep);
     assert.equal(slowDiag.severity, 'timing');
-    assert.equal(slowDiag.title, '#101 · 耗时拆解');
-    assert.equal(slowDiag.sub, '总计 119.4s');
+    assert.equal(slowDiag.title, '#101 · Timing Breakdown');
+    assert.equal(slowDiag.sub, 'Total 119.4s');
     assert.equal(slowDiag.rows.length, 3);
     assert.equal(slowDiag.rows[0].value, '119.2s (100%)');
     assert.equal(slowDiag.rows[0].toneClass, 'tone-danger');
     assert.equal(slowDiag.rows[1].value, '0.20s');
     assert.equal(slowDiag.rows[2].value, '119.3s');
-    assert.match(slowDiag.hint, /重叠/);
-    assert.match(slowDiag.hint, /工具调用/);
+    assert.match(slowDiag.hint, /overlap/i);
+    assert.match(slowDiag.hint, /Tool call/i);
 
     // 2. Legacy step without nativeStreamSec derives after-TTFT cleanly; inconsistent timing avoids bogus share
     const legacyDiag = buildStepTimingDiagnostic({
@@ -982,7 +982,7 @@ test('buildStepTimingDiagnostic and StepTableWidget TTFT/duration hover tooltips
     });
     assert.equal(legacyDiag.rows.length, 2);
     assert.equal(legacyDiag.rows[0].value, '1.25s (25%)');
-    assert.equal(legacyDiag.rows[1].text, '首字后耗时');
+    assert.equal(legacyDiag.rows[1].text, 'After First Token');
     assert.equal(legacyDiag.rows[1].value, '3.75s');
     assert.equal(legacyDiag.hint, '');
 
@@ -1056,11 +1056,11 @@ test('buildStepTimingDiagnostic and StepTableWidget TTFT/duration hover tooltips
     assert.equal(tipEl.classList.contains('is-timing'), true);
     assert.equal(tipEl.classList.contains('is-danger'), false);
     assert.equal(tipEl.classList.contains('is-compaction'), false);
-    assert.equal(tipEl.querySelector('.step-anomaly-tip-title').textContent, '#101 · 耗时拆解');
-    assert.equal(tipEl.querySelector('.step-anomaly-tip-sub').textContent, '总计 119.4s');
+    assert.equal(tipEl.querySelector('.step-anomaly-tip-title').textContent, '#101 · Timing Breakdown');
+    assert.equal(tipEl.querySelector('.step-anomaly-tip-sub').textContent, 'Total 119.4s');
     const kvKeys = Array.from(tipEl.querySelectorAll('.step-anomaly-tip-k')).map((el) => el.textContent);
     const kvVals = Array.from(tipEl.querySelectorAll('.step-anomaly-tip-v')).map((el) => el.textContent);
-    assert.deepEqual(kvKeys, ['首字等待 (TTFT)', '流式返回', '原生思考计时']);
+    assert.deepEqual(kvKeys, ['First Token (TTFT)', 'Streaming', 'Native Thinking']);
     assert.deepEqual(kvVals, ['119.2s (100%)', '0.20s', '119.3s']);
 
     slowTtftTd.onmouseleave({});
@@ -1078,17 +1078,17 @@ test('buildStepTimingDiagnostic and StepTableWidget TTFT/duration hover tooltips
     const anomTtftTd = rows[1].children[2];
     rows[1].onmouseenter();
     assert.equal(tipEl.classList.contains('is-timing'), false);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#105.*异常 1 次/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#105.*1 Retries \/ Errors/);
 
     anomTtftTd.onmouseenter();
     assert.equal(tipEl.classList.contains('is-timing'), true);
-    assert.equal(tipEl.querySelector('.step-anomaly-tip-title').textContent, '#105 · 耗时拆解');
-    assert.match(tipEl.querySelector('.step-anomaly-tip-hint').textContent, /含 1 次异常 · 退避 2\.5s/);
+    assert.equal(tipEl.querySelector('.step-anomaly-tip-title').textContent, '#105 · Timing Breakdown');
+    assert.match(tipEl.querySelector('.step-anomaly-tip-hint').textContent, /1 retries\/errors · backoff 2\.5s/);
 
     anomTtftTd.onmouseleave({ relatedTarget: anomModelTd });
     assert.equal(tipEl.hasAttribute('hidden'), false);
     assert.equal(tipEl.classList.contains('is-timing'), false);
-    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#105.*异常 1 次/);
+    assert.match(tipEl.querySelector('.step-anomaly-tip-title').textContent, /#105.*1 Retries \/ Errors/);
 
     rows[1].onmouseleave();
     assert.equal(tipEl.hasAttribute('hidden'), true);

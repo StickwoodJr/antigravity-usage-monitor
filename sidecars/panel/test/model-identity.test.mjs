@@ -41,9 +41,9 @@ test('missing checkpoint identity infers model and pricing from neighbouring ste
   const cp = p.activeConversation.recentSteps.find(s => s.stepIndex === 211);
   assert.equal(cp.modelKey, FLASH);
   assert.equal(cp.modelSource, 'inferred_compaction');
-  assert.equal(cp.modelShort, 'flash-3.8-high·压缩');
+  assert.equal(cp.modelShort, 'flash-3.8-high·Compact');
   assert.equal(cp.responseModel, 'gemini-3.8-flash-n');
-  assert.equal(cp.modelUpstream, 'gemini-3.8-flash-n·压缩');
+  assert.equal(cp.modelUpstream, 'gemini-3.8-flash-n·Compact');
   assert.equal(cp.costUsd, 0.0052);
   assert.equal(cp.inCostUsd, 0.0008);
   assert.equal(cp.contextTokens, 11000);
@@ -59,13 +59,13 @@ test('isolated checkpoint without known neighbours stays unknown; its token tota
   const rows = [step(211, undefined, true)];
   const p = await payload(rows);
   const cp = p.activeConversation.recentSteps.find(s => s.stepIndex === 211);
-  assert.equal(cp.modelKey, 'unknown'); assert.equal(cp.modelShort, '模型未知·压缩');
+  assert.equal(cp.modelKey, 'unknown'); assert.equal(cp.modelShort, 'Unknown Model·Compact');
   assert.equal(cp.costUsd, null); assert.equal(cp.inCostUsd, null);
   assert.equal(cp.contextTokens, 11000); assert.equal(cp.tokPerSec, 100);
   assert.equal(p.activeConversation.speedSummary.sampleCount, 0);
   assert.equal(p.consumption.account.totalTokens, 11000);
   assert.equal(p.consumption.account.unpricedCalls, 1);
-  assert.equal(p.modelBreakdown.find(m => m.label === '模型未知').unpricedCalls, 1);
+  assert.equal(p.modelBreakdown.find(m => m.label === 'Unknown Model').unpricedCalls, 1);
   assert.equal(p.consumption.trendSeries.reduce((n,s) => n+(s.unpricedCalls || 0),0), 1);
   assert.equal(p.consumption.sourcesBreakdown[0].unpricedCalls, 1);
   assert.equal(p.consumption.monthlySeries.reduce((n,s) => n+(s.unpricedCalls || 0),0), 1);
@@ -74,7 +74,7 @@ test('isolated checkpoint without known neighbours stays unknown; its token tota
 test('checkpoint can explicitly use a different model; no neighbour-based overwrite', async () => {
   const p = await payload([step(209, FLASH), step(211, ARGON, true), step(212, FLASH)]);
   const cp = p.activeConversation.recentSteps.find(s => s.stepIndex === 211);
-  assert.equal(cp.modelShort, 'argon-4·压缩'); assert.equal(cp.modelSource, 'usage.model');
+  assert.equal(cp.modelShort, 'argon-4·Compact'); assert.equal(cp.modelSource, 'usage.model');
   assert.equal(cp.costUsd, 0.0129); assert.equal(p.consumption.account.unpricedCalls, 0);
 });
 
@@ -163,7 +163,7 @@ test('old ambiguous Argon cache is persisted as unresolved while retaining moder
   assert.equal(h.state.saves.length,1,'do not rewrite identical migrated cache every poll');
   h.state.trajectories.test = {trajectory:{steps:[step(211,FLASH,true)]}};
   const restored = await h.buildTelemetryPayloadInternal('test', true);
-  assert.equal(restored.activeConversation.activeModelShort,'flash-3.8-high·压缩');
+  assert.equal(restored.activeConversation.activeModelShort,'flash-3.8-high·Compact');
   assert.equal(restored.consumption.account.unpricedCalls,0);
 });
 
@@ -177,12 +177,12 @@ test('explicit historical models and verified real Argon identities survive cach
 
 test('empty session does not invent an Argon model or a model quota pool', async () => {
   const p = await backendHarness().buildTelemetryPayloadInternal('test');
-  assert.equal(p.activeConversation.activeModelShort,'模型未知');
+  assert.equal(p.activeConversation.activeModelShort,'Unknown Model');
   assert.equal(p.quotas.activePool.isAvailable,false); assert.equal(p.quotas.activePool.family,'Unknown');
 });
 
 test('unknown single-step cost renders as pending while aggregate subtotals omit pending suffix', () => {
-  assert.equal(formatUsd(null),'待定'); assert.equal(formatUsd(0),'$0.00');
+  assert.equal(formatUsd(null),'N/A'); assert.equal(formatUsd(0),'$0.00');
   assert.equal(formatUsd(0.1,{unpricedCalls:1}),'$0.10');
 });
 
@@ -192,7 +192,7 @@ test('custom cost budget cannot claim a complete remaining percentage when price
 });
 
 test('frontend considers a model-only correction a real telemetry update', () => {
-  const a={activeConversation:{recentSteps:[{modelKey:'unknown',modelShort:'模型未知',costUsd:null}]}};
+  const a={activeConversation:{recentSteps:[{modelKey:'unknown',modelShort:'Unknown Model',costUsd:null}]}};
   const b=structuredClone(a); b.activeConversation.recentSteps[0].modelShort='new-model';
   assert.equal(isEquivalentTelemetry(a,b),false); assert.equal(isEquivalentTelemetry(a,structuredClone(a)),true);
 });
@@ -241,8 +241,8 @@ test('Orchestrator (Carbon) direct/planning and inferred compaction steps resolv
   assert.equal(s1.costUsd, 0.0129);
   assert.equal(cp.modelKey, ORCH_CARBON);
   assert.equal(cp.modelSource, 'inferred_compaction');
-  assert.equal(cp.modelShort, 'orch-carbon·压缩');
-  assert.equal(cp.modelUpstream, 'gemini-pro-orchestrator (carbon-4)·压缩');
+  assert.equal(cp.modelShort, 'orch-carbon·Compact');
+  assert.equal(cp.modelUpstream, 'gemini-pro-orchestrator (carbon-4)·Compact');
   assert.equal(p.activeConversation.activeModelShort, 'orch-carbon');
   assert.equal(p.activeConversation.activeModelUpstream, 'gemini-pro-orchestrator (carbon-4)');
   assert.equal(p.consumption.account.unpricedCalls, 0);
@@ -850,11 +850,11 @@ test('orchestratorIdMode defaults to compact, persists via settings action, and 
     );
     assert.equal(
       resolveModelDisplayInfo(orchNeonCompaction, { showUpstreamModel, orchestratorIdMode: 'compact' }).text,
-      'orchestrator-neon·压缩'
+      'orchestrator-neon·compact'
     );
     assert.equal(
       resolveModelDisplayInfo(orchWorkerCompaction, { showUpstreamModel, orchestratorIdMode: 'compact' }).text,
-      'worker-agy-hydrogen·压缩'
+      'worker-agy-hydrogen·compact'
     );
     assert.equal(
       resolveModelDisplayInfo(orchCarbon, { showUpstreamModel, orchestratorIdMode: 'full' }).text,
@@ -870,11 +870,11 @@ test('orchestratorIdMode defaults to compact, persists via settings action, and 
     );
     assert.equal(
       resolveModelDisplayInfo(orchNeonCompaction, { showUpstreamModel, orchestratorIdMode: 'full' }).text,
-      'gemini-pro-orchestrator-neon (neon-4)·压缩'
+      'gemini-pro-orchestrator-neon (neon-4)·compact'
     );
     assert.equal(
       resolveModelDisplayInfo(orchWorkerCompaction, { showUpstreamModel, orchestratorIdMode: 'full' }).text,
-      'gemini-flash-worker-agy (hydrogen-4)·压缩'
+      'gemini-flash-worker-agy (hydrogen-4)·compact'
     );
   }
 

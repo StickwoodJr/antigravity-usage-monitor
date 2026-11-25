@@ -566,8 +566,8 @@ test('Feature 5: TrendAreaChart drill-down click and unified Models/Sessions seg
   const rankingPanel = view.el.querySelector('.cons-ranking-panel');
   const rankingTabBtns = rankingPanel.querySelector('.cons-ranking-head > .segmented').querySelectorAll('.seg-btn');
   assert.equal(rankingTabBtns.length, 2);
-  assert.match(rankingTabBtns[0].textContent, /模型排行/);
-  assert.match(rankingTabBtns[1].textContent, /会话排行 \(2\)/);
+  assert.match(rankingTabBtns[0].textContent, /Models/);
+  assert.match(rankingTabBtns[1].textContent, /Sessions \(2\)/);
 
   const listContainers = rankingPanel.querySelectorAll('.cons-item-list');
   assert.equal(listContainers[0].hasAttribute('hidden'), false, 'Models list visible by default');
@@ -753,7 +753,7 @@ test('Feature 6: model ranking multi-metric sort with efficiency footer & valida
   rows = consView.el.querySelectorAll('.cons-item-row');
   assert.equal(rows[0].querySelector('.cons-row-title-text').textContent, 'model-fast-costly');
   assert.equal(rows[0].querySelector('.cons-share-pill').textContent, '66.7%');
-  assert.equal(rows[0].querySelector('.cons-row-cost').textContent, '20 次');
+  assert.equal(rows[0].querySelector('.cons-row-cost').textContent, '20 calls');
 
   // 2. Settings JSON Export & Safe Validated Import
   const exportedJson = buildExportableSettingsJson({
@@ -965,7 +965,7 @@ test('Feature 8: StepsDetailView model summary cards align with Model Ranking (p
   assert.ok(Math.abs(sumBarPct(cards[0]) - 80) < 0.2, `Expected 80% bar width for 4-neon, got ${sumBarPct(cards[0])}`);
   assert.ok(Math.abs(sumBarPct(cards[1]) - 20) < 0.2, `Expected 20% bar width for 4-carbon, got ${sumBarPct(cards[1])}`);
   assert.ok(cards[0].querySelector('.smodel-perf-foot > .smodel-perf'), 'Perf metrics live in dedicated left-aligned sub-row');
-  assert.match(cards[0].querySelector('.smodel-unit-cost')?.textContent || '', /均价 \$3\.00\/1M/);
+  assert.match(cards[0].querySelector('.smodel-unit-cost')?.textContent || '', /Eff\. \$3\.00\/1M/);
 });
 
 test('Feature 9: workspace/project cost aggregation (full + fast paths) and Projects ranking tab in ConsumptionView', async (t) => {
@@ -1200,14 +1200,14 @@ test('Feature 9: workspace/project cost aggregation (full + fast paths) and Proj
   const rankingPanel = view.el.querySelector('.cons-ranking-panel');
   const rankingTabBtns = rankingPanel.querySelector('.cons-ranking-head > .segmented').querySelectorAll('.seg-btn');
   assert.equal(rankingTabBtns.length, 3);
-  assert.match(rankingTabBtns[1].textContent, /项目排行 \(2\)/);
+  assert.match(rankingTabBtns[1].textContent, /Projects \(2\)/);
 
   // Switch to Projects tab
   rankingTabBtns[1].dispatchEvent({ type: 'click', stopPropagation: () => {} });
   const wsRows = view.el.querySelectorAll('.cons-workspace-row');
   assert.equal(wsRows.length, 2);
   assert.equal(wsRows[0].querySelector('.cons-row-title-text').textContent, 'usage-monitor');
-  assert.equal(wsRows[0].querySelector('.cons-ws-sessions-tag').textContent, '4 会话');
+  assert.equal(wsRows[0].querySelector('.cons-ws-sessions-tag').textContent, '4 sessions');
 
   // Switch sort to Tokens -> docs-site (600k) moves first
   const sortSwitches = rankingPanel.querySelectorAll('.cons-ranking-sort-wrap > .segmented');
@@ -1548,22 +1548,22 @@ test('Feature 11: native multi-sheet localized XLSX, formula-safe CSV and biling
     cascadeId: 'cid-export-1',
     locale: 'zh-CN',
   });
-  assert.match(stepsMdZh, /## 模型分布/);
-  assert.match(stepsMdZh, /## 高成本步骤 Top 5/);
-  assert.match(stepsMdZh, /异常汇总/);
+  assert.match(stepsMdZh, /## Model Breakdown/);
+  assert.match(stepsMdZh, /## Top Costliest Steps/);
+  assert.match(stepsMdZh, /Anomaly Summary/);
 
   const stepsXlsxZh = parseZipStoreEntries(
     buildStepsXlsx(sampleSteps, { title: 'Perf Audit', locale: 'zh-CN' })
   );
-  assert.match(stepsXlsxZh.get('xl/workbook.xml'), /name="步骤明细"/);
-  assert.match(stepsXlsxZh.get('xl/workbook.xml'), /name="模型汇总"/);
+  assert.match(stepsXlsxZh.get('xl/workbook.xml'), /name="Steps"/);
+  assert.match(stepsXlsxZh.get('xl/workbook.xml'), /name="Model Summary"/);
   const stepsSheetZh = stepsXlsxZh.get('xl/worksheets/sheet1.xml');
   assert.match(stepsSheetZh, /<pane ySplit="1"/);
   assert.match(stepsSheetZh, /<autoFilter ref="A1:R3"\/>/, 'AutoFilter excludes bottom summary row 4');
   assert.match(stepsSheetZh, /t="inlineStr"[^>]*><is><t[^>]*>=HYPERLINK/, 'Formulas stored safely as inlineStr');
-  assert.match(stepsSheetZh, /自动压缩/);
-  assert.match(stepsSheetZh, /流空闲 \/ 连接超时/);
-  assert.match(stepsSheetZh, /合计（共 2 步）/);
+  assert.match(stepsSheetZh, /Auto-Compact|compact/i);
+  assert.match(stepsSheetZh, /Stream Idle \/ Connect Timeout/);
+  assert.match(stepsSheetZh, /Total \(2 steps\)/);
 
   const stepsXlsxEn = parseZipStoreEntries(
     buildStepsXlsx(sampleSteps, { title: 'Perf Audit', locale: 'en-US' })
@@ -1575,7 +1575,7 @@ test('Feature 11: native multi-sheet localized XLSX, formula-safe CSV and biling
 
   // 3. Consumption CSV, bilingual Markdown report, and 6-sheet native XLSX
   const cons = {
-    selectedRange: { key: '7d', label: '近7天', startMs: Date.UTC(2026, 10, 15), endMs: Date.UTC(2026, 10, 22) },
+    selectedRange: { key: '7d', label: 'Last 7 Days', startMs: Date.UTC(2026, 10, 15), endMs: Date.UTC(2026, 10, 22) },
     account: {
       calls: 410,
       inputTokens: 2_250_054,
@@ -1652,15 +1652,15 @@ test('Feature 11: native multi-sheet localized XLSX, formula-safe CSV and biling
   assert.match(consMdEn, /## Top Sessions/);
 
   const consMdZh = buildConsumptionMarkdownReport(cons, models, { locale: 'zh-CN' });
-  assert.match(consMdZh, /# 用量统计报告 · 近7天/);
-  assert.match(consMdZh, /## 模型排行/);
-  assert.match(consMdZh, /## 项目排行/);
-  assert.match(consMdZh, /## 热门会话/);
+  assert.match(consMdZh, /# Usage Report · Last 7 Days/);
+  assert.match(consMdZh, /## Models/);
+  assert.match(consMdZh, /## Projects/);
+  assert.match(consMdZh, /## Top Sessions/);
 
   const consXlsxZh = parseZipStoreEntries(buildConsumptionXlsx(cons, models, { locale: 'zh-CN' }));
   const wbZh = consXlsxZh.get('xl/workbook.xml');
-  for (const sheetName of ['用量总览', '模型排行', '项目排行', '会话排行', '时间趋势', '客户端来源']) {
-    assert.ok(wbZh.includes(`name="${sheetName}"`), `ZH workbook includes sheet ${sheetName}`);
+  for (const sheetName of ['Overview', 'Models', 'Projects', 'Sessions', 'Trend', 'Client Sources']) {
+    assert.ok(wbZh.includes(`name="${sheetName}"`), `Localized workbook includes sheet ${sheetName}`);
   }
   const stylesXml = consXlsxZh.get('xl/styles.xml');
   assert.match(stylesXml, /formatCode="#,##0"/);
@@ -1681,9 +1681,9 @@ test('Feature 11: native multi-sheet localized XLSX, formula-safe CSV and biling
   assert.match(consXlsxEn.get('xl/worksheets/sheet1.xml'), /Last 7 Days/);
   assert.equal(consXlsxEn.get('xl/worksheets/sheet1.xml').includes('近7天'), false);
 
-  assert.equal(buildConsumptionExportBaseName(cons, '7d', { locale: 'zh-CN' }), '用量统计-近7天');
+  assert.equal(buildConsumptionExportBaseName(cons, '7d', { locale: 'zh-CN' }), 'usage-7d');
   assert.equal(buildConsumptionExportBaseName(cons, '7d', { locale: 'en-US' }), 'usage-7d');
-  assert.equal(buildStepsExportBaseName('调试任务', '', { locale: 'zh-CN' }), '调用明细-调试任务');
+  assert.equal(buildStepsExportBaseName('Debug Task', '', { locale: 'zh-CN' }), 'steps-Debug Task');
   assert.equal(buildStepsExportBaseName('Debug Task', '', { locale: 'en-US' }), 'steps-Debug Task');
 });
 
@@ -2023,13 +2023,13 @@ test('Feature 14: compact vertical ActionMenu replaces export bars, backend expo
   const exportCall = apiCalls.find((c) => String(c.url).includes('/api/export-file'));
   assert.ok(exportCall, 'XLSX menu item posts to /api/export-file');
   assert.equal(exportCall.body.encoding, 'base64');
-  assert.match(exportCall.body.filename, /^用量统计-近7天-\d{8}-\d{4}\.xlsx$/);
+  assert.match(exportCall.body.filename, /^usage-7d-\d{8}-\d{4}\.xlsx$/);
 
   const toast = uiStore.getState().toast;
   assert.ok(toast, 'Export displays global toast');
-  assert.match(toast.message, /用量统计-近7天-.*\.xlsx/);
+  assert.match(toast.message, /usage-7d-.*\.xlsx/);
   assert.equal(toast.detail, apiSaveBody.filePath);
-  assert.equal(toast.actionLabel, '打开位置');
+  assert.equal(toast.actionLabel, 'Show in Folder');
   assert.equal(typeof toast.onAction, 'function');
 
   // Clicking toast action calls /api/reveal-file with exact saved path
@@ -2272,9 +2272,9 @@ test('P0 regression: V4 display-projected steps open inspector, preserve waterfa
   setI18nLanguage('zh-CN');
   const diag = buildStepTimingDiagnostic(projectedLikeStep);
   assert.equal(diag.rows.length, 3);
-  assert.match(diag.rows[1].text, /流式返回/);
-  assert.match(diag.rows[2].text, /原生思考计时/);
-  assert.match(diag.hint, /重叠/);
+  assert.match(diag.rows[1].text, /Streaming/);
+  assert.match(diag.rows[2].text, /Native Thinking/);
+  assert.match(diag.hint, /overlap/i);
 
   // B-05: Speed aggregation matches official summarizeSpeed (18.2 tok/s, not 55.0 tok/s) and skips <50 tok short samples
   const stepSlow = {
@@ -2456,8 +2456,8 @@ test('P0 regression: V4 display-projected steps open inspector, preserve waterfa
   assert.equal(seg.el.getAttribute('aria-label'), 'Segmented switcher');
   setI18nLanguage('zh-CN');
   await Promise.resolve();
-  assert.equal(dt.el.querySelector('.dt-weekdays').textContent, '一二三四五六日');
-  assert.equal(dt.el.querySelector('.dt-time-row .text-muted').textContent, '时 / 分');
+  assert.equal(dt.el.querySelector('.dt-weekdays').textContent, 'MoTuWeThFrSaSu');
+  assert.equal(dt.el.querySelector('.dt-time-row .text-muted').textContent, 'Hr / Min');
   dt.destroy();
   num.destroy();
   seg.destroy();

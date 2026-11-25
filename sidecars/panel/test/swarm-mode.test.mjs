@@ -632,7 +632,7 @@ test('Backend Swarm integration: members.json discovery, chronological worker or
         id: wEntryCid,
         kind: 'swarm_worker',
         ord: 1,
-        badge: '蜂1',
+        badge: 'Sw1',
         role: '@entry-runtime',
         state: 'waiting',
         aux: false,
@@ -642,7 +642,7 @@ test('Backend Swarm integration: members.json discovery, chronological worker or
         id: wKilledCid,
         kind: 'swarm_worker',
         ord: 2,
-        badge: '蜂2',
+        badge: 'Sw2',
         role: '@dead-worker',
         state: 'killed',
         aux: false,
@@ -652,7 +652,7 @@ test('Backend Swarm integration: members.json discovery, chronological worker or
         id: wMonitorCid,
         kind: 'swarm_worker',
         ord: 3,
-        badge: '蜂3',
+        badge: 'Sw3',
         role: '@monitor',
         state: 'waiting',
         aux: true,
@@ -996,7 +996,7 @@ test('Frontend Swarm formatters, bilingual i18n, LiveActivityWidget priority sor
   setI18nLanguage('zh-CN');
   assert.equal(
     formatAgentBadgeText({ agentKind: 'swarm_worker', agentOrdinal: 9 }),
-    '蜂9'
+    'W9'
   );
   assert.equal(
     formatAgentLabel({
@@ -1004,27 +1004,27 @@ test('Frontend Swarm formatters, bilingual i18n, LiveActivityWidget priority sor
       agentOrdinal: 9,
       customRole: 'Swarm Worker (bridge-actions)',
     }),
-    '蜂群 #9 · @bridge-actions'
+    'Swarm #9 · @bridge-actions'
   );
   assert.equal(
     formatAgentLabel({ agentKind: 'swarm_worker', agentOrdinal: 20, customRole: '@monitor' }),
-    '蜂群 #20 · @monitor (巡检)'
+    'Swarm #20 · @monitor (Monitor)'
   );
   assert.equal(
     formatAgentLabel({ agentKind: 'swarm_worker', agentOrdinal: 21, customRole: '@narrator' }),
-    '蜂群 #21 · @narrator (旁白)'
+    'Swarm #21 · @narrator (Narrator)'
   );
   assert.equal(
     formatConversationMeta({ stepCount: 10, subagentCount: 20, swarmCount: 20, totalStepCount: 250 }),
-    '主10 · 20蜂 (共250步)'
+    'Main 10 · 20 swarm (250 steps)'
   );
   assert.equal(
     formatConversationMeta({ stepCount: 10, subagentCount: 7, swarmCount: 5, totalStepCount: 80 }),
-    '主10 · 5蜂 · 2子 (共80步)'
+    'Main 10 · 5 swarm · 2 sub (80 steps)'
   );
-  assert.equal(formatLiveActivityLabel({ actionKey: 'waiting_swarm' }), '等待工蜂');
-  assert.equal(formatLiveActivityLabel({ actionKey: 'swarm_waiting' }), '待命中');
-  assert.equal(formatLiveActivityLabel({ actionKey: 'swarm_killed' }), '已终止');
+  assert.equal(formatLiveActivityLabel({ actionKey: 'waiting_swarm' }), 'Waiting for Swarm');
+  assert.equal(formatLiveActivityLabel({ actionKey: 'swarm_waiting' }), 'Waiting');
+  assert.equal(formatLiveActivityLabel({ actionKey: 'swarm_killed' }), 'Killed');
 
   setI18nLanguage('en-US');
   assert.equal(
@@ -1152,7 +1152,7 @@ test('Frontend Swarm formatters, bilingual i18n, LiveActivityWidget priority sor
   liveWidget.refs.pauseTicker();
 
   const toggleBtn = liveWidget.el.querySelector('.live-sub-toggle');
-  assert.equal(toggleBtn?.textContent, '蜂群 1/4');
+  assert.equal(toggleBtn?.textContent, 'Swarm 1/4');
   assert.ok(
     toggleBtn?.querySelector('.live-sub-toggle-chevron'),
     'Swarm toggle button renders pure vector SVG chevron icon'
@@ -1164,11 +1164,11 @@ test('Frontend Swarm formatters, bilingual i18n, LiveActivityWidget priority sor
   assert.equal(renderedRows.length, 4);
   assert.deepEqual(
     renderedRows.map((r) => r.querySelector('.agent-badge')?.textContent),
-    ['蜂3', '蜂2', '蜂4', '蜂1'],
+    ['W3', 'W2', 'W4', 'W1'],
     'Rows must sort as running -> waiting -> killed while keeping original ordinals'
   );
-  assert.equal(renderedRows[1].querySelector('.live-sub-summary')?.textContent, '待命中 (6 步)');
-  assert.equal(renderedRows[3].querySelector('.live-sub-summary')?.textContent, '已终止 (2 步)');
+  assert.equal(renderedRows[1].querySelector('.live-sub-summary')?.textContent, 'Waiting (6 steps)');
+  assert.equal(renderedRows[3].querySelector('.live-sub-summary')?.textContent, 'Killed (2 steps)');
 
   // 4. TopSessionHeader: child route resolution, header title, and one-shot auto-focus
   const mockTelemetry = {
@@ -1256,7 +1256,7 @@ test('Frontend Swarm formatters, bilingual i18n, LiveActivityWidget priority sor
   assert.equal(uiStore.getState().selectedAgentScope, w2);
   assert.equal(uiStore.getState().ctxInspectorAgentId, w2);
   const triggerText = topHeader.el.querySelector('.select-trigger')?.textContent || '';
-  assert.match(triggerText, /当前窗口 \(Greeting and Hello · 蜂2\)/);
+  assert.match(triggerText, /Current \(Greeting and Hello · W2\)/);
 
   // User manually switches scope back to `all` while still on `/c/<w2>` -> next poll must NOT override!
   uiStore.setState({ selectedAgentScope: 'all', ctxInspectorAgentId: 'auto' }, { sync: true });

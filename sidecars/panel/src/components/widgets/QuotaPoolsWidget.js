@@ -154,6 +154,7 @@ export function formatQuotaSummaryFooter(quotas, account) {
 function syncQuotaWindowMeter({
   hasData,
   usedVal,
+  remainingVal,
   resetTime,
   fallbackMetaText,
   showReserved,
@@ -168,13 +169,16 @@ function syncQuotaWindowMeter({
   const rsvVal =
     Number.isFinite(numReserved) && numReserved >= 0.05 ? Math.min(usedVal, numReserved) : 0;
   const actualVal = Math.max(0, usedVal - rsvVal);
+  const remVal = hasData ? Math.max(0, Math.min(100, Number(remainingVal))) : 0;
   const resetStr = hasData ? formatCountdown(resetTime) : '';
+  const leftStr = formatPctNumber(remVal);
 
   patchText(
     metaEl,
     hasData
       ? t('quota.usedAndLeft', {
           reset: resetStr,
+          left: leftStr,
           used: formatPctNumber(usedVal),
         })
       : fallbackMetaText
@@ -186,26 +190,26 @@ function syncQuotaWindowMeter({
     const leases = Math.max(1, Number(leaseCount) || 1);
     const tipText =
       leases >= 2
-        ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: actualStr })
-        : t('quota.reservedTip', { rsv: rsvStr, actual: actualStr });
+        ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, left: leftStr, actual: actualStr })
+        : t('quota.reservedTip', { rsv: rsvStr, left: leftStr, actual: actualStr });
     patchAttr(metaEl, 'title', tipText);
     patchAttr(trackEl, 'title', tipText);
-    const actualWidth = +Math.min(100, actualVal).toFixed(2);
-    const rsvWidth = +Math.min(Math.max(0, 100 - actualWidth), rsvVal).toFixed(2);
-    patchStyleVar(fillEl, '--fill-w', `${actualWidth}%`);
+    const remWidth = +Math.min(100, remVal).toFixed(2);
+    const rsvWidth = +Math.min(Math.max(0, 100 - remWidth), rsvVal).toFixed(2);
+    patchStyleVar(fillEl, '--fill-w', `${remWidth}%`);
     patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
-    patchClasses(fillReservedEl, { 'is-active': true, 'has-sep': actualWidth > 0 });
+    patchClasses(fillReservedEl, { 'is-active': true, 'has-sep': remWidth > 0 });
   } else {
     patchAttr(metaEl, 'title', null);
     patchAttr(trackEl, 'title', null);
-    patchStyleVar(fillEl, '--fill-w', `${Math.min(100, usedVal)}%`);
+    patchStyleVar(fillEl, '--fill-w', `${hasData ? +Math.min(100, remVal).toFixed(2) : 0}%`);
     patchStyleVar(fillReservedEl, '--reserved-w', '0%');
     patchClasses(fillReservedEl, { 'is-active': false, 'has-sep': false });
   }
 
   patchClasses(fillEl, {
-    'tone-warn': usedVal >= 70 && usedVal < 85,
-    'tone-danger': usedVal >= 85,
+    'tone-warn': hasData && remVal <= 30 && remVal > 15,
+    'tone-danger': hasData && remVal <= 15,
   });
 }
 
@@ -218,6 +222,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
 
   const has5h = poolData?.usedPct != null && poolData?.remainingPct != null;
   const used5hVal = has5h ? Number(poolData.usedPct) : 0;
+  const rem5hVal = has5h ? Number(poolData.remainingPct) : 0;
 
   const useCustomWeekly = Boolean(isActivePool && fallbackWeekly?.isOfficial === false);
   const wkUsedRaw = useCustomWeekly
@@ -231,6 +236,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     : poolData?.weeklyResetTime || (isActivePool ? fallbackWeekly?.resetTime : null);
   const hasWk = wkUsedRaw != null && wkRemRaw != null;
   const usedWkVal = hasWk ? Number(wkUsedRaw) : 0;
+  const remWkVal = hasWk ? Number(wkRemRaw) : 0;
 
   const hide5h = !has5h && hasWk;
   const hideWk = !hasWk && has5h;
@@ -268,6 +274,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
   syncQuotaWindowMeter({
     hasData: has5h,
     usedVal: used5hVal,
+    remainingVal: rem5hVal,
     resetTime: poolData?.resetTime,
     fallbackMetaText,
     showReserved: allowReserved,
@@ -313,6 +320,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
   syncQuotaWindowMeter({
     hasData: hasWk,
     usedVal: usedWkVal,
+    remainingVal: remWkVal,
     resetTime: wkResetRaw,
     fallbackMetaText,
     showReserved: allowReserved && !useCustomWeekly,
