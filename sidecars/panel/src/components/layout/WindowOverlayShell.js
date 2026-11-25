@@ -910,7 +910,7 @@ function findNativeTopRightAnchor() {
 }
 
 const SIDEBAR_EXTENSION_LABEL_RE =
-  /usage\s*(?:&\s*speed\s*)?monitor|usage-monitor/i;
+  /^usage\s*(?:&\s*speed\s*)?monitor$/i;
 const PLUGINS_MENU_ITEM_RE = /^plugins\b/i;
 let activeSidebarOpenTimers = [];
 
@@ -957,6 +957,12 @@ function isSidebarTabActive(el) {
 
 function isInsideOwnOverlay(el) {
   return Boolean(el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`));
+}
+
+function isInsideChatLink(el) {
+  if (!el) return false;
+  if (el.tagName?.toLowerCase() === 'a') return true;
+  return Boolean(el.closest?.('a, [href], code, pre'));
 }
 
 function getElementCenterCoords(el) {
@@ -1019,27 +1025,99 @@ function triggerHostElementClick(el) {
   return dispatchHostEvent(el, 'click', { button: 0, ctrlKey: false });
 }
 
-function findMenuItemByPattern(pattern) {
+function normalizeMenuLabel(raw) {
+  return String(raw || '')
+    .replace(/[›>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findAllExactMenuCandidates(pattern, root = document) {
+  if (!root || typeof root.querySelectorAll !== 'function') {
+    return [];
+  }
+  const seen = new Set();
+  const interactive = [];
+  const plain = [];
+  try {
+    const items = root.querySelectorAll(
+      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], button, [role="button"], li, div, span'
+    );
+    for (const el of items) {
+      if (!el || isInsideOwnOverlay(el) || isInsideChatLink(el) || !isHostElementVisible(el)) {
+        continue;
+      }
+      if (typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect();
+        if (rect && (rect.height > 64 || rect.width > 420)) {
+          continue;
+        }
+      }
+      const text = normalizeMenuLabel(el.textContent);
+      const aria = normalizeMenuLabel(el.getAttribute?.('aria-label'));
+      if (!((text && text.length <= 48 && pattern.test(text)) || (aria && pattern.test(aria)))) {
+        continue;
+      }
+      const target =
+        el.closest?.(
+          '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], button, [role="button"]'
+        ) || el;
+      if (!target || isInsideOwnOverlay(target) || isInsideChatLink(target) || seen.has(target)) {
+        continue;
+      }
+      seen.add(target);
+      const role = String(target.getAttribute?.('role') || '').toLowerCase();
+      const tag = String(target.tagName || '').toLowerCase();
+      if (
+        role === 'menuitem' ||
+        role === 'menuitemcheckbox' ||
+        role === 'menuitemradio' ||
+        role === 'button' ||
+        tag === 'button'
+      ) {
+        interactive.push(target);
+      } else {
+        plain.push(target);
+      }
+    }
+  } catch {
+    return [];
+  }
+  // Prefer interactive menu items; for plain nodes prefer deeper (last in DOM order) nodes
+  return interactive.length > 0 ? interactive : plain.reverse();
+}
+
+function findOpenMenuItem(pattern, beforeEls = null, beforeBodyChildren = null) {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
     return null;
   }
   try {
+    // 1. Explicit menu/popover portals
     const menuContainers = document.querySelectorAll(
-      '[role="menu"], [data-radix-menu-content], [data-radix-popper-content-wrapper]'
+      '[role="menu"], [role="listbox"], [data-radix-menu-content], [data-radix-popper-content-wrapper], [data-floating-ui-portal], [data-headlessui-state="open"]'
     );
-    const scopes = menuContainers.length > 0 ? Array.from(menuContainers) : [document];
-    for (const scope of scopes) {
-      const items = scope.querySelectorAll?.(
-        '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], button, [role="button"]'
-      ) || [];
-      for (const el of items) {
-        if (!el || isInsideOwnOverlay(el) || !isHostElementVisible(el)) continue;
-        const text = String(el.textContent || '').replace(/\s+/g, ' ').trim();
-        const aria = String(el.getAttribute?.('aria-label') || '').trim();
-        if ((text && text.length <= 48 && pattern.test(text)) || (aria && pattern.test(aria))) {
-          return el;
-        }
+    for (const scope of menuContainers) {
+      if (!scope || isInsideOwnOverlay(scope)) continue;
+      const matches = findAllExactMenuCandidates(pattern, scope);
+      if (matches.length > 0) return matches[0];
+    }
+
+    // 2. Newly mounted body portals (custom non-Radix floating menus)
+    if (beforeBodyChildren && document.body?.children) {
+      const bodyKids = Array.from(document.body.children);
+      for (let i = bodyKids.length - 1; i >= 0; i--) {
+        const kid = bodyKids[i];
+        if (!kid || beforeBodyChildren.has(kid) || isInsideOwnOverlay(kid)) continue;
+        const matches = findAllExactMenuCandidates(pattern, kid);
+        if (matches.length > 0) return matches[0];
       }
+    }
+
+    // 3. Newly mounted exact candidates anywhere in document (only after triggering menu)
+    if (beforeEls) {
+      const candidates = findAllExactMenuCandidates(pattern, document);
+      const fresh = candidates.find((el) => !beforeEls.has(el));
+      if (fresh) return fresh;
     }
   } catch {
     return null;
@@ -1047,15 +1125,7 @@ function findMenuItemByPattern(pattern) {
   return null;
 }
 
-function findPluginsMenuItem() {
-  return findMenuItemByPattern(PLUGINS_MENU_ITEM_RE);
-}
-
-function findUsageMonitorMenuItem() {
-  return findMenuItemByPattern(SIDEBAR_EXTENSION_LABEL_RE);
-}
-
-function findPluginsMenuTrigger() {
+function findPluginsMenuTrigger(capsuleHostEl = null) {
   if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
     return null;
   }
@@ -1065,6 +1135,7 @@ function findPluginsMenuTrigger() {
     const rightGroup =
       titlebar?.querySelector?.(':scope > div.shrink-0') ||
       titlebar?.lastElementChild ||
+      capsuleHostEl?.parentElement ||
       auxToggle?.parentElement ||
       null;
 
@@ -1086,6 +1157,7 @@ function findPluginsMenuTrigger() {
 
     const primaryCandidates = [
       ...collectButtons(auxToggle?.parentElement),
+      ...collectButtons(capsuleHostEl?.parentElement),
       ...collectButtons(rightGroup),
     ];
     const seen = new Set();
@@ -1099,6 +1171,22 @@ function findPluginsMenuTrigger() {
     if (attrMatch) return attrMatch;
 
     if (auxToggle) {
+      if (capsuleHostEl) {
+        let next = capsuleHostEl.nextElementSibling;
+        while (next) {
+          if (next !== auxToggle && !isInsideOwnOverlay(next) && isHostElementVisible(next)) {
+            const btn =
+              next.tagName?.toLowerCase() === 'button' || next.getAttribute?.('role') === 'button'
+                ? next
+                : next.querySelector?.('button, [role="button"]');
+            if (btn && btn !== auxToggle && !isInsideOwnOverlay(btn) && isHostElementVisible(btn)) {
+              return btn;
+            }
+          }
+          next = next.nextElementSibling;
+        }
+      }
+
       const prev = auxToggle.previousElementSibling;
       if (prev && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
         const prevBtn =
@@ -1109,6 +1197,7 @@ function findPluginsMenuTrigger() {
           return prevBtn;
         }
       }
+
       if (uniquePrimary.length > 0) {
         return uniquePrimary[uniquePrimary.length - 1];
       }
@@ -1129,22 +1218,17 @@ function findSidebarExtensionTab() {
     return null;
   }
   try {
-    const candidates = document.querySelectorAll('button, [role="tab"], [role="button"], a');
+    const candidates = document.querySelectorAll('[role="tab"]');
     for (const el of candidates) {
       if (!el || isInsideOwnOverlay(el) || !isHostElementVisible(el)) continue;
-      const aria = String(el.getAttribute?.('aria-label') || '');
-      const title = String(el.getAttribute?.('title') || '');
-      const testId = String(el.getAttribute?.('data-testid') || '');
-      const id = String(el.id || '');
-      const text = String(el.textContent || '').trim();
-      const attrMatch =
+      const aria = normalizeMenuLabel(el.getAttribute?.('aria-label'));
+      const title = normalizeMenuLabel(el.getAttribute?.('title'));
+      const text = normalizeMenuLabel(el.textContent);
+      if (
         SIDEBAR_EXTENSION_LABEL_RE.test(aria) ||
         SIDEBAR_EXTENSION_LABEL_RE.test(title) ||
-        SIDEBAR_EXTENSION_LABEL_RE.test(testId) ||
-        /usage-monitor/i.test(id);
-      const exactTextMatch =
-        text.length > 0 && text.length <= 40 && SIDEBAR_EXTENSION_LABEL_RE.test(text);
-      if (attrMatch || exactTextMatch) {
+        SIDEBAR_EXTENSION_LABEL_RE.test(text)
+      ) {
         return el;
       }
     }
@@ -1154,28 +1238,12 @@ function findSidebarExtensionTab() {
   return null;
 }
 
-function openMenuTriggerElement(trigger) {
-  if (!trigger) return;
-  const isOpen =
+function isMenuTriggerCurrentlyOpen(trigger) {
+  if (!trigger) return false;
+  return (
     trigger.getAttribute?.('aria-expanded') === 'true' ||
-    trigger.getAttribute?.('data-state') === 'open';
-  if (isOpen) return;
-  dispatchHostEvent(trigger, 'pointerdown', { button: 0, buttons: 1, ctrlKey: false });
-  dispatchHostEvent(trigger, 'mousedown', { button: 0, buttons: 1, ctrlKey: false });
-  const openedOnPointerDown =
-    trigger.getAttribute?.('aria-expanded') === 'true' ||
-    trigger.getAttribute?.('data-state') === 'open' ||
-    Boolean(findPluginsMenuItem()) ||
-    Boolean(findUsageMonitorMenuItem());
-  if (!openedOnPointerDown) {
-    dispatchHostEvent(trigger, 'pointerup', { button: 0, buttons: 0, ctrlKey: false });
-    dispatchHostEvent(trigger, 'mouseup', { button: 0, buttons: 0, ctrlKey: false });
-    if (typeof trigger.click === 'function') {
-      trigger.click();
-    } else {
-      dispatchHostEvent(trigger, 'click', { button: 0, ctrlKey: false });
-    }
-  }
+    trigger.getAttribute?.('data-state') === 'open'
+  );
 }
 
 function openPluginsSubmenuElement(pluginsItem, attemptIndex = 0) {
@@ -1194,35 +1262,64 @@ function openPluginsSubmenuElement(pluginsItem, attemptIndex = 0) {
   }
 }
 
-function openSidebarExtension() {
+function openSidebarExtension(capsuleHostEl = null) {
   clearPendingSidebarOpenTimers();
 
-  const immediateMenuItem = findUsageMonitorMenuItem();
+  const immediateMenuItem = findOpenMenuItem(SIDEBAR_EXTENSION_LABEL_RE, null, null);
   if (immediateMenuItem) {
     triggerHostElementClick(immediateMenuItem);
     return true;
   }
 
-  const menuTrigger = findPluginsMenuTrigger();
+  const menuTrigger = findPluginsMenuTrigger(capsuleHostEl);
   if (menuTrigger) {
+    const beforeBodyChildren =
+      typeof document !== 'undefined' && document.body?.children
+        ? new Set(Array.from(document.body.children))
+        : null;
+    const beforeUsageEls = new Set(findAllExactMenuCandidates(SIDEBAR_EXTENSION_LABEL_RE, document));
+    const beforePluginsEls = new Set(findAllExactMenuCandidates(PLUGINS_MENU_ITEM_RE, document));
+
     scheduleSidebarOpenTimer(() => {
-      openMenuTriggerElement(menuTrigger);
+      if (!isMenuTriggerCurrentlyOpen(menuTrigger)) {
+        dispatchHostEvent(menuTrigger, 'pointerdown', { button: 0, buttons: 1, ctrlKey: false });
+        dispatchHostEvent(menuTrigger, 'mousedown', { button: 0, buttons: 1, ctrlKey: false });
+      }
+
+      let clickFallbackDispatched = false;
       let attempts = 0;
       let pluginsHoverAttempts = 0;
       const pollStep = () => {
         attempts += 1;
-        const usageItem = findUsageMonitorMenuItem();
+        const usageItem = findOpenMenuItem(
+          SIDEBAR_EXTENSION_LABEL_RE,
+          beforeUsageEls,
+          beforeBodyChildren
+        );
         if (usageItem) {
           triggerHostElementClick(usageItem);
           clearPendingSidebarOpenTimers();
           return;
         }
-        const pluginsItem = findPluginsMenuItem();
+        const pluginsItem = findOpenMenuItem(
+          PLUGINS_MENU_ITEM_RE,
+          beforePluginsEls,
+          beforeBodyChildren
+        );
         if (pluginsItem) {
           openPluginsSubmenuElement(pluginsItem, pluginsHoverAttempts);
           pluginsHoverAttempts += 1;
+        } else if (!clickFallbackDispatched && !isMenuTriggerCurrentlyOpen(menuTrigger)) {
+          clickFallbackDispatched = true;
+          dispatchHostEvent(menuTrigger, 'pointerup', { button: 0, buttons: 0, ctrlKey: false });
+          dispatchHostEvent(menuTrigger, 'mouseup', { button: 0, buttons: 0, ctrlKey: false });
+          if (typeof menuTrigger.click === 'function') {
+            menuTrigger.click();
+          } else {
+            dispatchHostEvent(menuTrigger, 'click', { button: 0, ctrlKey: false });
+          }
         }
-        if (attempts < 18) {
+        if (attempts < 24) {
           scheduleSidebarOpenTimer(pollStep, 25);
         }
       };
@@ -1659,7 +1756,7 @@ export function mountWindowOverlay() {
         if (multiOpen && !multiPinned) {
           setMultiOpen(false);
         }
-        if (openSidebarExtension()) {
+        if (openSidebarExtension(capsuleHost)) {
           if (popoverOpen) {
             setPopoverOpen(false);
           }

@@ -6303,7 +6303,7 @@ test('Hardened fork: dual / topbar / sidebar modes work when DevToolsActivePort 
   }
 });
 
-test('Clicking top bar capsule opens host Plugins menu and clicks Usage Monitor while preserving hover quick-view', async () => {
+test('Clicking top bar capsule opens host Plugins menu and clicks Usage Monitor without clicking chat links', async () => {
   const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
   const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
   const { telemetryStore } = await import('../src/store/telemetryStore.js');
@@ -6335,6 +6335,17 @@ test('Clicking top bar capsule opens host Plugins menu and clicks Usage Monitor 
   rightGroup.appendChild(auxToggle);
   titlebar.appendChild(rightGroup);
   body.appendChild(titlebar);
+
+  // Decoy chat link matching "usage-monitor" must NEVER be clicked
+  const decoyLink = makeElement('a');
+  decoyLink.setAttribute('href', 'file:///home/user/.gemini/config/plugins/usage-monitor');
+  decoyLink.textContent = 'usage-monitor';
+  decoyLink.setRect({ left: 100, right: 200, top: 300, bottom: 320, width: 100, height: 20 });
+  let decoyClicks = 0;
+  decoyLink.click = () => {
+    decoyClicks += 1;
+  };
+  body.appendChild(decoyLink);
 
   let auxToggleClicks = 0;
   let menuOpenCount = 0;
@@ -6410,8 +6421,105 @@ test('Clicking top bar capsule opens host Plugins menu and clicks Usage Monitor 
     await new Promise((r) => setTimeout(r, 120));
     assert.equal(hoverTipEl.hasAttribute('hidden'), true);
     assert.equal(popoverEl.hasAttribute('hidden'), true);
+    assert.equal(decoyClicks, 0, 'Never clicks chat file links');
     assert.equal(auxToggleClicks, 0, 'Does not blindly toggle aux sidebar closed');
     assert.equal(menuOpenCount, 1);
+    assert.equal(usageMonitorClicks, 1);
+  } finally {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel);
+    uiStore.setState(prevUi);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: prevNav,
+      configurable: true,
+    });
+    if (globalThis.window && globalThis.window[WINDOW_OVERLAY_KEY]) {
+      delete globalThis.window[WINDOW_OVERLAY_KEY];
+    }
+  }
+});
+
+test('Clicking top bar capsule also handles custom non-Radix click menus without role="menuitem"', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const { telemetryStore } = await import('../src/store/telemetryStore.js');
+  const { uiStore } = await import('../src/store/uiStore.js');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevNav = globalThis.navigator;
+  const prevTel = { ...telemetryStore.getState() };
+  const prevUi = { ...uiStore.getState() };
+
+  const { body, document: mockDoc, makeElement } = createMockDom();
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex @container/titlebar';
+  titlebar.setRect({ left: 0, right: 1280, top: 0, bottom: 36, width: 1280, height: 36 });
+  const rightGroup = makeElement('div');
+  rightGroup.className = 'shrink-0 flex items-center';
+
+  // Custom button trigger without aria-haspopup or data-state; sits between capsuleHost and auxToggle
+  const menuTrigger = makeElement('button');
+  menuTrigger.setRect({ left: 720, right: 744, top: 6, bottom: 30, width: 24, height: 24 });
+  const auxToggle = makeElement('button');
+  auxToggle.setAttribute('data-testid', 'toggle-aux-sidebar');
+  auxToggle.setRect({ left: 748, right: 772, top: 6, bottom: 30, width: 24, height: 24 });
+
+  rightGroup.appendChild(menuTrigger);
+  rightGroup.appendChild(auxToggle);
+  titlebar.appendChild(rightGroup);
+  body.appendChild(titlebar);
+
+  let usageMonitorClicks = 0;
+  let menuPortal = null;
+  let submenuPortal = null;
+
+  menuTrigger.click = () => {
+    if (menuPortal) return;
+    menuPortal = makeElement('div');
+    const pluginsRow = makeElement('div');
+    pluginsRow.textContent = 'Plugins ›';
+    pluginsRow.setRect({ left: 560, right: 720, top: 140, bottom: 168, width: 160, height: 28 });
+    pluginsRow.addEventListener('mouseenter', () => {
+      if (submenuPortal) return;
+      submenuPortal = makeElement('div');
+      const usageRow = makeElement('div');
+      usageRow.textContent = 'Usage Monitor';
+      usageRow.setRect({ left: 390, right: 550, top: 140, bottom: 168, width: 160, height: 28 });
+      usageRow.click = () => {
+        usageMonitorClicks += 1;
+        menuPortal?.remove();
+        submenuPortal?.remove();
+      };
+      submenuPortal.appendChild(usageRow);
+      body.appendChild(submenuPortal);
+    });
+    menuPortal.appendChild(pluginsRow);
+    body.appendChild(menuPortal);
+  };
+
+  globalThis.document = mockDoc;
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 820,
+    location: { pathname: '/' },
+    addEventListener() {},
+    removeEventListener() {},
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { language: 'en-US' },
+    configurable: true,
+  });
+
+  const ov = mountWindowOverlay();
+  try {
+    const capsuleHost = mockDoc.getElementById('ag-usage-monitor-capsule');
+    const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+    capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 150));
     assert.equal(usageMonitorClicks, 1);
   } finally {
     ov?.dispose?.();
