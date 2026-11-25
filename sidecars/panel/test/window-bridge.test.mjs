@@ -6303,7 +6303,7 @@ test('Hardened fork: dual / topbar / sidebar modes work when DevToolsActivePort 
   }
 });
 
-test('Clicking top bar capsule opens host sidebar extension while preserving hover quick-view', async () => {
+test('Clicking top bar capsule opens host Plugins menu and clicks Usage Monitor while preserving hover quick-view', async () => {
   const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
   const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
   const { telemetryStore } = await import('../src/store/telemetryStore.js');
@@ -6316,27 +6316,70 @@ test('Clicking top bar capsule opens host sidebar extension while preserving hov
   const prevUi = { ...uiStore.getState() };
 
   const { body, document: mockDoc, makeElement } = createMockDom();
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex @container/titlebar';
+  titlebar.setRect({ left: 0, right: 1280, top: 0, bottom: 36, width: 1280, height: 36 });
+  const rightGroup = makeElement('div');
+  rightGroup.className = 'shrink-0 flex items-center';
+
+  const menuTrigger = makeElement('button');
+  menuTrigger.setAttribute('aria-haspopup', 'menu');
+  menuTrigger.setAttribute('data-state', 'closed');
+  menuTrigger.setRect({ left: 720, right: 744, top: 6, bottom: 30, width: 24, height: 24 });
+
   const auxToggle = makeElement('button');
   auxToggle.setAttribute('data-testid', 'toggle-aux-sidebar');
+  auxToggle.setRect({ left: 748, right: 772, top: 6, bottom: 30, width: 24, height: 24 });
+
+  rightGroup.appendChild(menuTrigger);
+  rightGroup.appendChild(auxToggle);
+  titlebar.appendChild(rightGroup);
+  body.appendChild(titlebar);
+
   let auxToggleClicks = 0;
-  let sidebarTabClicks = 0;
-  let sidebarTab = null;
+  let menuOpenCount = 0;
+  let usageMonitorClicks = 0;
+  let menuEl = null;
+  let submenuEl = null;
 
   auxToggle.click = () => {
     auxToggleClicks += 1;
-    if (!sidebarTab) {
-      sidebarTab = makeElement('button');
-      sidebarTab.setAttribute('role', 'tab');
-      sidebarTab.setAttribute('aria-label', 'Usage Monitor');
-      sidebarTab.setRect({ left: 1180, right: 1260, top: 44, bottom: 72, width: 80, height: 28 });
-      sidebarTab.click = () => {
-        sidebarTabClicks += 1;
-        sidebarTab.setAttribute('aria-selected', 'true');
-      };
-      body.appendChild(sidebarTab);
-    }
   };
-  body.appendChild(auxToggle);
+
+  menuTrigger.addEventListener('pointerdown', () => {
+    menuOpenCount += 1;
+    menuTrigger.setAttribute('data-state', 'open');
+    menuTrigger.setAttribute('aria-expanded', 'true');
+    if (menuEl) menuEl.remove();
+    menuEl = makeElement('div');
+    menuEl.setAttribute('role', 'menu');
+    const pluginsItem = makeElement('div');
+    pluginsItem.setAttribute('role', 'menuitem');
+    pluginsItem.textContent = 'Plugins';
+    pluginsItem.setRect({ left: 560, right: 720, top: 140, bottom: 168, width: 160, height: 28 });
+    pluginsItem.addEventListener('pointermove', () => {
+      if (submenuEl) return;
+      submenuEl = makeElement('div');
+      submenuEl.setAttribute('role', 'menu');
+      const usageItem = makeElement('div');
+      usageItem.setAttribute('role', 'menuitem');
+      usageItem.textContent = 'Usage Monitor';
+      usageItem.setRect({ left: 390, right: 550, top: 140, bottom: 168, width: 160, height: 28 });
+      usageItem.click = () => {
+        usageMonitorClicks += 1;
+        menuTrigger.setAttribute('data-state', 'closed');
+        menuTrigger.setAttribute('aria-expanded', 'false');
+        menuEl?.remove();
+        submenuEl?.remove();
+        menuEl = null;
+        submenuEl = null;
+      };
+      submenuEl.appendChild(usageItem);
+      body.appendChild(submenuEl);
+    });
+    menuEl.appendChild(pluginsItem);
+    body.appendChild(menuEl);
+  });
 
   globalThis.document = mockDoc;
   globalThis.window = {
@@ -6360,19 +6403,16 @@ test('Clicking top bar capsule opens host sidebar extension while preserving hov
     const hoverTipEl = portalHost.shadowRoot.querySelector('.wm-hover-tip');
     const popoverEl = portalHost.shadowRoot.querySelector('.wm-popover-panel');
 
-    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 960, clientY: 18 });
+    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 640, clientY: 18 });
     assert.equal(hoverTipEl.hasAttribute('hidden'), false);
 
     capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
-    await new Promise((r) => setTimeout(r, 90));
+    await new Promise((r) => setTimeout(r, 120));
     assert.equal(hoverTipEl.hasAttribute('hidden'), true);
     assert.equal(popoverEl.hasAttribute('hidden'), true);
-    assert.equal(auxToggleClicks, 1);
-    assert.equal(sidebarTabClicks, 1);
-
-    capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
-    assert.equal(auxToggleClicks, 1);
-    assert.equal(sidebarTabClicks, 1);
+    assert.equal(auxToggleClicks, 0, 'Does not blindly toggle aux sidebar closed');
+    assert.equal(menuOpenCount, 1);
+    assert.equal(usageMonitorClicks, 1);
   } finally {
     ov?.dispose?.();
     telemetryStore.setState(prevTel);

@@ -34563,6 +34563,24 @@ function findNativeTopRightAnchor() {
 
 const SIDEBAR_EXTENSION_LABEL_RE =
   /usage\s*(?:&\s*speed\s*)?monitor|usage-monitor/i;
+const PLUGINS_MENU_ITEM_RE = /^plugins\b/i;
+let activeSidebarOpenTimers = [];
+
+function clearPendingSidebarOpenTimers() {
+  for (const id of activeSidebarOpenTimers) {
+    clearTimeout(id);
+  }
+  activeSidebarOpenTimers = [];
+}
+
+function scheduleSidebarOpenTimer(fn, delayMs) {
+  const id = setTimeout(() => {
+    activeSidebarOpenTimers = activeSidebarOpenTimers.filter((tId) => tId !== id);
+    fn();
+  }, delayMs);
+  activeSidebarOpenTimers.push(id);
+  return id;
+}
 
 function isHostElementVisible(el) {
   if (!el || el.hasAttribute?.('hidden') || el.getAttribute?.('aria-hidden') === 'true') {
@@ -34589,6 +34607,175 @@ function isSidebarTabActive(el) {
   return Boolean(el.classList?.contains?.('active') || el.classList?.contains?.('is-active'));
 }
 
+function isInsideOwnOverlay(el) {
+  return Boolean(el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`));
+}
+
+function getElementCenterCoords(el) {
+  try {
+    const r = el?.getBoundingClientRect?.();
+    if (r && (r.width > 0 || r.height > 0)) {
+      return {
+        clientX: Math.round(r.left + r.width / 2),
+        clientY: Math.round(r.top + r.height / 2),
+      };
+    }
+  } catch {}
+  return { clientX: 0, clientY: 0 };
+}
+
+function dispatchHostEvent(el, type, init = {}) {
+  if (!el || typeof el.dispatchEvent !== 'function') return false;
+  const coords = getElementCenterCoords(el);
+  const fullInit = {
+    bubbles: true,
+    cancelable: true,
+    view: typeof window !== 'undefined' ? window : undefined,
+    clientX: coords.clientX,
+    clientY: coords.clientY,
+    ...init,
+  };
+  try {
+    let ev;
+    if (type.startsWith('pointer') && typeof PointerEvent === 'function') {
+      ev = new PointerEvent(type, { pointerId: 1, pointerType: 'mouse', isPrimary: true, ...fullInit });
+    } else if (type.startsWith('key') && typeof KeyboardEvent === 'function') {
+      ev = new KeyboardEvent(type, fullInit);
+    } else if (typeof MouseEvent === 'function') {
+      ev = new MouseEvent(type, fullInit);
+    } else {
+      ev = { type, ...fullInit, stopPropagation() {}, preventDefault() {} };
+    }
+    el.dispatchEvent(ev);
+    return true;
+  } catch {
+    try {
+      el.dispatchEvent({ type, ...fullInit, stopPropagation() {}, preventDefault() {} });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function triggerHostElementClick(el) {
+  if (!el) return false;
+  dispatchHostEvent(el, 'pointerdown', { button: 0, buttons: 1, ctrlKey: false });
+  dispatchHostEvent(el, 'mousedown', { button: 0, buttons: 1, ctrlKey: false });
+  dispatchHostEvent(el, 'pointerup', { button: 0, buttons: 0, ctrlKey: false });
+  dispatchHostEvent(el, 'mouseup', { button: 0, buttons: 0, ctrlKey: false });
+  if (typeof el.click === 'function') {
+    el.click();
+    return true;
+  }
+  return dispatchHostEvent(el, 'click', { button: 0, ctrlKey: false });
+}
+
+function findMenuItemByPattern(pattern) {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+    return null;
+  }
+  try {
+    const menuContainers = document.querySelectorAll(
+      '[role="menu"], [data-radix-menu-content], [data-radix-popper-content-wrapper]'
+    );
+    const scopes = menuContainers.length > 0 ? Array.from(menuContainers) : [document];
+    for (const scope of scopes) {
+      const items = scope.querySelectorAll?.(
+        '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], button, [role="button"]'
+      ) || [];
+      for (const el of items) {
+        if (!el || isInsideOwnOverlay(el) || !isHostElementVisible(el)) continue;
+        const text = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+        const aria = String(el.getAttribute?.('aria-label') || '').trim();
+        if ((text && text.length <= 48 && pattern.test(text)) || (aria && pattern.test(aria))) {
+          return el;
+        }
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function findPluginsMenuItem() {
+  return findMenuItemByPattern(PLUGINS_MENU_ITEM_RE);
+}
+
+function findUsageMonitorMenuItem() {
+  return findMenuItemByPattern(SIDEBAR_EXTENSION_LABEL_RE);
+}
+
+function findPluginsMenuTrigger() {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+    return null;
+  }
+  try {
+    const auxToggle = document.querySelector('[data-testid="toggle-aux-sidebar"]');
+    const titlebar = findHostTitlebar();
+    const rightGroup =
+      titlebar?.querySelector?.(':scope > div.shrink-0') ||
+      titlebar?.lastElementChild ||
+      auxToggle?.parentElement ||
+      null;
+
+    const collectButtons = (root) => {
+      if (!root?.querySelectorAll) return [];
+      return Array.from(root.querySelectorAll('button, [role="button"]')).filter(
+        (el) => el && el !== auxToggle && !isInsideOwnOverlay(el) && isHostElementVisible(el)
+      );
+    };
+
+    const isMenuTriggerAttr = (el) => {
+      const hasPopup = String(el.getAttribute?.('aria-haspopup') || '').toLowerCase();
+      if (hasPopup === 'menu' || hasPopup === 'true') return true;
+      const dataState = el.getAttribute?.('data-state');
+      if (dataState === 'open' || dataState === 'closed') return true;
+      const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('data-testid') || ''}`;
+      return /\b(?:overview|plugins?|more|menu|pane|sidebar)\b/i.test(label);
+    };
+
+    const primaryCandidates = [
+      ...collectButtons(auxToggle?.parentElement),
+      ...collectButtons(rightGroup),
+    ];
+    const seen = new Set();
+    const uniquePrimary = primaryCandidates.filter((el) => {
+      if (seen.has(el)) return false;
+      seen.add(el);
+      return true;
+    });
+
+    const attrMatch = uniquePrimary.find(isMenuTriggerAttr);
+    if (attrMatch) return attrMatch;
+
+    if (auxToggle) {
+      const prev = auxToggle.previousElementSibling;
+      if (prev && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
+        const prevBtn =
+          prev.tagName?.toLowerCase() === 'button' || prev.getAttribute?.('role') === 'button'
+            ? prev
+            : prev.querySelector?.('button, [role="button"]');
+        if (prevBtn && !isInsideOwnOverlay(prevBtn) && isHostElementVisible(prevBtn)) {
+          return prevBtn;
+        }
+      }
+      if (uniquePrimary.length > 0) {
+        return uniquePrimary[uniquePrimary.length - 1];
+      }
+    }
+
+    if (titlebar) {
+      const tbMatch = collectButtons(titlebar).find(isMenuTriggerAttr);
+      if (tbMatch) return tbMatch;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function findSidebarExtensionTab() {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
     return null;
@@ -34596,8 +34783,7 @@ function findSidebarExtensionTab() {
   try {
     const candidates = document.querySelectorAll('button, [role="tab"], [role="button"], a');
     for (const el of candidates) {
-      if (!el || el.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`)) continue;
-      if (!isHostElementVisible(el)) continue;
+      if (!el || isInsideOwnOverlay(el) || !isHostElementVisible(el)) continue;
       const aria = String(el.getAttribute?.('aria-label') || '');
       const title = String(el.getAttribute?.('title') || '');
       const testId = String(el.getAttribute?.('data-testid') || '');
@@ -34620,36 +34806,83 @@ function findSidebarExtensionTab() {
   return null;
 }
 
-function findAuxSidebarToggle() {
-  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
-    return null;
-  }
-  try {
-    return (
-      document.querySelector('[data-testid="toggle-aux-sidebar"]') ||
-      document.querySelector('[aria-label*="Secondary Side Bar" i]') ||
-      document.querySelector('[title*="Secondary Side Bar" i]') ||
-      null
-    );
-  } catch {
-    return null;
+function openMenuTriggerElement(trigger) {
+  if (!trigger) return;
+  const isOpen =
+    trigger.getAttribute?.('aria-expanded') === 'true' ||
+    trigger.getAttribute?.('data-state') === 'open';
+  if (isOpen) return;
+  dispatchHostEvent(trigger, 'pointerdown', { button: 0, buttons: 1, ctrlKey: false });
+  dispatchHostEvent(trigger, 'mousedown', { button: 0, buttons: 1, ctrlKey: false });
+  const openedOnPointerDown =
+    trigger.getAttribute?.('aria-expanded') === 'true' ||
+    trigger.getAttribute?.('data-state') === 'open' ||
+    Boolean(findPluginsMenuItem()) ||
+    Boolean(findUsageMonitorMenuItem());
+  if (!openedOnPointerDown) {
+    dispatchHostEvent(trigger, 'pointerup', { button: 0, buttons: 0, ctrlKey: false });
+    dispatchHostEvent(trigger, 'mouseup', { button: 0, buttons: 0, ctrlKey: false });
+    if (typeof trigger.click === 'function') {
+      trigger.click();
+    } else {
+      dispatchHostEvent(trigger, 'click', { button: 0, ctrlKey: false });
+    }
   }
 }
 
-function triggerHostElementClick(el) {
-  if (!el) return false;
-  if (typeof el.click === 'function') {
-    el.click();
-    return true;
+function openPluginsSubmenuElement(pluginsItem, attemptIndex = 0) {
+  if (!pluginsItem) return;
+  dispatchHostEvent(pluginsItem, 'pointerenter', { pointerType: 'mouse' });
+  dispatchHostEvent(pluginsItem, 'pointerover', { pointerType: 'mouse' });
+  dispatchHostEvent(pluginsItem, 'pointermove', { pointerType: 'mouse' });
+  dispatchHostEvent(pluginsItem, 'mouseenter', {});
+  dispatchHostEvent(pluginsItem, 'mouseover', {});
+  if (attemptIndex >= 2) {
+    pluginsItem.focus?.();
+    dispatchHostEvent(pluginsItem, 'keydown', { key: 'ArrowRight', code: 'ArrowRight' });
   }
-  if (typeof el.dispatchEvent === 'function') {
-    el.dispatchEvent({ type: 'click', bubbles: true, stopPropagation() {} });
-    return true;
+  if (attemptIndex >= 4) {
+    triggerHostElementClick(pluginsItem);
   }
-  return false;
 }
 
 function openSidebarExtension() {
+  clearPendingSidebarOpenTimers();
+
+  const immediateMenuItem = findUsageMonitorMenuItem();
+  if (immediateMenuItem) {
+    triggerHostElementClick(immediateMenuItem);
+    return true;
+  }
+
+  const menuTrigger = findPluginsMenuTrigger();
+  if (menuTrigger) {
+    scheduleSidebarOpenTimer(() => {
+      openMenuTriggerElement(menuTrigger);
+      let attempts = 0;
+      let pluginsHoverAttempts = 0;
+      const pollStep = () => {
+        attempts += 1;
+        const usageItem = findUsageMonitorMenuItem();
+        if (usageItem) {
+          triggerHostElementClick(usageItem);
+          clearPendingSidebarOpenTimers();
+          return;
+        }
+        const pluginsItem = findPluginsMenuItem();
+        if (pluginsItem) {
+          openPluginsSubmenuElement(pluginsItem, pluginsHoverAttempts);
+          pluginsHoverAttempts += 1;
+        }
+        if (attempts < 18) {
+          scheduleSidebarOpenTimer(pollStep, 25);
+        }
+      };
+      scheduleSidebarOpenTimer(pollStep, 20);
+    }, 0);
+    return true;
+  }
+
   const existingTab = findSidebarExtensionTab();
   if (existingTab) {
     if (!isSidebarTabActive(existingTab)) {
@@ -34657,20 +34890,7 @@ function openSidebarExtension() {
     }
     return true;
   }
-  const auxToggle = findAuxSidebarToggle();
-  if (!auxToggle) {
-    return false;
-  }
-  triggerHostElementClick(auxToggle);
-  for (const delayMs of [60, 180]) {
-    setTimeout(() => {
-      const tab = findSidebarExtensionTab();
-      if (tab && !isSidebarTabActive(tab)) {
-        triggerHostElementClick(tab);
-      }
-    }, delayMs);
-  }
-  return true;
+  return false;
 }
 
 function getLeftSidebarRightEdge(vw) {
@@ -36744,6 +36964,7 @@ function mountWindowOverlay() {
         clearTimeout(multiLeaveTimer);
         multiLeaveTimer = null;
       }
+      clearPendingSidebarOpenTimers();
       multiRunningWidget.refs.stopLiveTicker();
       if (dockRafId && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(dockRafId);
