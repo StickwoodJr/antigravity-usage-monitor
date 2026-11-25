@@ -1,7 +1,8 @@
 /**
- * @fileoverview Shared CDP / Window Bridge diagnostic & one-click relaunch card (`BridgeStatusNotice.js`).
- * Surfaces automatic shortcut provisioning status and a one-click host relaunch button when
- * Antigravity 2.33.0+ runs without an active `DevToolsActivePort` (`no_devtools_port` / `cdp_unreachable`).
+ * @fileoverview Shared CDP / Window Bridge diagnostic notice card (`BridgeStatusNotice.js`).
+ * In this hardened fork, automatic OS launcher patching and UAC relaunch are disabled;
+ * surfaces a manual `--remote-debugging-port=0` launch instruction when Antigravity runs
+ * without an active `DevToolsActivePort` (`no_devtools_port` / `cdp_unreachable`).
  */
 
 import { defineComponent } from '../../core/component.js';
@@ -13,7 +14,6 @@ import {
 } from '../../core/stepInspector.js';
 import { createSvgIcon, patchSvgIcon } from '../../icons/SvgIcon.js';
 import { t } from '../../i18n/index.js';
-import { triggerBridgeHostRelaunch } from '../../store/telemetryStore.js';
 
 const LAUNCH_FLAG_TEXT = '--remote-debugging-port=0';
 
@@ -28,8 +28,6 @@ export const BridgeStatusNotice = defineComponent({
       hostPlatform: 'win32',
     };
     let dismissed = false;
-    let relaunchState = 'idle'; // 'idle' | 'relaunching' | 'failed'
-    let relaunchResetTimer = null;
     let destroyed = false;
     const copyFeedback = createCopiedFeedbackController({
       durationMs: 1800,
@@ -71,50 +69,8 @@ export const BridgeStatusNotice = defineComponent({
       {
         type: 'button',
         className: 'settings-bridge-relaunch-btn',
-        onClick: async () => {
-          if (relaunchState === 'relaunching' || destroyed) return;
-          relaunchState = 'relaunching';
-          if (relaunchResetTimer) {
-            clearTimeout(relaunchResetTimer);
-            relaunchResetTimer = null;
-          }
-          syncActionButtons();
-          try {
-            const res = await triggerBridgeHostRelaunch();
-            if (destroyed) return;
-            if (!res || res.ok === false) {
-              relaunchState = 'failed';
-              syncActionButtons();
-              relaunchResetTimer = setTimeout(() => {
-                relaunchResetTimer = null;
-                if (destroyed) return;
-                relaunchState = 'idle';
-                syncActionButtons();
-              }, 3500);
-              relaunchResetTimer?.unref?.();
-              return;
-            }
-            // Reset button if host is still open after 9s (e.g. cancelled close prompt)
-            relaunchResetTimer = setTimeout(() => {
-              relaunchResetTimer = null;
-              if (destroyed) return;
-              relaunchState = 'idle';
-              syncActionButtons();
-            }, 9000);
-            relaunchResetTimer?.unref?.();
-          } catch {
-            if (destroyed) return;
-            relaunchState = 'failed';
-            syncActionButtons();
-            relaunchResetTimer = setTimeout(() => {
-              relaunchResetTimer = null;
-              if (destroyed) return;
-              relaunchState = 'idle';
-              syncActionButtons();
-            }, 3500);
-            relaunchResetTimer?.unref?.();
-          }
-        },
+        hidden: true,
+        disabled: true,
       },
       [relaunchBtnIconEl, relaunchBtnTextEl]
     );
@@ -160,20 +116,10 @@ export const BridgeStatusNotice = defineComponent({
     );
 
     function syncActionButtons() {
-      const canRelaunch = lastPayload.windowBridge?.canRelaunch !== false;
-      const needsAuth = Boolean(lastPayload.windowBridge?.hasReadOnlyShortcuts);
-      patchAttr(relaunchBtnEl, 'hidden', !canRelaunch);
-      patchAttr(relaunchBtnEl, 'disabled', relaunchState === 'relaunching');
-      patchText(
-        relaunchBtnTextEl,
-        relaunchState === 'relaunching'
-          ? t('settings.bridge.relaunchingBtn')
-          : relaunchState === 'failed'
-            ? t('settings.bridge.relaunchFailed')
-            : needsAuth
-              ? t('settings.bridge.relaunchAuthBtn')
-              : t('settings.bridge.relaunchBtn')
-      );
+      // Automatic OS launcher patching & UAC relaunch are disabled in this hardened fork.
+      patchAttr(relaunchBtnEl, 'hidden', true);
+      patchAttr(relaunchBtnEl, 'disabled', true);
+      patchText(relaunchBtnTextEl, t('settings.bridge.relaunchBtn'));
 
       const isCopied = copyFeedback.isCopied(true);
       patchSvgIcon(copyBtnIconEl, isCopied ? 'check' : 'copy');
@@ -207,44 +153,23 @@ export const BridgeStatusNotice = defineComponent({
       if (!shouldShow) return;
 
       const plat = String(lastPayload.hostPlatform || '').trim().toLowerCase();
-      const hasReadOnlyShortcuts = Boolean(wb?.hasReadOnlyShortcuts);
-      const isMacDesktop = plat === 'darwin' && !wb?.argvConfigured;
-      const isAutoConfigured = Boolean(
-        wb?.launcherConfigured || wb?.argvUpdatedThisBoot || wb?.argvConfigured
-      );
-      const useRestartTheme = !hasReadOnlyShortcuts && (isAutoConfigured || isMacDesktop);
-
       patchClasses(rootEl, {
-        'is-restart': useRestartTheme,
-        'is-warn': !useRestartTheme,
+        'is-restart': false,
+        'is-warn': true,
       });
-      patchSvgIcon(headIconEl, useRestartTheme ? 'refresh' : 'warning');
+      patchSvgIcon(headIconEl, 'warning');
 
-      let titleText = '';
-      let bodyText = '';
-      if (hasReadOnlyShortcuts) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxReadOnlyTitle')
-          : t('settings.bridge.readOnlyTitle');
-        bodyText = t('settings.bridge.readOnlyBody');
-      } else if (isMacDesktop) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxMacTitle')
-          : t('settings.bridge.macTitle');
-        bodyText = t('settings.bridge.guideMac');
-      } else if (isAutoConfigured) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxRestartTitle')
-          : t('settings.bridge.restartTitle');
-        bodyText = t('settings.bridge.restartBody');
-      } else {
-        titleText = contextMode
-          ? t('settings.bridge.ctxTitle')
-          : state === 'cdp_unreachable'
-            ? t('settings.bridge.unreachableTitle')
-            : t('settings.bridge.noPortTitle');
-        bodyText = plat === 'linux' ? t('settings.bridge.guideLinux') : t('settings.bridge.guideWin');
-      }
+      const titleText = contextMode
+        ? t('settings.bridge.ctxTitle')
+        : state === 'cdp_unreachable'
+          ? t('settings.bridge.unreachableTitle')
+          : t('settings.bridge.noPortTitle');
+      const bodyText =
+        plat === 'darwin'
+          ? t('settings.bridge.guideMac')
+          : plat === 'linux'
+            ? t('settings.bridge.guideLinux')
+            : t('settings.bridge.guideWin');
 
       patchText(titleEl, titleText);
       patchText(bodyEl, bodyText);
@@ -264,10 +189,6 @@ export const BridgeStatusNotice = defineComponent({
 
     onCleanup(() => {
       destroyed = true;
-      if (relaunchResetTimer) {
-        clearTimeout(relaunchResetTimer);
-        relaunchResetTimer = null;
-      }
     });
 
     return {

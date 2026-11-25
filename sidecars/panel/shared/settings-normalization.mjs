@@ -283,17 +283,17 @@ export function normalizeStepTokenComboFormat(raw) {
 }
 
 /**
- * 归一化插件更新策略枚举（兼容历史 `autoUpdatePlugin` 布尔开关，默认 `'manual'`）。
+ * 归一化插件更新策略枚举（兼容历史 `autoUpdatePlugin` 布尔开关，默认 `'off'`，加固分支禁止 `'auto'`）。
  *
  * @param {unknown} mode
  * @param {unknown} [legacyAutoUpdate]
- * @returns {'off'|'manual'|'auto'}
+ * @returns {'off'|'manual'}
  */
 export function normalizePluginUpdateMode(mode, legacyAutoUpdate) {
   const m = String(mode ?? '').trim().toLowerCase();
-  if (m === 'off' || m === 'manual' || m === 'auto') return m;
-  if (legacyAutoUpdate === true) return 'auto';
-  return 'manual';
+  if (m === 'off' || m === 'manual') return m;
+  if (m === 'auto' || legacyAutoUpdate === true) return 'manual';
+  return 'off';
 }
 
 /**

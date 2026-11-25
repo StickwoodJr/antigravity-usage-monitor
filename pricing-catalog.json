@@ -3,9 +3,8 @@
   "catalogVersion": "2026.11.21.3",
   "updatedAt": "2026-11-21T14:35:00+09:00",
   "latestPluginVersion": "1.5.4",
-  "releaseUrl": "https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest",
-  "downloadUrl": "https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip",
-  "archiveFallbackUrl": "https://codeload.github.com/yuhuan-dev/antigravity-usage-monitor/zip/refs/heads/main",
+  "releaseUrl": "https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest",
+  "downloadUrl": "https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip",
   "pricing": {
     "gemini-pro-orchestrator": { "input": 2.00, "cache": 0.10, "output": 10.0, "short": "orch-carbon", "family": "Gemini", "phases": [{ "until": "2026-12-01T00:00:00Z", "input": 2.00, "cache": 0.10, "output": 10.0 }, { "from": "2026-12-01T00:00:00Z", "input": 4.00, "cache": 0.20, "output": 20.0 }] },
     "orchestrator-carbon": { "input": 2.00, "cache": 0.10, "output": 10.0, "short": "orch-carbon", "family": "Gemini", "phases": [{ "until": "2026-12-01T00:00:00Z", "input": 2.00, "cache": 0.10, "output": 10.0 }, { "from": "2026-12-01T00:00:00Z", "input": 4.00, "cache": 0.20, "output": 20.0 }] },

@@ -177,8 +177,8 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
     importTo: (src, hasKey, patch) => {
       if (hasKey('pluginUpdateMode') || hasKey('autoUpdatePlugin')) {
         const mode = normalizePluginUpdateMode(src.pluginUpdateMode, src.autoUpdatePlugin);
-        patch.pluginUpdateMode = mode;
-        patch.autoUpdatePlugin = mode === 'auto';
+        patch.pluginUpdateMode = mode === 'auto' ? 'manual' : mode;
+        patch.autoUpdatePlugin = false;
       }
     },
   },
@@ -196,7 +196,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   },
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
-  boolField('enableCliStatusLine', true),
+  boolField('enableCliStatusLine', false),
   normField('cliStatusLineSlots', normalizeCliStatusLineSlots),
   normField('standalonePort', normalizeStandalonePort),
   boolField('showTopbarMultiSession', true),

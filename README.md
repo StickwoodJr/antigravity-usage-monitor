@@ -6,16 +6,16 @@
 
 Local usage, speed, context, and quota monitor for Google Antigravity 2.0, Antigravity IDE, and Antigravity CLI, with no external npm dependencies.
 
-[![Release](https://img.shields.io/github/v/release/yuhuan-dev/antigravity-usage-monitor?style=flat-square&color=2A5E76&label=release)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/yuhuan-dev/antigravity-usage-monitor/total?style=flat-square&color=0ea5e9)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases)
-[![Stars](https://img.shields.io/github/stars/yuhuan-dev/antigravity-usage-monitor?style=flat-square&color=f59e0b)](https://github.com/yuhuan-dev/antigravity-usage-monitor/stargazers)
-[![License](https://img.shields.io/github/license/yuhuan-dev/antigravity-usage-monitor?style=flat-square&color=3b82f6)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/StickwoodJr/antigravity-usage-monitor?style=flat-square&color=2A5E76&label=release)](https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/StickwoodJr/antigravity-usage-monitor/total?style=flat-square&color=0ea5e9)](https://github.com/StickwoodJr/antigravity-usage-monitor/releases)
+[![Stars](https://img.shields.io/github/stars/StickwoodJr/antigravity-usage-monitor?style=flat-square&color=f59e0b)](https://github.com/StickwoodJr/antigravity-usage-monitor/stargazers)
+[![License](https://img.shields.io/github/license/StickwoodJr/antigravity-usage-monitor?style=flat-square&color=3b82f6)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20npm%20packages-10b981?style=flat-square)](#local-development)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6366f1?style=flat-square)](#client-support)
 
 English · [简体中文](README.zh-CN.md)
 
-[Features](#features) · [Screenshots](#screenshots) · [Client Support](#client-support) · [Installation](#installation) · [Usage](#usage) · [Development](#local-development)
+[Security Hardening](#hardened-security-fork) · [Features](#features) · [Screenshots](#screenshots) · [Client Support](#client-support) · [Installation](#installation) · [Usage](#usage) · [Development](#local-development)
 
 <br />
 
@@ -23,9 +23,27 @@ English · [简体中文](README.zh-CN.md)
 
 <br />
 
-[Latest Release](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest) · [Download ZIP (`usage-monitor.zip`)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip)
+[Latest Release](https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest) · [Download ZIP (`usage-monitor.zip`)](https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip)
 
 </div>
+
+---
+
+## Hardened Security Fork
+
+This repository (`StickwoodJr/antigravity-usage-monitor`) is a security-hardened fork of `yuhuan-dev/antigravity-usage-monitor`. It preserves the full telemetry UI, standalone web server, sidebar panel, and all window mount modes (`dual`, `composer`, `sidebar`), while removing intrusive host mutations, credential harvesting, traffic interception, and unverified self-update paths:
+
+1. **No Silent OS Shortcut / Registry / `argv.json` Patching or UAC Relaunch**: Removed `windows-shortcut-provision.ps1` and disabled all automatic `.lnk`, `.desktop`, autostart, Windows Registry (`HKCU\Run`, `HKCU\Software\Classes`), and `~/.antigravity-ide/argv.json` writes as well as `-Verb RunAs` / WMI UAC relaunches. All mount modes (`dual`, `composer`, `sidebar`) remain supported—launch Antigravity manually with `--remote-debugging-port=0` if you want the titlebar or composer overlay capsule.
+2. **No OAuth Credential Vault, Win32 Credential Store Access, or Binary OAuth Secret Extraction**: Removed `account-credentials.ps1`, Windows Credential Manager (`CredReadW`) / DPAPI vault access, and PE binary scanning for OAuth client secrets. Multi-account credential switching is hard-disabled (`disabled_in_hardened_fork`).
+3. **No CloudCode MITM Proxy / `SetCloudCodeURL` Interception**: Hard-disabled the local CloudCode MITM proxy server, Windows proxy registry lookups, and `SetCloudCodeURL` RPC redirection.
+4. **Mandatory SHA-256 + Zip Slip/Symlink Verification & No Silent Startup GitHub Fetches**: Removed the unverified `codeload.github.com` branch-ZIP fallback, silent startup GitHub fetches, and background auto-updates (`pluginUpdateMode` defaults to `'off'`, and `'auto'` is disallowed). Manual ZIP updates from `StickwoodJr/antigravity-usage-monitor` require a matching `.sha256` checksum and pass pure-Node PKZIP Zip Slip (`..`/absolute paths) and symlink validation.
+5. **Opt-In CLI `statusLine`**: `enableCliStatusLine` defaults to `false`, so `~/.gemini/antigravity-cli/settings.json` is never modified unless you explicitly opt in.
+
+> [!TIP]
+> **Safe Usage Options**:
+> - **Sidebar Only mode**: Works inside Antigravity with zero extra flags or host changes.
+> - **Standalone Web Server**: Run `node sidecars/panel/standalone.mjs --port 8787` (binds to `127.0.0.1` by default) and open `http://localhost:8787` in your browser.
+> - **Topbar / Dual / Composer Overlay Capsule**: Close Antigravity and launch it manually with `--remote-debugging-port=0` so the local CDP bridge attaches without modifying OS shortcuts or registry entries.
 
 ---
 
@@ -40,9 +58,9 @@ English · [简体中文](README.zh-CN.md)
 - **Native `.xlsx` / Markdown Exports & Settings Backup**: Exports multi-sheet localized Excel (`.xlsx`) workbooks and Markdown summaries for both Usage Statistics and Call Details directly to `~/Downloads` with an in-app reveal toast, plus portable JSON preference backup/import.
 - **Cross-Client Session Migration**: Built-in opt-in session migrator (`Preferences → Other`) moves or clones conversations across `Antigravity CLI` ↔ `Desktop App / IDE` and `Legacy IDE (.db)` with isolated UUID rewriting to prevent cross-client mirror collisions or double billing.
 - **Multi-Client Capsules & CLI `statusLine` Modes**: Integrates as a titlebar or composer capsule (with ring quota gauges and main-agent context lock) and auxiliary sidebar in Antigravity 2.0, a titlebar/composer capsule in Antigravity IDE, a single-line 24-bit ANSI `statusLine` in Antigravity CLI (`--style pill|bar|compact`, `--preset compact|balanced|full`, `--json`), and a standalone local web UI.
-- **No `app.asar` Modification & Desktop 2.33.0+ Auto-Provisioning**: Titlebar/composer injection and context hooks run in memory over local CDP (`DevToolsActivePort`). Automatically provisions Desktop `2.33.0+` user shortcuts/launchers (with one-click out-of-job host relaunch) and `~/.antigravity-ide/argv.json` without touching installation binaries or `app.asar`.
-- **Per-Model Context Windows (Main & Subagent/Swarm)**: Sets context window limits per model series or follows host defaults, with independent toggles for the main agent (CDP request hook), spawned subagents / Swarm workers (local loopback CloudCode proxy), and CLI (`AGY_CLI_AUTO_COMPACT_OVERRIDE`).
-- **Appearance, Offline Storage & Cloud Updates**: Supports `zh-CN` / `en-US` / host language, borderless Modern UI, `sm / md / lg / xl` font scaling, 6 theme accents plus host matching, offline reading from CLI SQLite + WAL, `annotations/*.pbtxt`, `transcript.jsonl`, and `.deep_stats_cache.json`, GitHub [`pricing-catalog.json`](pricing-catalog.json) sync, and in-panel release updates (`manual` / `auto` / `off`).
+- **No `app.asar` or OS Launcher Modification**: Titlebar/composer injection runs in memory over local CDP (`DevToolsActivePort`) when you manually launch Antigravity with `--remote-debugging-port=0`, without touching installation binaries, `app.asar`, OS shortcuts, registry entries, or `~/.antigravity-ide/argv.json`.
+- **Context Window Inspection & CLI Override**: Displays per-model context windows and 10-category token breakdowns across main agents, subagents, and CLI (`AGY_CLI_AUTO_COMPACT_OVERRIDE`), without routing traffic through any local CloudCode MITM proxy.
+- **Appearance, Offline Storage & Verified Updates**: Supports `zh-CN` / `en-US` / host language, borderless Modern UI, `sm / md / lg / xl` font scaling, 6 theme accents plus host matching, offline reading from CLI SQLite + WAL, `annotations/*.pbtxt`, `transcript.jsonl`, and `.deep_stats_cache.json`, explicit GitHub [`pricing-catalog.json`](pricing-catalog.json) sync, and SHA-256 verified manual release updates (`off` / `manual`).
 
 ---
 
@@ -103,15 +121,15 @@ English · [简体中文](README.zh-CN.md)
 
 ## Client Support
 
-| Client | Status Capsule / Bar | Panel UI | Offline SQLite &amp; Logs | Per-Model Context Limit | Modifies `app.asar` |
+| Client | Status Capsule / Bar | Panel UI | Offline SQLite &amp; Logs | Context Limit Config | Modifies `app.asar` |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Antigravity 2.0 (Desktop)** | Titlebar / Composer | Popover + Right Sidebar | Yes | CDP Hook + Local CloudCode Proxy | No |
-| **Antigravity IDE** | Titlebar / Composer | Capsule Popover | Yes | CDP Hook + Local CloudCode Proxy | No |
-| **Antigravity CLI (`agy`)** | Native ANSI `statusLine` | Standalone Web (`--port`) | Yes (`node:sqlite` + `.pbtxt`) | `AGY_CLI_AUTO_COMPACT_OVERRIDE` | No |
-| **SSH Remote / Headless Linux** | Per-Endpoint Capsule / ANSI `statusLine` | SSH Overlay / `--token` Web | Yes | Per-Endpoint Hook / Env | No |
+| **Antigravity 2.0 (Desktop)** | Titlebar / Composer (manual CDP flag) | Popover + Right Sidebar | Yes | Read-only catalog (CDP hook disabled by default) | No |
+| **Antigravity IDE** | Titlebar / Composer (manual CDP flag) | Capsule Popover | Yes | Read-only catalog (CDP hook disabled by default) | No |
+| **Antigravity CLI (`agy`)** | Opt-in Native ANSI `statusLine` | Standalone Web (`--port`) | Yes (`node:sqlite` + `.pbtxt`) | `AGY_CLI_AUTO_COMPACT_OVERRIDE` | No |
+| **SSH Remote / Headless Linux** | Per-Endpoint Capsule / ANSI `statusLine` | SSH Overlay / `--token` Web | Yes | Per-Endpoint Env | No |
 
 > [!NOTE]
-> On **Antigravity Desktop 2.33.0+** and **Antigravity IDE**, enabling the plugin automatically provisions user launch shortcuts / `~/.antigravity-ide/argv.json` with `"remote-debugging-port": "0"` via a zero-tool MCP keep-alive entry (`0` context tokens). On Desktop `2.33.0+` you can click **One-Click Relaunch** directly inside the panel banner; on IDE, restart once after first activation so the titlebar capsule can attach.
+> Automatic shortcut, registry, and `~/.antigravity-ide/argv.json` patching and UAC relaunch are disabled in this hardened fork. Use **Sidebar Only** mode or the **Standalone Web Server** with zero extra flags, or manually launch **Antigravity Desktop / IDE** with `--remote-debugging-port=0` if you want the **Dual-mount** (titlebar) or **Composer** overlay capsule.
 
 ---
 
@@ -121,7 +139,7 @@ Keep the folder name as `usage-monitor`. **No `npm install` is needed.**
 
 ### Option 1: Release ZIP
 
-Download [`usage-monitor.zip`](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip) and extract it into `~/.gemini/config/plugins/` so the directory path is `~/.gemini/config/plugins/usage-monitor`.
+Download [`usage-monitor.zip`](https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip) and extract it into `~/.gemini/config/plugins/` so the directory path is `~/.gemini/config/plugins/usage-monitor`.
 
 <details>
 <summary>Windows PowerShell command for ZIP installation</summary>
@@ -129,7 +147,7 @@ Download [`usage-monitor.zip`](https://github.com/yuhuan-dev/antigravity-usage-m
 ```powershell
 $pluginsDir = "$env:USERPROFILE\.gemini\config\plugins"
 New-Item -ItemType Directory -Path $pluginsDir -Force | Out-Null
-Invoke-WebRequest -Uri "https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip" -OutFile "$env:TEMP\usage-monitor.zip"
+Invoke-WebRequest -Uri "https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip" -OutFile "$env:TEMP\usage-monitor.zip"
 Expand-Archive -Path "$env:TEMP\usage-monitor.zip" -DestinationPath $pluginsDir -Force
 ```
 
@@ -139,18 +157,18 @@ Expand-Archive -Path "$env:TEMP\usage-monitor.zip" -DestinationPath $pluginsDir 
 
 ```powershell
 # Windows (PowerShell)
-git clone --filter=blob:none --single-branch https://github.com/yuhuan-dev/antigravity-usage-monitor.git "$env:USERPROFILE\.gemini\config\plugins\usage-monitor"
+git clone --filter=blob:none --single-branch https://github.com/StickwoodJr/antigravity-usage-monitor.git "$env:USERPROFILE\.gemini\config\plugins\usage-monitor"
 ```
 
 ```bash
 # macOS / Linux
-git clone --filter=blob:none --single-branch https://github.com/yuhuan-dev/antigravity-usage-monitor.git ~/.gemini/config/plugins/usage-monitor
+git clone --filter=blob:none --single-branch https://github.com/StickwoodJr/antigravity-usage-monitor.git ~/.gemini/config/plugins/usage-monitor
 ```
 
 Or ask Antigravity directly:
 
 ```text
-Clone https://github.com/yuhuan-dev/antigravity-usage-monitor with --filter=blob:none --single-branch to ~/.gemini/config/plugins/usage-monitor and enable the plugin
+Clone https://github.com/StickwoodJr/antigravity-usage-monitor with --filter=blob:none --single-branch to ~/.gemini/config/plugins/usage-monitor and enable the plugin
 ```
 
 ---
@@ -158,13 +176,14 @@ Clone https://github.com/yuhuan-dev/antigravity-usage-monitor with --filter=blob
 ## Usage
 
 1. Open **Customizations → Installed** in the left sidebar and enable `usage-monitor`.
-2. **Antigravity 2.0 (Desktop)**:
-   - Mounts a capsule in the top-right titlebar (**hover** for summary, **click** for the 4-tab popover, **right-click** to refresh), alongside the right auxiliary sidebar pane.
-3. **Antigravity IDE**:
-   - **Restart Antigravity IDE once** after enabling for the first time. Keep **Mount Mode** on **Dual-mount** and click the top-bar capsule to open the panel.
+2. **Sidebar Mode (Zero Flags / Safest)**:
+   - Switch **Mount Mode** to **Sidebar Only** (or use the right auxiliary sidebar pane directly in **Dual-mount** mode) without passing any extra launch flags.
+3. **Antigravity 2.0 (Desktop) & Antigravity IDE (Topbar / Composer Capsule)**:
+   - Launch Antigravity manually with `--remote-debugging-port=0` to attach the titlebar or composer capsule (**hover** for summary, **click** for the 4-tab popover, **right-click** to refresh).
+   - Keep **Mount Mode** on **Dual-mount** (default) or **Composer**.
 4. **Antigravity CLI (`agy`)**:
-   - When `~/.gemini/antigravity-cli` exists, `statusLine` in `settings.json` is configured automatically (existing third-party `statusLine.command` entries are left untouched) to render a single-line ANSI bar (`● 1 active   38.1 t/s | 0.85s | ◎ 17%`).
-   - Toggle via `/statusline` in `agy` or **Preferences → Structure → Mount & Capsule Bar**.
+   - CLI `statusLine` is **disabled by default** (`enableCliStatusLine: false`) so `~/.gemini/antigravity-cli/settings.json` is never modified silently.
+   - Opt in explicitly via `/statusline` in `agy` or **Preferences → Structure → Mount & Capsule Bar**.
 5. **Standalone Web Server (Headless / Remote)**:
 
 ```bash
@@ -212,7 +231,7 @@ ssh -L 8787:127.0.0.1:8787 user@your-server
 <details>
 <summary>Updating and data directory</summary>
 
-- **In-Panel Update**: When a new GitHub release is available, a version badge appears next to the capsule and in the panel header. Update mode (`Manual` / `Auto` / `Off`) and price catalog sync can be configured under **Preferences → Other**.
+- **In-Panel Update**: Update checking defaults to `Off` (no silent startup GitHub fetch, and background `Auto` updates are disabled). You can switch to `Manual` under **Preferences → General** and trigger updates explicitly; ZIP updates require a matching `.sha256` checksum and pass Zip Slip / symlink validation.
 - **Manual Git Update**:
   - Windows: `git -C "$env:USERPROFILE\.gemini\config\plugins\usage-monitor" pull --ff-only`
   - macOS / Linux: `git -C ~/.gemini/config/plugins/usage-monitor pull --ff-only`
@@ -245,10 +264,10 @@ Licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Star History
 
-<a href="https://www.star-history.com/#yuhuan-dev/antigravity-usage-monitor&Date">
+<a href="https://www.star-history.com/#StickwoodJr/antigravity-usage-monitor&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yuhuan-dev/antigravity-usage-monitor&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=yuhuan-dev/antigravity-usage-monitor&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=yuhuan-dev/antigravity-usage-monitor&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=StickwoodJr/antigravity-usage-monitor&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=StickwoodJr/antigravity-usage-monitor&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=StickwoodJr/antigravity-usage-monitor&type=Date" />
   </picture>
 </a>

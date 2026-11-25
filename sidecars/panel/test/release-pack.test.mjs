@@ -32,11 +32,14 @@ test('pack-release-zip ships only runtime-essential files, excludes dev bloat, a
     'sidecars/panel/cli-statusline.mjs',
     'sidecars/panel/trajectory-metrics.mjs',
     'sidecars/panel/backend/api-actions.mjs',
-    'sidecars/panel/backend/account-credentials.ps1',
     'sidecars/panel/shared/settings-normalization.mjs',
   ]) {
     assert.ok(relFiles.includes(mustHave), `Release whitelist must include ${mustHave}`);
   }
+
+  assert.equal(relFiles.some((rel) => rel.endsWith('.ps1')), false, 'Release ZIP must contain zero .ps1 files');
+  assert.equal(relFiles.includes('sidecars/panel/backend/account-credentials.ps1'), false);
+  assert.equal(relFiles.includes('sidecars/panel/backend/windows-shortcut-provision.ps1'), false);
 
   // Non-runtime dev/doc/test/preview files must NEVER enter the release ZIP
   for (const rel of relFiles) {

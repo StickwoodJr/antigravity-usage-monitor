@@ -8,7 +8,8 @@ import { fetchTelemetry } from '../../store/telemetryStore.js';
 
 const key = (name) => `settings.account.${name}`;
 const errors = new Set([
-  'unsupported', 'invalidEmail', 'invalidCredential', 'credentialTooLarge', 'notFound',
+  'unsupported', 'disabled', 'disabled_in_hardened_fork', 'disabledInHardenedFork',
+  'invalidEmail', 'invalidCredential', 'credentialTooLarge', 'notFound',
   'noCurrentCredential', 'busy', 'storeFailed', 'rollbackFailed', 'credentialAccessDenied',
   'credentialChanged', 'credentialRejected', 'identityMismatch', 'oauthClientUnavailable',
   'oauthUnavailable', 'quotaUnavailable',
@@ -44,6 +45,7 @@ export const SettingsAccountTab = defineComponent({
     let accounts = [];
     let selectedEmail = '';
     let supported = null;
+    let disabledInFork = false;
     let operation = '';
     let status = '';
     let disposed = false;
@@ -57,6 +59,7 @@ export const SettingsAccountTab = defineComponent({
     const quotaRows = h('div', { className: 'settings-account-list' });
     const quotaMessage = h('div', { className: 'settings-action-desc' });
     const savedTitle = h('span', { className: 'panel-title' });
+    const disabledNotice = h('div', { className: 'settings-bridge-notice is-warn', role: 'status', hidden: true });
     const savedRows = h('div', { className: 'settings-account-list' });
     const savedMessage = h('div', { className: 'settings-action-desc' });
     const pending = h('div', { className: 'settings-action-desc', role: 'status' });
@@ -76,7 +79,7 @@ export const SettingsAccountTab = defineComponent({
     function render() {
       const signedIn = account?.status === 'signedIn';
       const activeEmail = signedIn ? account.email?.trim().toLowerCase() : '';
-      const canWrite = supported === true && !operation;
+      const canWrite = supported === true && !disabledInFork && !operation;
       const locale = getEffectiveLocale();
       patchText(title, t(key('current')));
       patchText(identityLabel, t(key('email')));
@@ -91,20 +94,26 @@ export const SettingsAccountTab = defineComponent({
       patchAttr(quotaMessage, 'hidden', poolCount > 0 && !quotas?.meta?.isStale);
 
       patchText(savedTitle, t(key('savedCredentials')));
+      patchText(disabledNotice, disabledInFork ? t(key('disabledInHardenedFork')) : '');
+      patchAttr(disabledNotice, 'hidden', !disabledInFork);
       patchText(capture, t(key('capture')));
       patchText(reload, t(key('reload')));
       patchText(save, t(key('save')));
       patchText(credentialLabel, t(key('credential')));
       patchText(importHint, t(key('importHint')));
+      patchAttr(capture, 'hidden', disabledInFork);
+      patchAttr(reload, 'hidden', disabledInFork);
       patchAttr(capture, 'disabled', !canWrite || !activeEmail);
-      patchAttr(reload, 'disabled', Boolean(operation));
-      patchAttr(form, 'hidden', supported === false);
+      patchAttr(reload, 'disabled', disabledInFork || Boolean(operation));
+      patchAttr(form, 'hidden', disabledInFork || supported === false);
       patchAttr(save, 'disabled', !canWrite);
       patchAttr(credential, 'disabled', !canWrite);
       patchText(savedMessage, t(key(supported === null ? 'loading' : 'empty')));
-      patchAttr(savedMessage, 'hidden', accounts.length > 0 || supported === false || Boolean(status));
-      const message = status || (operation === 'switch' ? 'switching' : operation === 'quota' ? 'loadingQuota' :
-        operation === 'save' || operation === 'capture' ? 'verifying' : '');
+      patchAttr(savedMessage, 'hidden', disabledInFork || accounts.length > 0 || supported === false || Boolean(status));
+      const message = disabledInFork
+        ? ''
+        : status || (operation === 'switch' ? 'switching' : operation === 'quota' ? 'loadingQuota' :
+          operation === 'save' || operation === 'capture' ? 'verifying' : '');
       patchText(feedback, message ? t(key(message)) : '');
       patchAttr(feedback, 'hidden', !message);
       const waiting = selectedEmail && activeEmail !== selectedEmail;
@@ -167,6 +176,20 @@ export const SettingsAccountTab = defineComponent({
           ? await callSidecarApi('/api/accounts')
           : await callSidecarApi('/api/accounts/update', { method: 'POST', body: { action, ...fields }, cdpTimeoutMs: 40000 });
         if (disposed) return;
+        const isDisabledResponse = Boolean(
+          result?.disabled === true ||
+          result?.error === 'disabled' ||
+          result?.error === 'disabled_in_hardened_fork'
+        );
+        if (isDisabledResponse) {
+          disabledInFork = true;
+          supported = false;
+          accounts = [];
+          selectedEmail = '';
+          status = 'disabledInHardenedFork';
+          return;
+        }
+        disabledInFork = false;
         if (result?.error) {
           if (result.error === 'unsupported') supported = false;
           status = errors.has(result.error) ? result.error : 'storeFailed';
@@ -221,6 +244,7 @@ export const SettingsAccountTab = defineComponent({
       ]),
       h('section', { className: 'panel' }, [
         h('div', { className: 'panel-header' }, [savedTitle]),
+        disabledNotice,
         h('div', { className: 'settings-account-buttons' }, [capture, reload]),
         savedRows, savedMessage, form, feedback,
       ]),
@@ -230,6 +254,6 @@ export const SettingsAccountTab = defineComponent({
       disposed = true;
       credential.value = '';
     });
-    return { el: root, refs: { renderAccount, refreshLabels: render, load: () => request('list') } };
+    return { el: root, refs: { renderAccount, refreshLabels: render, disabledNotice, load: () => request('list') } };
   },
 });

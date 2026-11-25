@@ -12,14 +12,11 @@
 
 import {
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
-  unlinkSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { writeTextFileAtomicSync } from './fs-atomic.mjs';
+import { join } from 'node:path';
 import {
   BRIDGE_API_PATHS,
   CONTEXT_WINDOWS_GLOBAL_KEY,
@@ -46,10 +43,6 @@ import {
   resolveContextWindowRules,
 } from './context-windows.mjs';
 import {
-  ensureDesktopLaunchEntriesConfigured,
-  resolveDesktopHostExecutable,
-} from './desktop-launcher-config.mjs';
-import {
   getRegisteredRemoteEndpoint,
   getRemoteEndpointTargetWsUrls,
   normalizeEndpointId,
@@ -59,7 +52,6 @@ import {
 } from './endpoint-registry.mjs';
 import { getLocalHubPorts } from './ls-discovery.mjs';
 import { callLsRpc, getContextModelCatalog } from './ls-rpc.mjs';
-import { getDefaultCloudCodeProxy } from './cloudcode-proxy.mjs';
 
 const windowBridgeRef = `window[${JSON.stringify(WINDOW_BRIDGE_KEY)}]`;
 const windowOverlayRef = `window[${JSON.stringify(WINDOW_OVERLAY_KEY)}]`;
@@ -434,65 +426,19 @@ export function ensureRemoteDebuggingInArgvText(rawText) {
   };
 }
 
-function patchSingleHostArgvFile(argvPath, { createDir = false, missingReason = 'dir_missing' } = {}) {
-  try {
-    const dirPath = dirname(argvPath);
-    if (!existsSync(dirPath)) {
-      if (!createDir) {
-        return { checked: true, updated: false, reason: missingReason, argvPath };
-      }
-      mkdirSync(dirPath, { recursive: true });
-    }
-    const rawText = existsSync(argvPath) ? readFileSync(argvPath, 'utf8') : '';
-    const patched = ensureRemoteDebuggingInArgvText(rawText);
-    if (!patched.valid) {
-      return { checked: true, updated: false, reason: patched.reason || 'invalid_jsonc', argvPath };
-    }
-    if (!patched.changed) {
-      return {
-        checked: true,
-        updated: false,
-        alreadyConfigured: true,
-        portValue: patched.portValue,
-        argvPath,
-      };
-    }
-    writeTextFileAtomicSync(argvPath, patched.text);
-    return {
-      checked: true,
-      updated: true,
-      portValue: patched.portValue,
-      argvPath,
-    };
-  } catch (err) {
-    return {
-      checked: true,
-      updated: false,
-      reason: err?.code || 'io_error',
-      argvPath,
-    };
-  }
-}
-
 /**
- * 当本机存在 `~/.antigravity-ide` 配置目录且开启双栖模式时，自动补齐 `argv.json` 中的
- * `"remote-debugging-port": "0"`，使 Antigravity IDE 下次启动时自动生成 `DevToolsActivePort`。
+ * Disabled in hardened fork: modifying `~/.antigravity-ide/argv.json` is prohibited.
  *
- * @param {{ env?: Record<string, string|undefined>, homeDir?: string, enabled?: boolean }} [options]
+ * @returns {{ changed: false, updated: false, checked: false, disabled: true, reason: 'disabled_in_hardened_fork' }}
  */
-export function ensureIdeRemoteDebuggingArgv({
-  env = process.env,
-  homeDir = homedir(),
-  enabled = true,
-} = {}) {
-  if (!enabled) {
-    return { checked: false, updated: false, reason: 'disabled' };
-  }
-  const argvPath = resolveIdeArgvPath(env, homeDir);
-  return patchSingleHostArgvFile(argvPath, {
-    createDir: false,
-    missingReason: 'ide_dir_missing',
-  });
+export function ensureIdeRemoteDebuggingArgv() {
+  return {
+    changed: false,
+    updated: false,
+    checked: false,
+    disabled: true,
+    reason: 'disabled_in_hardened_fork',
+  };
 }
 
 /**
@@ -1072,22 +1018,11 @@ export function createWindowBridgeController(options) {
     bootBundleVersion = '',
     onVersionDrift = null,
     leaseFilePath = '',
-    autoConfigureIdeArgv = options?.env === undefined && options?.homeDir === undefined,
-    launcherRecheckIntervalMs = 15 * 60 * 1000,
-    launcherExecFileFn = null,
-    launcherFsOps = null,
-    allowDesktopLauncherInTest = false,
-    existsHostFn = existsSync,
     WebSocketImpl = globalThis.WebSocket,
     bindRemoteRpcInvoker = false,
     getLocalHubPortsFn = getLocalHubPorts,
-    cloudCodeProxy = null,
-    manageCloudCodeProxy = false,
     resolveLocalContextRulesFn = null,
   } = options || {};
-
-  const activeCloudCodeProxy =
-    cloudCodeProxy || (manageCloudCodeProxy ? getDefaultCloudCodeProxy() : null);
 
   function isPidAlive(pid) {
     if (!Number.isInteger(pid) || pid <= 0) return false;
@@ -1111,24 +1046,11 @@ export function createWindowBridgeController(options) {
   let hadInjectedTargets = false;
   let hadInjectedChatFrames = false;
   let cdpFallbackActive = false;
-  let lastLauncherProvisionAtMs = 0;
-  let hostLauncherPromise = null;
-  let argvUpdatedThisBoot = false;
-  let argvConfigured = false;
-  let launcherConfigured = false;
-  let hasReadOnlyShortcuts = false;
-  const hostExecInfo = resolveDesktopHostExecutable({
-    env,
-    platform,
-    homeDir,
-    existsFn: existsHostFn,
-  });
-  // Windows / macOS / Linux 均支持从运行中宿主进程动态反查路径（含自定义盘符与 AppImage），自定义安装路径亦可一键重拉
-  const canRelaunch = Boolean(
-    hostExecInfo.found ||
-      ((platform === 'win32' || platform === 'darwin' || platform === 'linux') &&
-        options?.existsHostFn === undefined)
-  );
+  const argvUpdatedThisBoot = false;
+  const argvConfigured = false;
+  const launcherConfigured = false;
+  const hasReadOnlyShortcuts = false;
+  const canRelaunch = false;
   let lastPersistedLeaseSig = '';
   let lastBridgeStatus = {
     state: 'pending',
@@ -1139,7 +1061,7 @@ export function createWindowBridgeController(options) {
     argvConfigured: false,
     launcherConfigured: false,
     hasReadOnlyShortcuts: false,
-    canRelaunch,
+    canRelaunch: false,
     updatedAtMs: 0,
   };
   let hadContextWindows = false;
@@ -1650,39 +1572,6 @@ export function createWindowBridgeController(options) {
     }
   }
 
-  function provisionHostLaunchersOnce({ fastCheckIfActive = false } = {}) {
-    if (hostLauncherPromise) return hostLauncherPromise;
-    hostLauncherPromise = (async () => {
-      const ideRes = ensureIdeRemoteDebuggingArgv({ env, homeDir, enabled: true });
-      const desktopRes = await ensureDesktopLaunchEntriesConfigured({
-        enabled: true,
-        fastCheckIfActive,
-        env,
-        platform,
-        homeDir,
-        execFileFn: launcherExecFileFn,
-        fsOps: launcherFsOps,
-        allowInTest: allowDesktopLauncherInTest,
-      });
-      if (ideRes.updated || desktopRes.updated) {
-        argvUpdatedThisBoot = true;
-      }
-      if (ideRes.updated || ideRes.alreadyConfigured) {
-        argvConfigured = true;
-      }
-      launcherConfigured = Boolean(
-        desktopRes.updated || desktopRes.alreadyConfigured || desktopRes.configured
-      );
-      if (!desktopRes.fastPath) {
-        hasReadOnlyShortcuts = Boolean(desktopRes.hasReadOnlyShortcuts);
-      }
-      lastLauncherProvisionAtMs = Date.now();
-    })().finally(() => {
-      hostLauncherPromise = null;
-    });
-    return hostLauncherPromise;
-  }
-
   async function resolveFallbackRulesForEndpoint(endpointId, contextWindows) {
     if (!contextWindows || !Object.keys(contextWindows).length) {
       return { verified: false, rules: {}, catalog: null };
@@ -1770,12 +1659,11 @@ export function createWindowBridgeController(options) {
     const ctxMainEnabled = curSettings.contextWindowMainEnabled !== false;
     const ctxSwarmEnabled = curSettings.contextWindowSwarmEnabled === true;
     const needsMainCdpContext = hasContextWindows && ctxMainEnabled;
-    const needsCloudCodeProxy = hasContextWindows && ctxSwarmEnabled;
     const needsAnyCdpContext = hasContextWindows && (ctxMainEnabled || ctxSwarmEnabled);
 
     let leasedBySelf = false;
     let currentLease = null;
-    if ((enabled || needsAnyCdpContext || needsCloudCodeProxy) && leaseFilePath && !forceReinject) {
+    if ((enabled || needsAnyCdpContext) && leaseFilePath && !forceReinject) {
       const lease = loadJson(leaseFilePath, null);
       currentLease = lease;
       const leasePid = Number(lease?.pid || 0);
@@ -1826,39 +1714,9 @@ export function createWindowBridgeController(options) {
       });
     }
 
-    let preResolvedLocalCtx = null;
-    if (activeCloudCodeProxy) {
-      if (needsCloudCodeProxy) {
-        preResolvedLocalCtx = await resolveFallbackRulesForEndpoint(
-          LOCAL_ENDPOINT_ID,
-          contextWindows
-        );
-        await activeCloudCodeProxy.reconcile({
-          enabled: true,
-          rulesByModelId: preResolvedLocalCtx.rules,
-          initialCatalogModels: preResolvedLocalCtx.catalog,
-        });
-      } else {
-        await activeCloudCodeProxy.reconcile({ enabled: false, rulesByModelId: {} });
-      }
-    }
-
-    const shouldCheckLaunchers =
-      (enabled || needsMainCdpContext) &&
-      autoConfigureIdeArgv &&
-      (lastLauncherProvisionAtMs === 0 ||
-        Date.now() - lastLauncherProvisionAtMs >= launcherRecheckIntervalMs);
-    const isInitialLauncherPass = lastLauncherProvisionAtMs === 0;
-
     const cdpPorts = findActiveDevToolsPorts();
     if (!cdpPorts.length) {
       pruneStaleRemoteEndpoints(new Set());
-      const provPending = shouldCheckLaunchers
-        ? provisionHostLaunchersOnce({ fastCheckIfActive: !isInitialLauncherPass })
-        : hostLauncherPromise;
-      if (provPending) {
-        await provPending.catch(() => {});
-      }
       updateBridgeStatus(enabled || needsMainCdpContext ? 'no_devtools_port' : 'disabled', {
         enabled,
         leasedBySelf,
@@ -1871,12 +1729,6 @@ export function createWindowBridgeController(options) {
     const { reachableCount, targets } = await collectAllMainWindowTargets(cdpPorts);
     if (reachableCount === 0) {
       pruneStaleRemoteEndpoints(new Set());
-      const provPending = shouldCheckLaunchers
-        ? provisionHostLaunchersOnce({ fastCheckIfActive: !isInitialLauncherPass })
-        : hostLauncherPromise;
-      if (provPending) {
-        await provPending.catch(() => {});
-      }
       updateBridgeStatus(enabled || needsMainCdpContext ? 'cdp_unreachable' : 'disabled', {
         enabled,
         leasedBySelf,
@@ -1884,11 +1736,6 @@ export function createWindowBridgeController(options) {
         prevLease: currentLease,
       });
       return { ok: false, enabled, reason: 'cdp_unreachable', injected: 0 };
-    }
-
-    if (shouldCheckLaunchers) {
-      // 调试端口已正常连通时走纯 Node.js 零子进程快检（<2ms），仅在发现未配参快捷方式时才拉起 PowerShell
-      void provisionHostLaunchersOnce({ fastCheckIfActive: true }).catch(() => {});
     }
     if (!targets.length) {
       pruneStaleRemoteEndpoints(new Set());
@@ -2045,21 +1892,9 @@ export function createWindowBridgeController(options) {
 
     if (needsAnyCdpContext || hadContextWindows) {
       const localFallbackRes = needsAnyCdpContext
-        ? preResolvedLocalCtx ||
-          (await resolveFallbackRulesForEndpoint(LOCAL_ENDPOINT_ID, contextWindows))
+        ? await resolveFallbackRulesForEndpoint(LOCAL_ENDPOINT_ID, contextWindows)
         : { verified: false, rules: {}, catalog: null };
       const localFallbackRules = localFallbackRes.rules;
-      const pinMainBackToDefaults = needsCloudCodeProxy && !ctxMainEnabled;
-      const pinBackRules = {};
-      if (pinMainBackToDefaults) {
-        const upstreamDefaults = activeCloudCodeProxy?.getUpstreamDefaults?.() || {};
-        for (const modelId of Object.keys(localFallbackRules)) {
-          const defaultLimit = Number(upstreamDefaults[modelId]);
-          if (Number.isSafeInteger(defaultLimit) && defaultLimit > 0) {
-            pinBackRules[modelId] = defaultLimit;
-          }
-        }
-      }
 
       const remoteFallbackRulesById = new Map();
       const uniqueRemoteIds = new Set(
@@ -2092,17 +1927,6 @@ export function createWindowBridgeController(options) {
         let expr;
         if (!needsAnyCdpContext) {
           expr = createContextWindowSyncExpression({}, contextWindowBootId, {}, true, null);
-        } else if (pinMainBackToDefaults) {
-          // 仅启用子代理与蜂群时：本地主窗口显式回填上游默认上限把主代理钉回默认；远端主窗口不注入覆盖
-          expr = target.isRemoteEndpoint
-            ? createContextWindowSyncExpression({}, contextWindowBootId, {}, true, null)
-            : createContextWindowSyncExpression(
-                contextWindows,
-                contextWindowBootId,
-                pinBackRules,
-                true,
-                pinBackRules
-              );
         } else {
           const epFallback =
             target.isRemoteEndpoint && target.endpointId
@@ -2120,21 +1944,13 @@ export function createWindowBridgeController(options) {
       }
       const ideChatExpr = !needsAnyCdpContext
         ? createContextWindowSyncExpression({}, contextWindowBootId, {}, false, null)
-        : pinMainBackToDefaults
-          ? createContextWindowSyncExpression(
-              contextWindows,
-              contextWindowBootId,
-              pinBackRules,
-              false,
-              pinBackRules
-            )
-          : createContextWindowSyncExpression(
-              contextWindows,
-              contextWindowBootId,
-              localFallbackRules,
-              false,
-              null
-            );
+        : createContextWindowSyncExpression(
+            contextWindows,
+            contextWindowBootId,
+            localFallbackRules,
+            false,
+            null
+          );
       for (const chatUrl of collectAllChatDebuggerUrls(targets)) {
         if (!chatUrl || seenCtxUrls.has(chatUrl)) continue;
         seenCtxUrls.add(chatUrl);
@@ -2624,9 +2440,6 @@ export function createWindowBridgeController(options) {
     hadInjectedTargets = false;
     hadInjectedChatFrames = false;
     hadContextWindows = false;
-    if (activeCloudCodeProxy) {
-      await activeCloudCodeProxy.stop().catch(() => {});
-    }
     if (bindRemoteRpcInvoker) {
       setRemoteWindowRpcInvoker(null);
     }
@@ -2642,54 +2455,13 @@ export function createWindowBridgeController(options) {
     if (!enabled) {
       hadInjectedTargets = true;
       hadInjectedChatFrames = true;
-      const cur = getSettingsFn() || {};
-      const hasCtx =
-        Object.keys(cur.modelContextWindows || {}).length > 0 &&
-        cur.contextWindowMainEnabled !== false;
-      if (!hasCtx && autoConfigureIdeArgv) {
-        launcherConfigured = false;
-        hasReadOnlyShortcuts = false;
-        lastLauncherProvisionAtMs = 0;
-        void ensureDesktopLaunchEntriesConfigured({
-          enabled: false,
-          env,
-          platform,
-          homeDir,
-          execFileFn: launcherExecFileFn,
-          fsOps: launcherFsOps,
-          allowInTest: allowDesktopLauncherInTest,
-        }).catch(() => {});
-      }
     } else {
-      lastLauncherProvisionAtMs = 0;
       hadInjectedChatFrames = true;
     }
     return syncAllWindows({ forceReinject: false }).catch(() => ({ ok: false }));
   }
 
   function notifyContextWindowsChanged() {
-    const cur = getSettingsFn() || {};
-    const mountMode = normalizeWindowMountMode(cur.windowMountMode, cur.enableWindowOverlay);
-    const overlayOn = Boolean(cur.enableWindowOverlay !== false && mountMode !== 'sidebar');
-    const hasCtx =
-      Object.keys(cur.modelContextWindows || {}).length > 0 &&
-      cur.contextWindowMainEnabled !== false;
-    if (hasCtx) {
-      lastLauncherProvisionAtMs = 0;
-    } else if (!overlayOn && autoConfigureIdeArgv) {
-      launcherConfigured = false;
-      hasReadOnlyShortcuts = false;
-      lastLauncherProvisionAtMs = 0;
-      void ensureDesktopLaunchEntriesConfigured({
-        enabled: false,
-        env,
-        platform,
-        homeDir,
-        execFileFn: launcherExecFileFn,
-        fsOps: launcherFsOps,
-        allowInTest: allowDesktopLauncherInTest,
-      }).catch(() => {});
-    }
     return syncAllWindows({ forceReinject: false }).catch(() => ({ ok: false }));
   }
 
@@ -2739,7 +2511,6 @@ export function startDefaultWindowBridge(options) {
     defaultBridgeController = createWindowBridgeController({
       leaseFilePath: join(DATA_DIR, 'window-bridge-lease.json'),
       bindRemoteRpcInvoker: true,
-      manageCloudCodeProxy: true,
       ...options,
     });
     defaultBridgeController.start();

@@ -17,6 +17,7 @@
  */
 
 import { execFile } from 'node:child_process';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import {
@@ -24,7 +25,6 @@ import {
   CLOUD_SYNC_RETRY_COOLDOWN_MS,
   CLOUD_SYNC_TTL_MS,
   DATA_DIR,
-  DEFAULT_ARCHIVE_FALLBACK_URL,
   DEFAULT_DOWNLOAD_URL,
   LEGACY_GITHUB_REPOS,
   LS_ADDR,
@@ -33,7 +33,6 @@ import {
   REMOTE_CATALOG_CACHE_FILE,
   cloudSyncState,
   loadJson,
-  loadSettings,
   lsRuntimeEndpoint,
   pluginUpdateState,
   saveJson,
@@ -234,24 +233,193 @@ async function verifyPluginJsSyntax(rootDir) {
 }
 
 /**
- * 执行插件本体更新（支持手动一键更新与后台静默更新）。
+ * 解析 `.sha256` 校验文本（支持 `<hex>  <filename>`、`<hex> *<filename>` 或纯 `<hex>`），
+ * 返回小写 64 位十六进制摘要；格式不合法时返回 `null`。
+ *
+ * @param {unknown} text
+ * @returns {string|null}
+ */
+export function parseSha256ChecksumText(text) {
+  if (typeof text !== 'string') return null;
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length !== 1) return null;
+  const match = lines[0].match(/^([0-9a-fA-F]{64})(?:[ \t]+\*?(.+))?$/);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function safeHexDigestEqual(actualHex, expectedHex) {
+  const actualBuf = Buffer.from(actualHex, 'hex');
+  const expectedBuf = Buffer.from(expectedHex, 'hex');
+  if (actualBuf.length !== 32 || expectedBuf.length !== 32) return false;
+  if (typeof timingSafeEqual === 'function') {
+    return timingSafeEqual(actualBuf, expectedBuf);
+  }
+  let diff = 0;
+  for (let i = 0; i < 32; i += 1) {
+    diff |= actualBuf[i] ^ expectedBuf[i];
+  }
+  return diff === 0;
+}
+
+/**
+ * 校验更新包 Buffer 的 SHA-256 摘要是否与 `.sha256` 文本完全一致。
+ *
+ * @param {Buffer|Uint8Array} buf
+ * @param {unknown} checksumText
+ * @returns {{ ok: boolean, reason?: string, expected: string|null, actual: string|null }}
+ */
+export function verifyZipSha256(buf, checksumText) {
+  if (!buf || (!Buffer.isBuffer(buf) && !(buf instanceof Uint8Array))) {
+    return { ok: false, reason: 'invalid_buffer', expected: null, actual: null };
+  }
+  const expected = parseSha256ChecksumText(checksumText);
+  if (!expected) {
+    return { ok: false, reason: 'malformed_sha256', expected: null, actual: null };
+  }
+  const actual = createHash('sha256').update(buf).digest('hex');
+  const matched = safeHexDigestEqual(actual, expected);
+  return matched
+    ? { ok: true, expected, actual }
+    : { ok: false, reason: 'sha256_mismatch', expected, actual };
+}
+
+function isUnsafeZipEntryName(entryName) {
+  if (!entryName || entryName.includes('\0')) return true;
+  if (/^[\\/]/.test(entryName)) return true;
+  if (/^[A-Za-z]:/.test(entryName)) return true;
+  const segments = entryName.split(/[/\\]/);
+  return segments.includes('..');
+}
+
+/**
+ * 纯 Node.js 解析 PKZIP End-of-Central-Directory (0x06054b50) 与 Central Directory (0x02014b50)，
+ * 拦截缺少中央目录、Zip Slip 路径穿越、绝对路径、盘符、NUL 字节以及 Unix 符号链接条目。
+ *
+ * @param {Buffer} buf
+ * @returns {{ ok: boolean, reason?: string, entryName?: string, entryCount?: number, entries?: string[] }}
+ */
+export function validateZipEntriesSafe(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 22) {
+    return { ok: false, reason: 'invalid_zip_buffer' };
+  }
+
+  const minOffset = Math.max(0, buf.length - 22 - 65535);
+  let eocdOffset = -1;
+  for (let off = buf.length - 22; off >= minOffset; off -= 1) {
+    if (buf.readUInt32LE(off) === 0x06054b50) {
+      const commentLen = buf.readUInt16LE(off + 20);
+      if (off + 22 + commentLen === buf.length) {
+        eocdOffset = off;
+        break;
+      }
+    }
+  }
+  if (eocdOffset < 0) {
+    return { ok: false, reason: 'missing_eocd' };
+  }
+
+  const diskNumber = buf.readUInt16LE(eocdOffset + 4);
+  const cdDiskNumber = buf.readUInt16LE(eocdOffset + 6);
+  const diskEntries = buf.readUInt16LE(eocdOffset + 8);
+  const totalEntries = buf.readUInt16LE(eocdOffset + 10);
+  const cdSize = buf.readUInt32LE(eocdOffset + 12);
+  const cdOffset = buf.readUInt32LE(eocdOffset + 16);
+
+  if (
+    diskNumber !== 0 ||
+    cdDiskNumber !== 0 ||
+    diskEntries !== totalEntries ||
+    totalEntries === 0 ||
+    totalEntries === 0xffff ||
+    cdSize === 0xffffffff ||
+    cdOffset === 0xffffffff ||
+    cdOffset + cdSize > eocdOffset
+  ) {
+    return { ok: false, reason: 'invalid_central_directory' };
+  }
+
+  let cursor = cdOffset;
+  const cdEnd = cdOffset + cdSize;
+  const entries = [];
+
+  for (let i = 0; i < totalEntries; i += 1) {
+    if (cursor + 46 > cdEnd || buf.readUInt32LE(cursor) !== 0x02014b50) {
+      return { ok: false, reason: 'invalid_central_directory' };
+    }
+    const nameLen = buf.readUInt16LE(cursor + 28);
+    const extraLen = buf.readUInt16LE(cursor + 30);
+    const commentLen = buf.readUInt16LE(cursor + 32);
+    const externalAttr = buf.readUInt32LE(cursor + 38);
+    const localHeaderOffset = buf.readUInt32LE(cursor + 42);
+
+    if (cursor + 46 + nameLen + extraLen + commentLen > cdEnd) {
+      return { ok: false, reason: 'truncated_central_directory' };
+    }
+
+    const entryName = buf.subarray(cursor + 46, cursor + 46 + nameLen).toString('utf8');
+    if (isUnsafeZipEntryName(entryName)) {
+      return { ok: false, reason: 'unsafe_zip_entry_path', entryName };
+    }
+
+    if (((externalAttr >>> 16) & 0o170000) === 0o120000) {
+      return { ok: false, reason: 'symlink_entry_forbidden', entryName };
+    }
+
+    if (localHeaderOffset + 30 > cdOffset || buf.readUInt32LE(localHeaderOffset) !== 0x04034b50) {
+      return { ok: false, reason: 'invalid_local_header', entryName };
+    }
+    const localNameLen = buf.readUInt16LE(localHeaderOffset + 26);
+    if (localHeaderOffset + 30 + localNameLen > cdOffset) {
+      return { ok: false, reason: 'invalid_local_header', entryName };
+    }
+    const localName = buf
+      .subarray(localHeaderOffset + 30, localHeaderOffset + 30 + localNameLen)
+      .toString('utf8');
+    if (isUnsafeZipEntryName(localName) || localName !== entryName) {
+      return { ok: false, reason: 'unsafe_zip_entry_path', entryName: localName || entryName };
+    }
+
+    entries.push(entryName);
+    cursor += 46 + nameLen + extraLen + commentLen;
+  }
+
+  if (cursor !== cdEnd) {
+    return { ok: false, reason: 'invalid_central_directory' };
+  }
+
+  return { ok: true, entryCount: totalEntries, entries };
+}
+
+/**
+ * 执行插件本体更新（仅支持手动更新，已禁用后台自动更新）。
  *
  * @param {{ isAuto?: boolean }} [options]
  * @returns {Promise<object>} 更新结果对象
  */
 export async function performPluginUpdate({ isAuto = false } = {}) {
-  if (pluginUpdateState.inFlight) {
-    if (isAuto || !pluginUpdateState.inFlightIsAuto) {
-      return pluginUpdateState.inFlight;
-    }
-    // 若用户点击手动更新时恰好有一轮后台自动更新检查正在运行，等待其收尾后再按手动模式继续执行
-    await pluginUpdateState.inFlight.catch(() => {});
-    if (pluginUpdateState.inFlight) {
-      return pluginUpdateState.inFlight;
-    }
+  if (isAuto) {
+    const previousVersion = readInstalledPluginVersion();
+    const result = {
+      ok: false,
+      skipped: true,
+      reason: 'auto_update_disabled_in_hardened_fork',
+      previousVersion,
+      currentVersion: previousVersion,
+      message: '已禁用后台自动更新，请使用手动更新',
+      updatedAtMs: Date.now(),
+    };
+    pluginUpdateState.lastResult = result;
+    return result;
   }
 
-  pluginUpdateState.inFlightIsAuto = Boolean(isAuto);
+  if (pluginUpdateState.inFlight) {
+    return pluginUpdateState.inFlight;
+  }
+
+  pluginUpdateState.inFlightIsAuto = false;
   pluginUpdateState.inFlight = (async () => {
     pluginUpdateState.isUpdating = true;
     pluginUpdateState.lastError = null;
@@ -462,134 +630,148 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
         return result;
       }
 
-      const candidateUrls = [
-        cloudSyncState.downloadUrl || DEFAULT_DOWNLOAD_URL,
-        cloudSyncState.archiveFallbackUrl || DEFAULT_ARCHIVE_FALLBACK_URL,
-      ].filter(Boolean);
+      const zipUrl = cloudSyncState.downloadUrl || DEFAULT_DOWNLOAD_URL;
+      if (!zipUrl) {
+        throw new Error('未配置有效的更新包下载地址');
+      }
 
-      let lastZipErr = null;
-      for (const zipUrl of candidateUrls) {
-        const stagingDir = join(DATA_DIR, `.update-staging-${Date.now()}`);
-        const zipFile = join(stagingDir, 'bundle.zip');
-        const extractDir = join(stagingDir, 'extracted');
-        const backupDir = join(stagingDir, 'backup');
-        try {
-          mkdirSync(extractDir, { recursive: true });
-          const res = await fetch(zipUrl, {
-            method: 'GET',
-            signal: AbortSignal.timeout(25000),
-          });
-          if (!res.ok) {
-            throw new Error(`下载更新包失败 (HTTP ${res.status})`);
-          }
-          const buf = Buffer.from(await res.arrayBuffer());
-          // 校验 ZIP 文件头魔数 ('PK') 与最小合理体积
-          if (buf.length < 1024 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
-            throw new Error('下载的更新包格式校验未通过');
-          }
-          writeFileSync(zipFile, buf);
+      const stagingDir = join(DATA_DIR, `.update-staging-${Date.now()}`);
+      const zipFile = join(stagingDir, 'bundle.zip');
+      const extractDir = join(stagingDir, 'extracted');
+      const backupDir = join(stagingDir, 'backup');
+      try {
+        mkdirSync(extractDir, { recursive: true });
+        const res = await fetch(zipUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(25000),
+        });
+        if (!res.ok || (res.status !== undefined && res.status !== 200)) {
+          throw new Error(`下载更新包失败 (HTTP ${res.status ?? 'unknown'})`);
+        }
+        const buf = Buffer.from(await res.arrayBuffer());
+        // 校验 ZIP 文件头魔数 ('PK') 与最小合法体积
+        if (buf.length < 22 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
+          throw new Error('下载的更新包格式校验未通过');
+        }
 
-          if (process.platform === 'win32') {
-            await runExecFile('powershell.exe', [
-              '-NoProfile',
-              '-NonInteractive',
-              '-Command',
-              `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('${zipFile.replace(/'/g, "''")}', '${extractDir.replace(/'/g, "''")}')`,
-            ]);
-          } else {
-            await runExecFile('unzip', ['-oq', zipFile, '-d', extractDir]);
-          }
+        // 强制 SHA-256 校验：必须存在且成功返回 HTTP 200 的 .sha256 校验文件
+        const shaUrl = `${zipUrl}.sha256`;
+        const shaRes = await fetch(shaUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!shaRes.ok || (shaRes.status !== undefined && shaRes.status !== 200)) {
+          throw new Error(`更新包 SHA-256 校验文件下载失败 (HTTP ${shaRes.status ?? 'unknown'})`);
+        }
+        const shaText = await shaRes.text();
+        const shaCheck = verifyZipSha256(buf, shaText);
+        if (!shaCheck.ok) {
+          throw new Error(
+            shaCheck.reason === 'malformed_sha256'
+              ? '更新包 SHA-256 校验文件格式无效'
+              : '更新包 SHA-256 校验不匹配，已拒绝更新'
+          );
+        }
 
-          const extractedRoot = locateExtractedPluginRoot(extractDir);
-          if (
-            !extractedRoot ||
-            !existsSync(join(extractedRoot, 'sidecars', 'panel', 'main.mjs')) ||
-            !existsSync(join(extractedRoot, 'sidecars', 'panel', 'app.js')) ||
-            !existsSync(join(extractedRoot, 'sidecars', 'panel', 'styles.css')) ||
-            !existsSync(join(extractedRoot, 'sidecars', 'panel', 'index.html'))
-          ) {
-            throw new Error('更新包缺少核心插件文件');
-          }
+        // 解压前强制校验 PKZIP Central Directory，防止 Zip Slip 路径穿越与符号链接攻击
+        const zipSafety = validateZipEntriesSafe(buf);
+        if (!zipSafety.ok) {
+          throw new Error(`更新包条目安全校验未通过 (${zipSafety.reason})`);
+        }
 
-          const extractedManifest = loadJson(join(extractedRoot, 'plugin.json'), null);
-          const rawExtractedVer =
-            typeof extractedManifest?.version === 'string'
-              ? extractedManifest.version.trim()
-              : '';
-          const extractedVer = isValidSemver(rawExtractedVer)
-            ? rawExtractedVer.replace(/^v/i, '')
+        writeFileSync(zipFile, buf);
+
+        if (process.platform === 'win32') {
+          await runExecFile('powershell.exe', [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('${zipFile.replace(/'/g, "''")}', '${extractDir.replace(/'/g, "''")}')`,
+          ]);
+        } else {
+          await runExecFile('unzip', ['-oq', zipFile, '-d', extractDir]);
+        }
+
+        const extractedRoot = locateExtractedPluginRoot(extractDir);
+        if (
+          !extractedRoot ||
+          !existsSync(join(extractedRoot, 'sidecars', 'panel', 'main.mjs')) ||
+          !existsSync(join(extractedRoot, 'sidecars', 'panel', 'app.js')) ||
+          !existsSync(join(extractedRoot, 'sidecars', 'panel', 'styles.css')) ||
+          !existsSync(join(extractedRoot, 'sidecars', 'panel', 'index.html'))
+        ) {
+          throw new Error('更新包缺少核心插件文件');
+        }
+
+        const extractedManifest = loadJson(join(extractedRoot, 'plugin.json'), null);
+        const rawExtractedVer =
+          typeof extractedManifest?.version === 'string'
+            ? extractedManifest.version.trim()
             : '';
-          if (!extractedVer || compareSemver(extractedVer, previousVersion) <= 0) {
-            throw new Error(
-              `下载包版本 (v${extractedVer || '未知'}) 不高于当前已安装版本 (v${previousVersion})，已拒绝降级覆盖`
-            );
-          }
-          if (
-            zipUrl !== candidateUrls[candidateUrls.length - 1] &&
-            compareSemver(targetVersion, extractedVer) > 0
-          ) {
-            throw new Error(
-              `Release 压缩包版本 (v${extractedVer}) 尚未同步至 v${targetVersion}，切换至主干归档源`
-            );
-          }
+        const extractedVer = isValidSemver(rawExtractedVer)
+          ? rawExtractedVer.replace(/^v/i, '')
+          : '';
+        if (!extractedVer || compareSemver(extractedVer, previousVersion) <= 0) {
+          throw new Error(
+            `下载包版本 (v${extractedVer || '未知'}) 不高于当前已安装版本 (v${previousVersion})，已拒绝降级覆盖`
+          );
+        }
 
-          // 覆盖前先对解压目录执行 JS 语法预检，防止损坏代码覆盖现有安装
-          await verifyPluginJsSyntax(extractedRoot);
+        // 覆盖前先对解压目录执行 JS 语法预检，防止损坏代码覆盖现有安装
+        await verifyPluginJsSyntax(extractedRoot);
 
-          // 备份当前插件根目录关键文件，覆盖后清理已废弃旧文件；若覆盖途中异常则完整回滚并移除残留新文件
-          mkdirSync(backupDir, { recursive: true });
-          cpSync(PLUGIN_ROOT, backupDir, { recursive: true, force: true, filter: isSafeCopyPath });
+        // 备份当前插件根目录关键文件，覆盖后清理已废弃旧文件；若覆盖途中异常则完整回滚并移除残留新文件
+        mkdirSync(backupDir, { recursive: true });
+        cpSync(PLUGIN_ROOT, backupDir, { recursive: true, force: true, filter: isSafeCopyPath });
+        try {
+          cpSync(extractedRoot, PLUGIN_ROOT, {
+            recursive: true,
+            force: true,
+            filter: isSafeCopyPath,
+          });
+          pruneExtraneousFiles(PLUGIN_ROOT, extractedRoot);
+        } catch (copyErr) {
           try {
-            cpSync(extractedRoot, PLUGIN_ROOT, {
+            cpSync(backupDir, PLUGIN_ROOT, {
               recursive: true,
               force: true,
               filter: isSafeCopyPath,
             });
-            pruneExtraneousFiles(PLUGIN_ROOT, extractedRoot);
-          } catch (copyErr) {
-            try {
-              cpSync(backupDir, PLUGIN_ROOT, {
-                recursive: true,
-                force: true,
-                filter: isSafeCopyPath,
-              });
-              pruneExtraneousFiles(PLUGIN_ROOT, backupDir);
-            } catch {
-              // 忽略回滚二级异常
-            }
-            throw copyErr;
-          }
-
-          try {
-            rmSync(stagingDir, { recursive: true, force: true });
+            pruneExtraneousFiles(PLUGIN_ROOT, backupDir);
           } catch {
-            // 忽略临时目录清理错误
+            // 忽略回滚二级异常
           }
-
-          rebuildActiveCatalog();
-          const currentVersion = readInstalledPluginVersion();
-          const result = {
-            ok: true,
-            mode: 'zip',
-            previousVersion,
-            currentVersion,
-            restarting: true,
-            message: `已下载并更新至 v${currentVersion}，正在重载面板…`,
-            updatedAtMs: Date.now(),
-          };
-          pluginUpdateState.lastResult = result;
-          scheduleSidecarRestart();
-          return result;
-        } catch (err) {
-          lastZipErr = err;
-          try {
-            rmSync(stagingDir, { recursive: true, force: true });
-          } catch {
-            // 忽略临时目录清理错误
-          }
+          throw copyErr;
         }
+
+        try {
+          rmSync(stagingDir, { recursive: true, force: true });
+        } catch {
+          // 忽略临时目录清理错误
+        }
+
+        rebuildActiveCatalog();
+        const currentVersion = readInstalledPluginVersion();
+        const result = {
+          ok: true,
+          mode: 'zip',
+          previousVersion,
+          currentVersion,
+          restarting: true,
+          message: `已下载并更新至 v${currentVersion}，正在重载面板…`,
+          updatedAtMs: Date.now(),
+        };
+        pluginUpdateState.lastResult = result;
+        scheduleSidecarRestart();
+        return result;
+      } catch (err) {
+        try {
+          rmSync(stagingDir, { recursive: true, force: true });
+        } catch {
+          // 忽略临时目录清理错误
+        }
+        throw err;
       }
-      throw lastZipErr || new Error('未能下载可用的插件更新包');
     } catch (err) {
       const errMsg = err?.message || '插件更新失败';
       pluginUpdateState.lastError = errMsg;
@@ -613,7 +795,7 @@ export async function performPluginUpdate({ isAuto = false } = {}) {
 }
 
 /**
- * 同步云端 `pricing-catalog.json` 目录并在满足条件时触发插件自动更新。
+ * 同步云端 `pricing-catalog.json` 目录（加固分支绝不触发后台自动更新）。
  *
  * @param {{ force?: boolean, urls?: string[] }} [options]
  * @returns {Promise<ReturnType<typeof getCloudStatus>>}
@@ -668,23 +850,7 @@ export async function syncCloudCatalog({ force = false, urls = CLOUD_CATALOG_URL
           cloudSyncState.sourceUrl = url;
           cloudSyncState.lastError = null;
           rebuildActiveCatalog();
-
-          const statusAfter = getCloudStatus();
-          const settings = loadSettings();
-          const allowAutoUpdate =
-            settings.pluginUpdateMode !== undefined
-              ? settings.pluginUpdateMode === 'auto'
-              : Boolean(settings.autoUpdatePlugin);
-          if (
-            statusAfter.updateAvailable &&
-            allowAutoUpdate &&
-            !pluginUpdateState.isUpdating &&
-            pluginUpdateState.lastAutoAttemptVersion !== statusAfter.latestPluginVersion
-          ) {
-            pluginUpdateState.lastAutoAttemptVersion = statusAfter.latestPluginVersion;
-            performPluginUpdate({ isAuto: true }).catch(() => {});
-          }
-          return statusAfter;
+          return getCloudStatus();
         } catch (err) {
           lastErr = err;
         }

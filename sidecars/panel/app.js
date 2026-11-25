@@ -288,17 +288,17 @@ function normalizeStepTokenComboFormat(raw) {
 }
 
 /**
- * 归一化插件更新策略枚举（兼容历史 `autoUpdatePlugin` 布尔开关，默认 `'manual'`）。
+ * 归一化插件更新策略枚举（兼容历史 `autoUpdatePlugin` 布尔开关，默认 `'off'`，加固分支禁止 `'auto'`）。
  *
  * @param {unknown} mode
  * @param {unknown} [legacyAutoUpdate]
- * @returns {'off'|'manual'|'auto'}
+ * @returns {'off'|'manual'}
  */
 function normalizePluginUpdateMode(mode, legacyAutoUpdate) {
   const m = String(mode ?? '').trim().toLowerCase();
-  if (m === 'off' || m === 'manual' || m === 'auto') return m;
-  if (legacyAutoUpdate === true) return 'auto';
-  return 'manual';
+  if (m === 'off' || m === 'manual') return m;
+  if (m === 'auto' || legacyAutoUpdate === true) return 'manual';
+  return 'off';
 }
 
 /**
@@ -1758,6 +1758,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.account.noQuota': '暂未获取当前账号的额度池。',
   'settings.account.quotaStale': '额度刷新失败，显示的是当前账号上次获取的数据。',
   'settings.account.unsupported': '凭证切换目前支持 Windows 上的 Antigravity 共享登录。',
+  'settings.account.disabledInHardenedFork': '此安全加固分支已禁用多账号凭证切换与 OAuth 凭证存储功能；当前账号状态与额度仍以只读方式展示。',
   'settings.account.invalidEmail': '请先选择一个已保存的账号。',
   'settings.account.invalidCredential': '请输入有效的 Antigravity 个人账号 OAuth 凭证。',
   'settings.account.credentialTooLarge': '凭证超过 Windows 凭据管理器的 2560 字节上限。',
@@ -1850,20 +1851,20 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.mountDual': '双栖挂载 (顶部栏 + 侧边栏)',
   'settings.str.mountComposer': '输入框挂载 (输入框 + 侧边栏)',
   'settings.str.mountSidebar': '仅侧边栏',
-  'settings.bridge.restartTitle': '已自动补齐启动参数，重启一次即可启用悬浮胶囊',
-  'settings.bridge.ctxRestartTitle': '已自动补齐启动参数，重启一次即可激活上下文覆写',
-  'settings.bridge.restartBody': '已自动为快捷方式、自启项及协议关联写入 --remote-debugging-port=0（后续通过常规快捷方式打开均自动生效）。点击下方按钮即可退出后台进程并立即生效。',
-  'settings.bridge.readOnlyTitle': '公共桌面快捷方式受权限保护，授权重启即可生效',
-  'settings.bridge.ctxReadOnlyTitle': '公共桌面快捷方式受权限保护，授权重启即可激活上下文覆写',
-  'settings.bridge.readOnlyBody': '个人启动项已配好，但公共桌面或开始菜单快捷方式需管理员权限修改。点击下方按钮并在系统弹窗中确认授权，即可一次性修补公共图标并带参重开（后续日常打开均自动生效）。',
-  'settings.bridge.macTitle': '当前会话未开启调试端口，一键重开即可启用挂载',
-  'settings.bridge.ctxMacTitle': '当前会话未开启调试端口，一键重开即可激活上下文覆写',
-  'settings.bridge.noPortTitle': '未检测到本地调试端口，主窗口挂载暂未生效',
-  'settings.bridge.unreachableTitle': '本地调试端口未就绪，主窗口挂载暂未生效',
-  'settings.bridge.ctxTitle': '未连通本地调试通道，上下文窗口覆写暂未注入',
-  'settings.bridge.guideWin': 'Antigravity 2.33.0+ 默认不再开启调试端口。点击「立即重启并启用挂载」即可自动补齐快捷方式参数、退出托盘后台并带参重启生效。',
-  'settings.bridge.guideMac': '受 macOS 应用签名限制，从 Dock 直接冷启动默认不带调试端口参数。点击下方按钮即可一键带参重开恢复（日常仅关窗不完全退出 Cmd+Q 则持续有效）。',
-  'settings.bridge.guideLinux': 'Antigravity 2.33.0+ 默认不再开启调试端口。点击「立即重启并启用挂载」即可自动写入 .desktop 启动器并重启生效。',
+  'settings.bridge.restartTitle': '需手动带参启动 — 重启客户端以启用悬浮胶囊',
+  'settings.bridge.ctxRestartTitle': '需手动带参启动 — 上下文钩子待激活',
+  'settings.bridge.restartBody': '此安全加固分支已禁用自动修改系统快捷方式、注册表与 argv.json。如需启用顶栏/输入框悬浮胶囊，请手动使用 --remote-debugging-port=0 启动 Antigravity。',
+  'settings.bridge.readOnlyTitle': '已禁用自动修补启动器',
+  'settings.bridge.ctxReadOnlyTitle': '已禁用自动修补启动器',
+  'settings.bridge.readOnlyBody': '此安全加固分支已禁用快捷方式写入与 UAC 提权重启。如需启用悬浮胶囊，请手动使用 --remote-debugging-port=0 启动 Antigravity。',
+  'settings.bridge.macTitle': '未检测到调试端口 — 需手动带参启动',
+  'settings.bridge.ctxMacTitle': '未检测到调试端口 — 需手动带参启动',
+  'settings.bridge.noPortTitle': '未检测到本地调试端口 — 主窗口挂载未启用',
+  'settings.bridge.unreachableTitle': '本地调试端口未就绪 — 主窗口挂载未启用',
+  'settings.bridge.ctxTitle': '未连通本地调试端口 — 上下文钩子未就绪',
+  'settings.bridge.guideWin': '此安全加固分支已禁用自动修改快捷方式/注册表与 UAC 重启。如需启用顶栏或输入框悬浮胶囊，请完全退出 Antigravity 后手动附加 --remote-debugging-port=0 启动（或改用「仅侧边栏」模式）。',
+  'settings.bridge.guideMac': '此安全加固分支已禁用自动修改启动配置与客户端重拉。如需启用顶栏或输入框悬浮胶囊，请 Cmd+Q 完全退出 Antigravity 后手动附加 --remote-debugging-port=0 启动（或改用「仅侧边栏」模式）。',
+  'settings.bridge.guideLinux': '此安全加固分支已禁用自动修改 .desktop 启动器与客户端重拉。如需启用顶栏或输入框悬浮胶囊，请退出 Antigravity 后手动附加 --remote-debugging-port=0 启动（或改用「仅侧边栏」模式）。',
   'settings.bridge.relaunchBtn': '立即重启并启用挂载',
   'settings.bridge.relaunchAuthBtn': '授权修补并立即重启',
   'settings.bridge.relaunchingBtn': '正在重启客户端...',
@@ -2645,6 +2646,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.account.noQuota': 'Quota pools are unavailable for the current account.',
   'settings.account.quotaStale': 'Quota refresh failed. Showing the last data for the current account.',
   'settings.account.unsupported': 'Credential switching currently supports Antigravity shared sign-in on Windows.',
+  'settings.account.disabledInHardenedFork': 'Multi-account credential switching and OAuth credential storage are disabled in this hardened fork. Current account status and quota remain read-only.',
   'settings.account.invalidEmail': 'Select a saved account first.',
   'settings.account.invalidCredential': 'Enter a valid Antigravity OAuth credential for a personal account.',
   'settings.account.credentialTooLarge': 'The credential exceeds the Windows Credential Manager limit of 2560 bytes.',
@@ -2738,20 +2740,20 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.mountDual': 'Dual Mount (Titlebar + Sidebar)',
   'settings.str.mountComposer': 'Composer Mount (Input Box + Sidebar)',
   'settings.str.mountSidebar': 'Sidebar Only',
-  'settings.bridge.restartTitle': 'Launch Flag Auto-Configured — Restart Once to Activate',
-  'settings.bridge.ctxRestartTitle': 'Launch Flag Auto-Configured — Restart Once for Context Override',
-  'settings.bridge.restartBody': 'Automatically added --remote-debugging-port=0 to your shortcuts, startup entries, and protocol handlers (subsequent shortcut launches mount automatically). Click below to close background processes and relaunch now.',
-  'settings.bridge.readOnlyTitle': 'Public Shortcut Protected — Authorize & Relaunch to Activate',
-  'settings.bridge.ctxReadOnlyTitle': 'Public Shortcut Protected — Authorize & Relaunch for Context Override',
-  'settings.bridge.readOnlyBody': 'Personal launch entries are configured, but public shortcuts require administrator permission. Click below and approve the system prompt to patch public shortcuts once and relaunch.',
-  'settings.bridge.macTitle': 'Debug Port Inactive — One-Click Relaunch to Enable Mount',
-  'settings.bridge.ctxMacTitle': 'Debug Port Inactive — One-Click Relaunch for Context Override',
-  'settings.bridge.noPortTitle': 'Local Debug Port Missing — Window Mount Inactive',
-  'settings.bridge.unreachableTitle': 'Local Debug Port Not Ready — Window Mount Inactive',
-  'settings.bridge.ctxTitle': 'Local Debug Port Inactive — Context Override Pending',
-  'settings.bridge.guideWin': 'Antigravity 2.33.0+ no longer opens a debug port by default. Click "Relaunch & Enable Mount" to auto-configure shortcuts, close tray background processes, and relaunch.',
-  'settings.bridge.guideMac': 'Due to macOS app code signing, cold launches from Dock omit the debug port flag. Click below to relaunch with the flag in one click (stays active until you fully Quit via Cmd+Q).',
-  'settings.bridge.guideLinux': 'Antigravity 2.33.0+ no longer opens a debug port by default. Click "Relaunch & Enable Mount" to update your .desktop launcher and relaunch.',
+  'settings.bridge.restartTitle': 'Manual Launch Required — Restart with Debug Flag',
+  'settings.bridge.ctxRestartTitle': 'Manual Launch Required — Context Hook Pending',
+  'settings.bridge.restartBody': 'Automatic OS shortcut, registry, and argv.json patching is disabled in this hardened fork. Launch Antigravity manually with --remote-debugging-port=0 to enable the overlay capsule.',
+  'settings.bridge.readOnlyTitle': 'Automatic Launcher Patching Disabled',
+  'settings.bridge.ctxReadOnlyTitle': 'Automatic Launcher Patching Disabled',
+  'settings.bridge.readOnlyBody': 'Shortcut patching and UAC relaunch are disabled in this hardened fork. Launch Antigravity manually with --remote-debugging-port=0 if you want the topbar/composer capsule.',
+  'settings.bridge.macTitle': 'Debug Port Inactive — Manual Launch Required',
+  'settings.bridge.ctxMacTitle': 'Debug Port Inactive — Manual Launch Required',
+  'settings.bridge.noPortTitle': 'Local Debug Port Inactive — Window Capsule Unavailable',
+  'settings.bridge.unreachableTitle': 'Local Debug Port Not Ready — Window Capsule Unavailable',
+  'settings.bridge.ctxTitle': 'Local Debug Port Inactive — Context Hook Pending',
+  'settings.bridge.guideWin': 'Automatic shortcut, registry, and UAC relaunch are disabled in this hardened fork. To show the topbar/composer capsule, close Antigravity and launch it manually with --remote-debugging-port=0 (or switch to Sidebar Only mode).',
+  'settings.bridge.guideMac': 'Automatic launcher modification and host relaunch are disabled in this hardened fork. To show the topbar/composer capsule, quit Antigravity (Cmd+Q) and launch it manually with --remote-debugging-port=0 (or switch to Sidebar Only mode).',
+  'settings.bridge.guideLinux': 'Automatic .desktop launcher modification and host relaunch are disabled in this hardened fork. To show the topbar/composer capsule, close Antigravity and launch it manually with --remote-debugging-port=0 (or switch to Sidebar Only mode).',
   'settings.bridge.relaunchBtn': 'Relaunch & Enable Mount',
   'settings.bridge.relaunchAuthBtn': 'Authorize & Relaunch',
   'settings.bridge.relaunchingBtn': 'Relaunching Host...',
@@ -5969,8 +5971,8 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
     importTo: (src, hasKey, patch) => {
       if (hasKey('pluginUpdateMode') || hasKey('autoUpdatePlugin')) {
         const mode = normalizePluginUpdateMode(src.pluginUpdateMode, src.autoUpdatePlugin);
-        patch.pluginUpdateMode = mode;
-        patch.autoUpdatePlugin = mode === 'auto';
+        patch.pluginUpdateMode = mode === 'auto' ? 'manual' : mode;
+        patch.autoUpdatePlugin = false;
       }
     },
   },
@@ -5988,7 +5990,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   },
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
-  boolField('enableCliStatusLine', true),
+  boolField('enableCliStatusLine', false),
   normField('cliStatusLineSlots', normalizeCliStatusLineSlots),
   normField('standalonePort', normalizeStandalonePort),
   boolField('showTopbarMultiSession', true),
@@ -9343,7 +9345,7 @@ function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    (pSet?.contextWindowMainEnabled !== false) !== (nSet?.contextWindowMainEnabled !== false) ||
+    Boolean(pSet?.contextWindowMainEnabled) !== Boolean(nSet?.contextWindowMainEnabled) ||
     Boolean(pSet?.contextWindowSwarmEnabled) !== Boolean(nSet?.contextWindowSwarmEnabled)
   ) {
     return false;
@@ -9399,7 +9401,7 @@ function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (pSet?.enableWindowOverlay !== nSet?.enableWindowOverlay) return false;
-  if ((pSet?.enableCliStatusLine !== false) !== (nSet?.enableCliStatusLine !== false)) {
+  if (Boolean(pSet?.enableCliStatusLine) !== Boolean(nSet?.enableCliStatusLine)) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
@@ -10604,6 +10606,17 @@ async function saveSettingsPatch(patch) {
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'weeklyLimitMode')) {
     safePatch.weeklyLimitMode = normalizeWeeklyLimitMode(safePatch.weeklyLimitMode);
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(safePatch, 'pluginUpdateMode') ||
+    Object.prototype.hasOwnProperty.call(safePatch, 'autoUpdatePlugin')
+  ) {
+    const normUpdateMode = normalizeClientUpdateMode(
+      safePatch.pluginUpdateMode,
+      safePatch.autoUpdatePlugin
+    );
+    safePatch.pluginUpdateMode = normUpdateMode === 'auto' ? 'manual' : normUpdateMode;
+    safePatch.autoUpdatePlugin = false;
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);
@@ -24558,9 +24571,10 @@ return { ThemeColorPicker };
 // --- src/components/settings/BridgeStatusNotice.js ---
 const { BridgeStatusNotice } = (() => {
 /**
- * @fileoverview Shared CDP / Window Bridge diagnostic & one-click relaunch card (`BridgeStatusNotice.js`).
- * Surfaces automatic shortcut provisioning status and a one-click host relaunch button when
- * Antigravity 2.33.0+ runs without an active `DevToolsActivePort` (`no_devtools_port` / `cdp_unreachable`).
+ * @fileoverview Shared CDP / Window Bridge diagnostic notice card (`BridgeStatusNotice.js`).
+ * In this hardened fork, automatic OS launcher patching and UAC relaunch are disabled;
+ * surfaces a manual `--remote-debugging-port=0` launch instruction when Antigravity runs
+ * without an active `DevToolsActivePort` (`no_devtools_port` / `cdp_unreachable`).
  */
 
 
@@ -24577,8 +24591,6 @@ const BridgeStatusNotice = defineComponent({
       hostPlatform: 'win32',
     };
     let dismissed = false;
-    let relaunchState = 'idle'; // 'idle' | 'relaunching' | 'failed'
-    let relaunchResetTimer = null;
     let destroyed = false;
     const copyFeedback = createCopiedFeedbackController({
       durationMs: 1800,
@@ -24620,50 +24632,8 @@ const BridgeStatusNotice = defineComponent({
       {
         type: 'button',
         className: 'settings-bridge-relaunch-btn',
-        onClick: async () => {
-          if (relaunchState === 'relaunching' || destroyed) return;
-          relaunchState = 'relaunching';
-          if (relaunchResetTimer) {
-            clearTimeout(relaunchResetTimer);
-            relaunchResetTimer = null;
-          }
-          syncActionButtons();
-          try {
-            const res = await triggerBridgeHostRelaunch();
-            if (destroyed) return;
-            if (!res || res.ok === false) {
-              relaunchState = 'failed';
-              syncActionButtons();
-              relaunchResetTimer = setTimeout(() => {
-                relaunchResetTimer = null;
-                if (destroyed) return;
-                relaunchState = 'idle';
-                syncActionButtons();
-              }, 3500);
-              relaunchResetTimer?.unref?.();
-              return;
-            }
-            // Reset button if host is still open after 9s (e.g. cancelled close prompt)
-            relaunchResetTimer = setTimeout(() => {
-              relaunchResetTimer = null;
-              if (destroyed) return;
-              relaunchState = 'idle';
-              syncActionButtons();
-            }, 9000);
-            relaunchResetTimer?.unref?.();
-          } catch {
-            if (destroyed) return;
-            relaunchState = 'failed';
-            syncActionButtons();
-            relaunchResetTimer = setTimeout(() => {
-              relaunchResetTimer = null;
-              if (destroyed) return;
-              relaunchState = 'idle';
-              syncActionButtons();
-            }, 3500);
-            relaunchResetTimer?.unref?.();
-          }
-        },
+        hidden: true,
+        disabled: true,
       },
       [relaunchBtnIconEl, relaunchBtnTextEl]
     );
@@ -24709,20 +24679,10 @@ const BridgeStatusNotice = defineComponent({
     );
 
     function syncActionButtons() {
-      const canRelaunch = lastPayload.windowBridge?.canRelaunch !== false;
-      const needsAuth = Boolean(lastPayload.windowBridge?.hasReadOnlyShortcuts);
-      patchAttr(relaunchBtnEl, 'hidden', !canRelaunch);
-      patchAttr(relaunchBtnEl, 'disabled', relaunchState === 'relaunching');
-      patchText(
-        relaunchBtnTextEl,
-        relaunchState === 'relaunching'
-          ? t('settings.bridge.relaunchingBtn')
-          : relaunchState === 'failed'
-            ? t('settings.bridge.relaunchFailed')
-            : needsAuth
-              ? t('settings.bridge.relaunchAuthBtn')
-              : t('settings.bridge.relaunchBtn')
-      );
+      // Automatic OS launcher patching & UAC relaunch are disabled in this hardened fork.
+      patchAttr(relaunchBtnEl, 'hidden', true);
+      patchAttr(relaunchBtnEl, 'disabled', true);
+      patchText(relaunchBtnTextEl, t('settings.bridge.relaunchBtn'));
 
       const isCopied = copyFeedback.isCopied(true);
       patchSvgIcon(copyBtnIconEl, isCopied ? 'check' : 'copy');
@@ -24756,44 +24716,23 @@ const BridgeStatusNotice = defineComponent({
       if (!shouldShow) return;
 
       const plat = String(lastPayload.hostPlatform || '').trim().toLowerCase();
-      const hasReadOnlyShortcuts = Boolean(wb?.hasReadOnlyShortcuts);
-      const isMacDesktop = plat === 'darwin' && !wb?.argvConfigured;
-      const isAutoConfigured = Boolean(
-        wb?.launcherConfigured || wb?.argvUpdatedThisBoot || wb?.argvConfigured
-      );
-      const useRestartTheme = !hasReadOnlyShortcuts && (isAutoConfigured || isMacDesktop);
-
       patchClasses(rootEl, {
-        'is-restart': useRestartTheme,
-        'is-warn': !useRestartTheme,
+        'is-restart': false,
+        'is-warn': true,
       });
-      patchSvgIcon(headIconEl, useRestartTheme ? 'refresh' : 'warning');
+      patchSvgIcon(headIconEl, 'warning');
 
-      let titleText = '';
-      let bodyText = '';
-      if (hasReadOnlyShortcuts) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxReadOnlyTitle')
-          : t('settings.bridge.readOnlyTitle');
-        bodyText = t('settings.bridge.readOnlyBody');
-      } else if (isMacDesktop) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxMacTitle')
-          : t('settings.bridge.macTitle');
-        bodyText = t('settings.bridge.guideMac');
-      } else if (isAutoConfigured) {
-        titleText = contextMode
-          ? t('settings.bridge.ctxRestartTitle')
-          : t('settings.bridge.restartTitle');
-        bodyText = t('settings.bridge.restartBody');
-      } else {
-        titleText = contextMode
-          ? t('settings.bridge.ctxTitle')
-          : state === 'cdp_unreachable'
-            ? t('settings.bridge.unreachableTitle')
-            : t('settings.bridge.noPortTitle');
-        bodyText = plat === 'linux' ? t('settings.bridge.guideLinux') : t('settings.bridge.guideWin');
-      }
+      const titleText = contextMode
+        ? t('settings.bridge.ctxTitle')
+        : state === 'cdp_unreachable'
+          ? t('settings.bridge.unreachableTitle')
+          : t('settings.bridge.noPortTitle');
+      const bodyText =
+        plat === 'darwin'
+          ? t('settings.bridge.guideMac')
+          : plat === 'linux'
+            ? t('settings.bridge.guideLinux')
+            : t('settings.bridge.guideWin');
 
       patchText(titleEl, titleText);
       patchText(bodyEl, bodyText);
@@ -24813,10 +24752,6 @@ const BridgeStatusNotice = defineComponent({
 
     onCleanup(() => {
       destroyed = true;
-      if (relaunchResetTimer) {
-        clearTimeout(relaunchResetTimer);
-        relaunchResetTimer = null;
-      }
     });
 
     return {
@@ -25607,7 +25542,6 @@ function getFontScaleOptions() {
 function getUpdateModeOptions() {
   return [
     { value: 'manual', label: t('settings.gen.updateManual') },
-    { value: 'auto', label: t('settings.gen.updateAuto') },
     { value: 'off', label: t('settings.gen.updateOff') },
   ];
 }
@@ -25632,7 +25566,7 @@ const SettingsGeneralTab = defineComponent({
     let draftThemeAccent = 'host';
     let draftFontScale = 'md';
     let draftModernUi = true;
-    let draftPluginUpdateMode = 'manual';
+    let draftPluginUpdateMode = 'off';
     let latestSettings = null;
     let latestCloudStatus = null;
     let appearanceTimer = null;
@@ -25839,11 +25773,12 @@ const SettingsGeneralTab = defineComponent({
     });
 
     const autoUpdateSelect = CustomSelect({
-      modelValue: 'manual',
+      modelValue: 'off',
       icon: 'refresh',
       options: getUpdateModeOptions(),
       onUpdateModelValue: async (val) => {
-        const nextMode = normalizeClientUpdateMode(val);
+        const normalizedMode = normalizeClientUpdateMode(val);
+        const nextMode = normalizedMode === 'auto' ? 'manual' : normalizedMode;
         draftPluginUpdateMode = nextMode;
         autoUpdateSelect.setValue(nextMode);
         if (latestCloudStatus) {
@@ -25853,7 +25788,7 @@ const SettingsGeneralTab = defineComponent({
         try {
           await saveSettingsPatch({
             pluginUpdateMode: nextMode,
-            autoUpdatePlugin: nextMode === 'auto',
+            autoUpdatePlugin: false,
           });
           showCloudFeedback(t('settings.saved'), 1800);
         } catch {
@@ -25980,10 +25915,11 @@ const SettingsGeneralTab = defineComponent({
       draftThemeAccent = normalizeClientThemeAccent(settings.themeAccent);
       draftFontScale = normalizeClientFontScale(settings.fontScale);
       draftModernUi = resolveSettingsModernUi(settings);
-      draftPluginUpdateMode = normalizeClientUpdateMode(
+      const normalizedUpdateMode = normalizeClientUpdateMode(
         settings.pluginUpdateMode,
         settings.autoUpdatePlugin
       );
+      draftPluginUpdateMode = normalizedUpdateMode === 'auto' ? 'manual' : normalizedUpdateMode;
 
       languageSwitch.setProps({
         modelValue: draftLanguage,
@@ -26299,7 +26235,7 @@ const SettingsStructureTab = defineComponent({
     let draftWindowMountMode = 'dual';
     let draftPopoverWidthMode = 'auto';
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
-    let draftEnableCliStatusLine = true;
+    let draftEnableCliStatusLine = false;
     let draftCliStatusLineSlots = null;
     let draftShowTopbarMulti = true;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
@@ -26497,7 +26433,7 @@ const SettingsStructureTab = defineComponent({
           }
           if (res?.settings && typeof res.settings === 'object') {
             latestSettings = { ...(latestSettings || {}), ...res.settings };
-            draftEnableCliStatusLine = latestSettings.enableCliStatusLine !== false;
+            draftEnableCliStatusLine = latestSettings.enableCliStatusLine === true;
           }
           mountSection.refs.showStatus(
             res?.ok === false ? t('settings.saveFailed') : t('settings.saved'),
@@ -26605,7 +26541,7 @@ const SettingsStructureTab = defineComponent({
     const cliCapsuleToggle = ToggleSwitch({
       ariaLabelKey: 'settings.str.cliCapsuleToggle',
       preset: 'enable',
-      modelValue: 'on',
+      modelValue: 'off',
       onUpdateModelValue: (val) => {
         draftEnableCliStatusLine = val !== 'off';
         syncMountSectionMeta();
@@ -26716,7 +26652,7 @@ const SettingsStructureTab = defineComponent({
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
-        draftEnableCliStatusLine = true;
+        draftEnableCliStatusLine = false;
         draftCliStatusLineSlots = null;
         draftShowTopbarMulti = true;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
@@ -26731,7 +26667,7 @@ const SettingsStructureTab = defineComponent({
             enableWindowOverlay: true,
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
-            enableCliStatusLine: true,
+            enableCliStatusLine: false,
             cliStatusLineSlots: null,
             showTopbarMultiSession: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
@@ -26906,7 +26842,7 @@ const SettingsStructureTab = defineComponent({
         draftWindowMountMode === 'dual' &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
-        draftEnableCliStatusLine === true &&
+        draftEnableCliStatusLine === false &&
         draftCliStatusLineSlots === null &&
         draftShowTopbarMulti === true &&
         draftContextAgentMode === DEFAULT_CLIENT_CONTEXT_AGENT_MODE &&
@@ -27519,7 +27455,7 @@ const SettingsStructureTab = defineComponent({
       );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
-      draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
+      draftEnableCliStatusLine = settings.enableCliStatusLine === true;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
       draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);

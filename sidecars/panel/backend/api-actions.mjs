@@ -237,16 +237,6 @@ export async function executeTelemetryAction(data, opts = {}) {
     if (!isRemote && !lsRuntimeEndpoint.baseUrl) {
       await ensureLsEndpointDiscovered({ force: false });
     }
-    if (isRemote || lsRuntimeEndpoint.baseUrl) {
-      if (force && Date.now() - cloudSyncState.lastAttemptMs > 15_000) {
-        await Promise.race([
-          syncCloudCatalog({ force: true }).catch(() => {}),
-          new Promise((r) => setTimeout(r, 1200)),
-        ]);
-      } else {
-        syncCloudCatalog({ force: false }).catch(() => {});
-      }
-    }
   }
   const rawScope = String(data?.scope || '').trim();
   const scope =
@@ -319,9 +309,7 @@ export function executeSettingsAction(data) {
     payload.pluginUpdateMode !== undefined
       ? normalizePluginUpdateMode(payload.pluginUpdateMode)
       : typeof payload.autoUpdatePlugin === 'boolean'
-        ? payload.autoUpdatePlugin
-          ? 'auto'
-          : 'manual'
+        ? normalizePluginUpdateMode(payload.autoUpdatePlugin ? 'manual' : 'off')
         : normalizePluginUpdateMode(current.pluginUpdateMode, current.autoUpdatePlugin);
   const nextWindowMountMode =
     payload.windowMountMode !== undefined
@@ -378,7 +366,7 @@ export function executeSettingsAction(data) {
     current.enableWindowOverlay
   );
   const contextWindowScopeChanged =
-    (updated.contextWindowMainEnabled !== false) !== (current.contextWindowMainEnabled !== false) ||
+    (updated.contextWindowMainEnabled === true) !== (current.contextWindowMainEnabled === true) ||
     (updated.contextWindowSwarmEnabled === true) !== (current.contextWindowSwarmEnabled === true);
   const affectsBackendTelemetry =
     updated.weeklyLimitMode !== current.weeklyLimitMode ||
@@ -399,8 +387,8 @@ export function executeSettingsAction(data) {
   } else if (contextWindowScopeChanged) {
     void notifyModelContextWindowsChanged();
   }
-  if ((updated.enableCliStatusLine !== false) !== (current.enableCliStatusLine !== false)) {
-    ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine !== false });
+  if ((updated.enableCliStatusLine === true) !== (current.enableCliStatusLine === true)) {
+    ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine === true });
   }
   if (
     typeof standalonePortListener === 'function' &&
@@ -523,13 +511,13 @@ export function executeResetSettingsAction() {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);
   } else if (
     Object.keys(current.modelContextWindows).length ||
-    current.contextWindowMainEnabled === false ||
+    current.contextWindowMainEnabled === true ||
     current.contextWindowSwarmEnabled === true
   ) {
     void notifyModelContextWindowsChanged();
   }
-  if ((updated.enableCliStatusLine !== false) !== (current.enableCliStatusLine !== false)) {
-    ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine !== false });
+  if ((updated.enableCliStatusLine === true) !== (current.enableCliStatusLine === true)) {
+    ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine === true });
   }
   if (
     typeof standalonePortListener === 'function' &&
@@ -661,7 +649,7 @@ export function executeCliStatusLineAction(rawAction) {
   }
 
   let current = loadSettings();
-  if (action === 'force_install' && current.enableCliStatusLine === false) {
+  if (action === 'force_install' && current.enableCliStatusLine !== true) {
     const nextSettings = normalizeFullSettings({
       ...current,
       enableCliStatusLine: true,
@@ -861,7 +849,9 @@ export function bootWindowBridgeRuntime({ allowDynamicLs = false, onRestart = nu
   if (lsRuntimeEndpoint.addr === 'test.invalid') return null;
   if (!allowDynamicLs && !lsRuntimeEndpoint.addr) return null;
 
-  ensureCliStatusLineConfigured({ enabled: loadSettings().enableCliStatusLine !== false });
+  if (loadSettings().enableCliStatusLine === true) {
+    ensureCliStatusLineConfigured({ enabled: true });
+  }
 
   const triggerRestart =
     typeof onRestart === 'function' ? onRestart : () => scheduleSidecarRestart(150);
@@ -869,16 +859,8 @@ export function bootWindowBridgeRuntime({ allowDynamicLs = false, onRestart = nu
     setSidecarRestartHandler(onRestart);
   }
 
-  if (lsRuntimeEndpoint.baseUrl) {
-    syncCloudCatalog({ force: false }).catch(() => {});
-  } else {
-    ensureLsEndpointDiscovered({ force: false })
-      .then((ok) => {
-        if (ok) {
-          syncCloudCatalog({ force: false }).catch(() => {});
-        }
-      })
-      .catch(() => {});
+  if (!lsRuntimeEndpoint.baseUrl) {
+    ensureLsEndpointDiscovered({ force: false }).catch(() => {});
   }
 
   return startDefaultWindowBridge({

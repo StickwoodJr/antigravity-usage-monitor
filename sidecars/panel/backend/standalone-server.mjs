@@ -18,7 +18,6 @@ import {
 import { loadSettings, lsRuntimeEndpoint, setLsRuntimeEndpoint } from './config.mjs';
 import { ensureLsEndpointDiscovered } from './ls-discovery.mjs';
 import { ensureCliStatusLineConfigured } from './cli-statusline-config.mjs';
-import { syncCloudCatalog } from './plugin-updater.mjs';
 
 const MAX_JSON_BODY_BYTES = 1024 * 1024;
 const MAX_EXPORT_JSON_BODY_BYTES = 8 * 1024 * 1024;
@@ -615,15 +614,11 @@ export function createStandaloneWebServer(options = {}) {
       return getStatus();
     }
     if (!options.skipStartupDiscovery && lsRuntimeEndpoint.addr !== 'test.invalid') {
-      ensureCliStatusLineConfigured({ enabled: loadSettings().enableCliStatusLine !== false });
-      if (lsRuntimeEndpoint.baseUrl) {
-        syncCloudCatalog({ force: false }).catch(() => {});
-      } else {
-        ensureLsEndpointDiscovered({ force: false })
-          .then((ok) => {
-            if (ok) syncCloudCatalog({ force: false }).catch(() => {});
-          })
-          .catch(() => {});
+      if (loadSettings().enableCliStatusLine === true) {
+        ensureCliStatusLineConfigured({ enabled: true });
+      }
+      if (!lsRuntimeEndpoint.baseUrl) {
+        ensureLsEndpointDiscovered({ force: false }).catch(() => {});
       }
     }
 

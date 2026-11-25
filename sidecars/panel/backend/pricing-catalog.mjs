@@ -13,7 +13,6 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseIsoMs } from '../trajectory-metrics.mjs';
 import {
-  DEFAULT_ARCHIVE_FALLBACK_URL,
   DEFAULT_DOWNLOAD_URL,
   DEFAULT_RELEASE_URL,
   LEGACY_GITHUB_REPOS,
@@ -81,11 +80,7 @@ function isLegacyGithubRepoUrl(rawUrl) {
     const parsed = new URL(rawUrl.trim());
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
-    if (
-      host !== 'github.com' &&
-      host !== 'raw.githubusercontent.com' &&
-      host !== 'codeload.github.com'
-    ) {
+    if (host !== 'github.com' && host !== 'raw.githubusercontent.com') {
       return false;
     }
     return LEGACY_REPO_PATH_PREFIXES.some(
@@ -103,18 +98,14 @@ function isLegacyGithubRepoUrl(rawUrl) {
  * @param {string} fallbackUrl
  * @returns {string}
  */
-function sanitizeTrustedGithubUrl(rawUrl, fallbackUrl) {
+export function sanitizeTrustedGithubUrl(rawUrl, fallbackUrl) {
   if (typeof rawUrl !== 'string' || !rawUrl.trim()) return fallbackUrl;
   try {
     const parsed = new URL(rawUrl.trim());
     if (parsed.protocol !== 'https:') return fallbackUrl;
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
-    if (
-      host === 'github.com' ||
-      host === 'raw.githubusercontent.com' ||
-      host === 'codeload.github.com'
-    ) {
+    if (host === 'github.com' || host === 'raw.githubusercontent.com') {
       const hasRepoPrefix =
         pathname === OFFICIAL_REPO_PATH_PREFIX ||
         pathname.startsWith(`${OFFICIAL_REPO_PATH_PREFIX}/`);
@@ -342,7 +333,6 @@ export function sanitizeCatalogPayload(raw) {
 
   const explicitReleaseUrl = sanitizeTrustedGithubUrl(raw.releaseUrl, '');
   const explicitDownloadUrl = sanitizeTrustedGithubUrl(raw.downloadUrl, '');
-  const explicitArchiveUrl = sanitizeTrustedGithubUrl(raw.archiveFallbackUrl, '');
   const rawSourceUrl = typeof raw.sourceUrl === 'string' ? raw.sourceUrl.trim() : '';
   const isLegacySource = isLegacyGithubRepoUrl(rawSourceUrl);
 
@@ -357,10 +347,10 @@ export function sanitizeCatalogPayload(raw) {
     latestPluginVersion,
     releaseUrl: explicitReleaseUrl || DEFAULT_RELEASE_URL,
     downloadUrl: explicitDownloadUrl || DEFAULT_DOWNLOAD_URL,
-    archiveFallbackUrl: explicitArchiveUrl || DEFAULT_ARCHIVE_FALLBACK_URL,
+    archiveFallbackUrl: '',
     hasReleaseUrl: Boolean(explicitReleaseUrl),
     hasDownloadUrl: Boolean(explicitDownloadUrl),
-    hasArchiveFallbackUrl: Boolean(explicitArchiveUrl),
+    hasArchiveFallbackUrl: false,
     fetchedAtMs: isLegacySource ? 0 : Number(raw.fetchedAtMs || 0),
     sourceUrl: isLegacySource ? '' : rawSourceUrl,
     pricing,
@@ -408,9 +398,7 @@ export function rebuildActiveCatalog() {
   let downloadUrl = customForkRepo
     ? `https://github.com/${customForkRepo}/releases/latest/download/usage-monitor.zip`
     : DEFAULT_DOWNLOAD_URL;
-  let archiveFallbackUrl = customForkRepo
-    ? `https://codeload.github.com/${customForkRepo}/zip/refs/heads/main`
-    : DEFAULT_ARCHIVE_FALLBACK_URL;
+  const archiveFallbackUrl = '';
 
   for (const { kind, cat } of layers) {
     Object.assign(nextPricing, cat.pricing);
@@ -436,7 +424,6 @@ export function rebuildActiveCatalog() {
     if (shouldAcceptCatalogReleaseMeta) {
       if (cat.hasReleaseUrl) releaseUrl = cat.releaseUrl;
       if (cat.hasDownloadUrl) downloadUrl = cat.downloadUrl;
-      if (cat.hasArchiveFallbackUrl) archiveFallbackUrl = cat.archiveFallbackUrl;
     }
   }
 

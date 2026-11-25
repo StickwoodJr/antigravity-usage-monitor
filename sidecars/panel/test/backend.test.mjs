@@ -1072,12 +1072,13 @@ test('preferences schema defaults match pre-refactor UI, migrate legacy none slo
   assert.equal(optOutRes.ok, true);
   assert.equal(optOutRes.updated.modernUi, false);
   assert.equal(hFrom152.loadSettings().modernUi, false);
-  assert.equal(def.pluginUpdateMode, 'manual');
+  assert.equal(def.pluginUpdateMode, 'off');
+  assert.equal(def.autoUpdatePlugin, false);
   assert.equal(def.windowMountMode, 'dual');
   assert.equal(def.enableWindowOverlay, true);
   assert.equal(def.showTopbarMultiSession, true);
   assert.equal(def.contextAgentMode, 'main');
-  assert.equal(def.enableCliStatusLine, true);
+  assert.equal(def.enableCliStatusLine, false);
   assert.deepEqual([...def.topbarCapsuleSlots], ['tps', 'ttft', 'context']);
   assert.deepEqual([...def.hoverModules], ['metrics', 'context', 'quotas']);
   assert.deepEqual([...def.overviewModules], ['metrics', 'context', 'quotas', 'live_tasks']);
@@ -1172,7 +1173,7 @@ test('preferences schema defaults match pre-refactor UI, migrate legacy none slo
   assert.equal(resetRes.updated.modernUi, true);
   assert.equal(resetRes.updated.themeAccent, 'host');
   assert.equal(resetRes.updated.contextAgentMode, 'main');
-  assert.equal(resetRes.updated.enableCliStatusLine, true);
+  assert.equal(resetRes.updated.enableCliStatusLine, false);
   assert.equal(resetRes.updated.showStepTurnRail, false);
   assert.equal(resetRes.updated.showStepAgentBadge, true);
   assert.equal(resetRes.updated.showStepSpeedColor, false);
@@ -2699,6 +2700,7 @@ test('CLI statusLine v1.5.4 upgrades: /statusline inline flags, preserved manage
     const dataDir = join(tempRoot, 'data');
     mkdirSync(cliDir, { recursive: true });
     mkdirSync(dataDir, { recursive: true });
+    writeFileSync(join(dataDir, 'settings.json'), JSON.stringify({ enableCliStatusLine: true }), 'utf8');
     const statusLineScript = fileURLToPath(new URL('../cli-statusline.mjs', import.meta.url));
     const env = {
       ...process.env,

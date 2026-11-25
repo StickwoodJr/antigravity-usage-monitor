@@ -2837,8 +2837,8 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.patch.experimentalModernUi, false);
   assert.equal(reimported.patch.modelDisplayMode, 'upstream_compact');
   assert.equal(reimported.patch.showUpstreamModel, true);
-  assert.equal(reimported.patch.pluginUpdateMode, 'auto');
-  assert.equal(reimported.patch.autoUpdatePlugin, true);
+  assert.equal(reimported.patch.pluginUpdateMode, 'manual');
+  assert.equal(reimported.patch.autoUpdatePlugin, false);
   assert.equal(reimported.patch.windowMountMode, 'composer');
   assert.equal(reimported.patch.enableWindowOverlay, true);
   assert.equal(reimported.patch.showStepFilterToolbar, true);

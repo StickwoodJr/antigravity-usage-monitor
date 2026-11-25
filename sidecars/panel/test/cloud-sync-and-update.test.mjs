@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { backendHarness } from './backend-harness.mjs';
+import {
+  parseSha256ChecksumText,
+  validateZipEntriesSafe,
+  verifyZipSha256,
+} from '../backend/plugin-updater.mjs';
+import { sanitizeTrustedGithubUrl } from '../backend/pricing-catalog.mjs';
+import { buildZipBuffer } from '../scripts/pack-release-zip.mjs';
+import { normalizePluginUpdateMode } from '../shared/settings-normalization.mjs';
 
 const createdAtMs = Date.now() - 20_000;
 function makeStep(index, modelKey, responseModel = '') {
@@ -68,7 +77,8 @@ test('sanitizeCatalogPayload filters malformed/null/zero entries, untrusted URLs
   assert.ok(sanitized);
   assert.equal(sanitized.catalogVersion, '2026.11.03.9');
   assert.equal(sanitized.latestPluginVersion, '1.5.0');
-  assert.ok(sanitized.downloadUrl.startsWith('https://github.com/yuhuan-dev/'));
+  assert.ok(sanitized.downloadUrl.startsWith('https://github.com/StickwoodJr/antigravity-usage-monitor/'));
+  assert.equal(sanitized.archiveFallbackUrl, '');
   assert.deepEqual(Object.keys(sanitized.pricing), ['gemini-4.5-ultra']);
   assert.equal(sanitized.pricing['gemini-4.5-ultra'].phases.length, 2);
   assert.equal(sanitized.pricing['gemini-4.5-ultra'].phases[0].input, 1.75);
@@ -266,7 +276,7 @@ test('cloud catalog sync fetches from GitHub raw URL and dynamically prices newl
 
   // Sync cloud catalog from GitHub
   const syncStatus = await h.syncCloudCatalog({ force: true });
-  assert.ok(fetchedUrl.startsWith('https://raw.githubusercontent.com/yuhuan-dev/antigravity-usage-monitor/main/pricing-catalog.json'));
+  assert.ok(fetchedUrl.startsWith('https://raw.githubusercontent.com/StickwoodJr/antigravity-usage-monitor/main/pricing-catalog.json'));
   assert.equal(syncStatus.source, 'remote');
   assert.equal(syncStatus.catalogVersion, '2026.11.03.2');
   assert.equal(syncStatus.latestPluginVersion, '1.5.0');
@@ -448,8 +458,32 @@ test('performPluginUpdate pulls fast-forward when git worktree is clean, on main
   assert.equal(gitCalls.length, 7); // status, rev-parse, remote get-url, fetch, show, merge-base, pull
 });
 
-test('repository migration: scrubs legacy yuhuan2498281558 cache URLs/TTL and migrates git origin remote to yuhuan-dev', async () => {
-  let fetchedNewRepoUrl = '';
+test('fork URL allowlist restricts trusted GitHub URLs to StickwoodJr/antigravity-usage-monitor and blocks codeload/legacy rewrites', async () => {
+  assert.equal(
+    sanitizeTrustedGithubUrl(
+      'https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip',
+      ''
+    ),
+    'https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip'
+  );
+  assert.equal(
+    sanitizeTrustedGithubUrl(
+      'https://raw.githubusercontent.com/StickwoodJr/antigravity-usage-monitor/main/pricing-catalog.json',
+      ''
+    ),
+    'https://raw.githubusercontent.com/StickwoodJr/antigravity-usage-monitor/main/pricing-catalog.json'
+  );
+  for (const untrusted of [
+    'https://codeload.github.com/StickwoodJr/antigravity-usage-monitor/zip/refs/heads/main',
+    'https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip',
+    'https://raw.githubusercontent.com/yuhuan-dev/antigravity-usage-monitor/main/pricing-catalog.json',
+    'https://github.com/yuhuan2498281558/antigravity-usage-monitor/releases/latest',
+    'http://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest',
+    'https://evil.example.com/StickwoodJr/antigravity-usage-monitor/usage-monitor.zip',
+  ]) {
+    assert.equal(sanitizeTrustedGithubUrl(untrusted, ''), '', `must reject ${untrusted}`);
+  }
+
   const cacheH = backendHarness({
     pluginManifest: { name: 'usage-monitor', version: '1.4.4' },
     remoteCatalog: {
@@ -457,101 +491,56 @@ test('repository migration: scrubs legacy yuhuan2498281558 cache URLs/TTL and mi
       catalogVersion: '2026.11.11.4',
       updatedAt: '2026-11-11T23:20:00+09:00',
       latestPluginVersion: '1.4.4',
-      releaseUrl: 'https://github.com/yuhuan2498281558/antigravity-usage-monitor/releases/latest',
-      downloadUrl: 'https://github.com/yuhuan2498281558/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip',
-      archiveFallbackUrl: 'https://codeload.github.com/yuhuan2498281558/antigravity-usage-monitor/zip/refs/heads/main',
-      sourceUrl: 'https://raw.githubusercontent.com/yuhuan2498281558/antigravity-usage-monitor/main/pricing-catalog.json',
+      releaseUrl: 'https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest',
+      downloadUrl: 'https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip',
+      archiveFallbackUrl: 'https://codeload.github.com/StickwoodJr/antigravity-usage-monitor/zip/refs/heads/main',
+      sourceUrl: 'https://raw.githubusercontent.com/StickwoodJr/antigravity-usage-monitor/main/pricing-catalog.json',
       fetchedAtMs: Date.now() - 60_000,
       pricing: {
         'gemini-4-carbon-high': { input: 2.0, cache: 0.1, output: 10.0, short: 'carbon-4-high', family: 'Gemini' },
       },
     },
-    remoteFetch: async (url) => {
-      fetchedNewRepoUrl = String(url);
-      return {
-        ok: true,
-        json: async () => ({
-          schemaVersion: 1,
-          catalogVersion: '2026.11.12.1',
-          updatedAt: '2026-11-12T10:00:00+09:00',
-          latestPluginVersion: '1.4.5',
-          pricing: {
-            'gemini-4-carbon-high': { input: 2.0, cache: 0.1, output: 10.0, short: 'carbon-4-high', family: 'Gemini' },
-          },
-        }),
-      };
-    },
   });
 
   const initialStatus = cacheH.getCloudStatus();
-  assert.equal(initialStatus.releaseUrl, 'https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest');
-  assert.equal(initialStatus.downloadUrl, 'https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip');
-  assert.equal(initialStatus.lastSyncedAtMs, 0, 'legacy repo cache TTL must be invalidated so new repo syncs immediately');
-
-  const synced = await cacheH.syncCloudCatalog({ force: false });
   assert.equal(
-    fetchedNewRepoUrl,
-    'https://raw.githubusercontent.com/yuhuan-dev/antigravity-usage-monitor/main/pricing-catalog.json'
+    initialStatus.releaseUrl,
+    'https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest'
   );
-  assert.equal(synced.catalogVersion, '2026.11.12.1');
-  assert.equal(synced.latestPluginVersion, '1.4.5');
-
+  assert.equal(
+    initialStatus.downloadUrl,
+    'https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip'
+  );
   assert.equal(
     cacheH.resolveMigratedGitRemoteUrl('https://github.com/yuhuan2498281558/antigravity-usage-monitor.git'),
-    'https://github.com/yuhuan-dev/antigravity-usage-monitor.git'
-  );
-  assert.equal(
-    cacheH.resolveMigratedGitRemoteUrl('git@github.com:yuhuan2498281558/antigravity-usage-monitor.git'),
-    'git@github.com:yuhuan-dev/antigravity-usage-monitor.git'
+    ''
   );
   assert.equal(
     cacheH.resolveMigratedGitRemoteUrl('https://github.com/custom-fork/antigravity-usage-monitor.git'),
     ''
   );
-
-  const gitCalls = [];
-  const migrateH = backendHarness({
-    hasGitDir: true,
-    pluginRootPath: '/Users/test/.gemini/config/plugins/usage-monitor',
-    pluginManifest: { name: 'usage-monitor', version: '1.4.3' },
-    execFileImpl: (_cmd, args, opts, cb) => {
-      const fn = typeof opts === 'function' ? opts : cb;
-      gitCalls.push(args);
-      if (args.includes('rev-parse')) {
-        fn(null, 'main\n', '');
-        return;
-      }
-      if (args.includes('remote') && args.includes('get-url')) {
-        fn(null, 'https://github.com/yuhuan2498281558/antigravity-usage-monitor.git\n', '');
-        return;
-      }
-      if (args.includes('show')) {
-        fn(null, JSON.stringify({ name: 'usage-monitor', version: '1.4.4' }), '');
-        return;
-      }
-      if (args.includes('pull')) {
-        migrateH.state.pluginManifest = { name: 'usage-monitor', version: '1.4.4' };
-      }
-      fn(null, '', '');
-    },
-  });
-
-  const updRes = await migrateH.performPluginUpdate({ isAuto: false });
-  assert.equal(updRes.ok, true);
-  assert.equal(updRes.currentVersion, '1.4.4');
-  const setUrlCall = gitCalls.find((args) => args.includes('remote') && args.includes('set-url'));
-  assert.ok(setUrlCall, 'must run git remote set-url origin before fetching');
-  assert.equal(setUrlCall[setUrlCall.length - 1], 'https://github.com/yuhuan-dev/antigravity-usage-monitor.git');
 });
 
-test('pluginUpdateMode supports manual (default), auto, and off with legacy autoUpdatePlugin compatibility', async () => {
+test('hardened defaults and pluginUpdateMode reject auto mode while preserving dual windowMountMode', async () => {
   const defaultH = backendHarness();
-  assert.equal(defaultH.loadSettings().pluginUpdateMode, 'manual');
-  assert.equal(defaultH.loadSettings().autoUpdatePlugin, false);
+  const def = defaultH.loadSettings();
+  assert.equal(def.pluginUpdateMode, 'off');
+  assert.equal(def.autoUpdatePlugin, false);
+  assert.equal(def.enableCliStatusLine, false);
+  assert.equal(def.contextWindowMainEnabled, false);
+  assert.equal(def.contextWindowSwarmEnabled, false);
+  assert.equal(def.windowMountMode, 'dual');
+  assert.equal(def.enableWindowOverlay, true);
+
+  assert.equal(normalizePluginUpdateMode(undefined), 'off');
+  assert.equal(normalizePluginUpdateMode('off'), 'off');
+  assert.equal(normalizePluginUpdateMode('manual'), 'manual');
+  assert.equal(normalizePluginUpdateMode('auto'), 'manual');
+  assert.equal(normalizePluginUpdateMode(undefined, true), 'manual');
 
   const legacyAutoH = backendHarness({ settings: { autoUpdatePlugin: true } });
-  assert.equal(legacyAutoH.loadSettings().pluginUpdateMode, 'auto');
-  assert.equal(legacyAutoH.loadSettings().autoUpdatePlugin, true);
+  assert.equal(legacyAutoH.loadSettings().pluginUpdateMode, 'manual');
+  assert.equal(legacyAutoH.loadSettings().autoUpdatePlugin, false);
 
   const offSettings = {};
   let gitTriggered = false;
@@ -579,23 +568,258 @@ test('pluginUpdateMode supports manual (default), auto, and off with legacy auto
     },
   });
 
-  const saveOff = offH.executeSettingsAction({ pluginUpdateMode: 'off' }).updated;
-  assert.equal(saveOff.pluginUpdateMode, 'off');
-  assert.equal(saveOff.autoUpdatePlugin, false);
-  Object.assign(offSettings, saveOff);
-
-  await offH.syncCloudCatalog({ force: true });
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(gitTriggered, false, 'pluginUpdateMode=off must never trigger auto update');
-
   const saveAuto = offH.executeSettingsAction({ pluginUpdateMode: 'auto' }).updated;
-  assert.equal(saveAuto.pluginUpdateMode, 'auto');
-  assert.equal(saveAuto.autoUpdatePlugin, true);
+  assert.equal(saveAuto.pluginUpdateMode, 'manual');
+  assert.equal(saveAuto.autoUpdatePlugin, false);
   Object.assign(offSettings, saveAuto);
 
   await offH.syncCloudCatalog({ force: true });
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(gitTriggered, true, 'pluginUpdateMode=auto triggers background update check');
+  assert.equal(gitTriggered, false, 'syncCloudCatalog must never trigger background auto update');
+
+  const autoAttempt = await offH.performPluginUpdate({ isAuto: true });
+  assert.equal(autoAttempt.ok, false);
+  assert.equal(autoAttempt.skipped, true);
+  assert.equal(autoAttempt.reason, 'auto_update_disabled_in_hardened_fork');
+  assert.equal(gitTriggered, false);
+});
+
+function buildRawZipWithHeaderMutation(entries, mutateCentralHeader) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i];
+    const nameBuf = Buffer.from(entry.name, 'utf8');
+    const rawBuf = Buffer.isBuffer(entry.data) ? entry.data : Buffer.from(entry.data || '');
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0x0800, 6);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt32LE(rawBuf.length, 18);
+    localHeader.writeUInt32LE(rawBuf.length, 22);
+    localHeader.writeUInt16LE(nameBuf.length, 26);
+    localParts.push(localHeader, nameBuf, rawBuf);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE((3 << 8) | 20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0x0800, 8);
+    centralHeader.writeUInt16LE(0, 10);
+    centralHeader.writeUInt32LE(rawBuf.length, 20);
+    centralHeader.writeUInt32LE(rawBuf.length, 24);
+    centralHeader.writeUInt16LE(nameBuf.length, 28);
+    centralHeader.writeUInt32LE(((entry.mode ?? 0o100644) << 16) >>> 0, 38);
+    centralHeader.writeUInt32LE(offset, 42);
+    if (mutateCentralHeader) {
+      mutateCentralHeader(centralHeader, i);
+    }
+
+    centralParts.push(centralHeader, nameBuf);
+    offset += localHeader.length + nameBuf.length + rawBuf.length;
+  }
+
+  const centralDirBuf = Buffer.concat(centralParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(centralDirBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...localParts, centralDirBuf, eocd]);
+}
+
+function makeValidPluginZip(version = '1.5.0') {
+  return buildZipBuffer([
+    { name: 'usage-monitor/plugin.json', data: Buffer.from(JSON.stringify({ name: 'usage-monitor', version })) },
+    { name: 'usage-monitor/sidecars/panel/main.mjs', data: Buffer.from('export const ok = true;\n') },
+    { name: 'usage-monitor/sidecars/panel/app.js', data: Buffer.from('console.log("ok");\n') },
+    { name: 'usage-monitor/sidecars/panel/styles.css', data: Buffer.from('body {}\n') },
+    { name: 'usage-monitor/sidecars/panel/index.html', data: Buffer.from('<!doctype html>\n') },
+  ]);
+}
+
+test('SHA-256 verification and PKZIP Central Directory validation block tampered, missing-hash, Zip Slip, and symlink archives', async () => {
+  const validZip = makeValidPluginZip('1.5.0');
+  const validDigest = createHash('sha256').update(validZip).digest('hex');
+
+  assert.equal(parseSha256ChecksumText(`${validDigest}  usage-monitor.zip\n`), validDigest);
+  assert.equal(parseSha256ChecksumText(`${validDigest.toUpperCase()} *usage-monitor.zip`), validDigest);
+  assert.equal(parseSha256ChecksumText(`${validDigest}\n`), validDigest);
+  assert.equal(parseSha256ChecksumText('not-a-sha256'), null);
+  assert.equal(parseSha256ChecksumText(`${validDigest.slice(0, 63)}`), null);
+  assert.equal(parseSha256ChecksumText(`${validDigest}  a.zip\n${validDigest}  b.zip`), null);
+
+  assert.equal(verifyZipSha256(validZip, `${validDigest}  usage-monitor.zip`).ok, true);
+  assert.equal(
+    verifyZipSha256(validZip, `${'0'.repeat(64)}  usage-monitor.zip`).reason,
+    'sha256_mismatch'
+  );
+  assert.equal(verifyZipSha256(validZip, 'malformed').reason, 'malformed_sha256');
+
+  assert.equal(validateZipEntriesSafe(validZip).ok, true);
+  assert.equal(validateZipEntriesSafe(Buffer.from('PK\x03\x04broken')).ok, false);
+
+  for (const unsafeName of [
+    '../evil.js',
+    'usage-monitor/../../evil.js',
+    '/etc/passwd',
+    '\\Windows\\win.ini',
+    'C:\\evil.js',
+    'usage-monitor/bad\0name.js',
+  ]) {
+    const evilZip = buildRawZipWithHeaderMutation([
+      { name: unsafeName, data: 'evil' },
+    ]);
+    const check = validateZipEntriesSafe(evilZip);
+    assert.equal(check.ok, false, `must reject unsafe entry: ${JSON.stringify(unsafeName)}`);
+    assert.equal(check.reason, 'unsafe_zip_entry_path');
+  }
+
+  const symlinkZip = buildRawZipWithHeaderMutation([
+    { name: 'usage-monitor/link', data: '/etc/passwd', mode: 0o120777 },
+  ]);
+  const symlinkCheck = validateZipEntriesSafe(symlinkZip);
+  assert.equal(symlinkCheck.ok, false);
+  assert.equal(symlinkCheck.reason, 'symlink_entry_forbidden');
+
+  const catalogPayload = {
+    schemaVersion: 1,
+    catalogVersion: '2026.11.25.1',
+    updatedAt: '2026-11-25T00:00:00Z',
+    latestPluginVersion: '1.5.0',
+    pricing: { 'gemini-4-argon': { input: 2.0, cache: 0.1, output: 10.0, short: 'argon-4', family: 'Gemini' } },
+  };
+  const expectedZipUrl =
+    'https://github.com/StickwoodJr/antigravity-usage-monitor/releases/latest/download/usage-monitor.zip';
+
+  // 1. Missing .sha256 (HTTP 404) aborts before unzip
+  {
+    const requestedUrls = [];
+    let unzipCalled = false;
+    const h = backendHarness({
+      hasGitDir: false,
+      pluginManifest: { name: 'usage-monitor', version: '1.4.0' },
+      remoteCatalog: catalogPayload,
+      remoteFetch: async (url) => {
+        requestedUrls.push(String(url));
+        if (String(url).endsWith('.sha256')) {
+          return { ok: false, status: 404, text: async () => 'Not Found' };
+        }
+        return { ok: true, status: 200, arrayBuffer: async () => validZip };
+      },
+      execFileImpl: (_cmd, _args, opts, cb) => {
+        unzipCalled = true;
+        const fn = typeof opts === 'function' ? opts : cb;
+        fn(null, '', '');
+      },
+    });
+    const res = await h.performPluginUpdate({ isAuto: false });
+    assert.equal(res.ok, false);
+    assert.equal(unzipCalled, false);
+    assert.deepEqual(requestedUrls, [expectedZipUrl, `${expectedZipUrl}.sha256`]);
+  }
+
+  // 2. Mismatched .sha256 aborts before unzip
+  {
+    let unzipCalled = false;
+    const h = backendHarness({
+      hasGitDir: false,
+      pluginManifest: { name: 'usage-monitor', version: '1.4.0' },
+      remoteCatalog: catalogPayload,
+      remoteFetch: async (url) => {
+        if (String(url).endsWith('.sha256')) {
+          return { ok: true, status: 200, text: async () => `${'a'.repeat(64)}  usage-monitor.zip\n` };
+        }
+        return { ok: true, status: 200, arrayBuffer: async () => validZip };
+      },
+      execFileImpl: (_cmd, _args, opts, cb) => {
+        unzipCalled = true;
+        const fn = typeof opts === 'function' ? opts : cb;
+        fn(null, '', '');
+      },
+    });
+    const res = await h.performPluginUpdate({ isAuto: false });
+    assert.equal(res.ok, false);
+    assert.equal(unzipCalled, false);
+  }
+
+  // 3. Zip Slip & symlink entries abort even when .sha256 matches
+  for (const evilBuf of [
+    buildRawZipWithHeaderMutation([
+      { name: 'usage-monitor/plugin.json', data: '{}' },
+      { name: '../evil.js', data: 'evil' },
+    ]),
+    buildRawZipWithHeaderMutation([
+      { name: 'usage-monitor/plugin.json', data: '{}' },
+      { name: 'usage-monitor/sym', data: '/etc/passwd', mode: 0o120777 },
+    ]),
+  ]) {
+    const evilDigest = createHash('sha256').update(evilBuf).digest('hex');
+    let unzipCalled = false;
+    const h = backendHarness({
+      hasGitDir: false,
+      pluginManifest: { name: 'usage-monitor', version: '1.4.0' },
+      remoteCatalog: catalogPayload,
+      remoteFetch: async (url) => {
+        if (String(url).endsWith('.sha256')) {
+          return { ok: true, status: 200, text: async () => `${evilDigest}  usage-monitor.zip\n` };
+        }
+        return { ok: true, status: 200, arrayBuffer: async () => evilBuf };
+      },
+      execFileImpl: (_cmd, _args, opts, cb) => {
+        unzipCalled = true;
+        const fn = typeof opts === 'function' ? opts : cb;
+        fn(null, '', '');
+      },
+    });
+    const res = await h.performPluginUpdate({ isAuto: false });
+    assert.equal(res.ok, false);
+    assert.equal(unzipCalled, false);
+  }
+
+  // 4. Matching .sha256 + safe ZIP entries succeeds without codeload fallback
+  {
+    const fixedNow = 1700000000000;
+    const extractBase = `/test-data/.update-staging-${fixedNow}/extracted`;
+    const requestedUrls = [];
+    const h = backendHarness({
+      clock: () => fixedNow,
+      hasGitDir: false,
+      pluginRootPath: '/test',
+      pluginManifest: { name: 'usage-monitor', version: '1.4.0' },
+      remoteCatalog: catalogPayload,
+      diskDirs: {
+        [`${extractBase}/sidecars/panel/main.mjs`]: [],
+        [`${extractBase}/sidecars/panel/app.js`]: [],
+        [`${extractBase}/sidecars/panel/styles.css`]: [],
+        [`${extractBase}/sidecars/panel/index.html`]: [],
+      },
+      remoteFetch: async (url) => {
+        requestedUrls.push(String(url));
+        if (String(url).endsWith('.sha256')) {
+          return { ok: true, status: 200, text: async () => `${validDigest}  usage-monitor.zip\n` };
+        }
+        return { ok: true, status: 200, arrayBuffer: async () => validZip };
+      },
+      execFileImpl: (cmd, _args, opts, cb) => {
+        const fn = typeof opts === 'function' ? opts : cb;
+        if (cmd === 'unzip' || cmd === 'powershell.exe') {
+          h.state.pluginManifest = { name: 'usage-monitor', version: '1.5.0' };
+        }
+        fn(null, '', '');
+      },
+    });
+    const res = await h.performPluginUpdate({ isAuto: false });
+    assert.equal(res.ok, true);
+    assert.equal(res.mode, 'zip');
+    assert.equal(res.previousVersion, '1.4.0');
+    assert.equal(res.currentVersion, '1.5.0');
+    assert.deepEqual(requestedUrls, [expectedZipUrl, `${expectedZipUrl}.sha256`]);
+  }
 });
 
 test('argon-b / argon-trial deployment shards resolve phased pricing without wildcarding unknown single-letter suffixes, and custom Git forks suppress upstream update badges', async () => {

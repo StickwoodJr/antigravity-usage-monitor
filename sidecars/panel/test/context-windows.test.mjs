@@ -1,13 +1,23 @@
 import assert from 'node:assert/strict';
-import http from 'node:http';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
-import { createContextWindowSyncExpression } from '../backend/context-windows.mjs';
+import {
+  createContextWindowSyncExpression,
+  getContextWindowModels,
+  isContextWindowOption,
+  isContextWindowSettingId,
+  resolveContextWindowRules,
+} from '../backend/context-windows.mjs';
 import {
   createCloudCodeProxyController,
+  detectSystemHttpsProxy,
   extractUpstreamCheckpointDefaults,
+  getDefaultCloudCodeProxyStatus,
   isValidUpstreamCloudCodeUrl,
+  reconcileDefaultCloudCodeProxy,
   rewriteFetchAvailableModelsPayload,
+  stopDefaultCloudCodeProxy,
 } from '../backend/cloudcode-proxy.mjs';
 import { createWindowBridgeController } from '../backend/window-bridge.mjs';
 import { backendHarness } from './backend-harness.mjs';
@@ -408,147 +418,113 @@ test('cloudcode-proxy validates upstream URLs and rewrites checkpointer experime
   assert.equal(flashMain.max_token_limit, '128000');
 });
 
-test('createCloudCodeProxyController proxies fetchAvailableModels, streams passthrough, and restores SetCloudCodeURL cleanly', async () => {
-  const upstreamHits = [];
-  const upstreamServer = http.createServer((req, res) => {
-    upstreamHits.push(req.url);
-    if (req.url?.includes('fetchAvailableModels')) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          models: {
-            'gemini-4-carbon-high': {
-              model: carbon,
-              maxTokens: 1048576,
-              modelExperiments: {
-                experiments: {
-                  CASCADE_USE_EXPERIMENT_CHECKPOINTER: {
-                    stringValue: JSON.stringify({ max_token_limit: '512000' }),
-                  },
-                },
-              },
-            },
-          },
-        })
-      );
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.write('chunk-1:');
-    res.end('chunk-2');
-  });
-  await new Promise((resolve) => upstreamServer.listen(0, '127.0.0.1', resolve));
-  const upstreamPort = upstreamServer.address().port;
-  const upstreamUrl = `http://127.0.0.1:${upstreamPort}`;
+test('CloudCode MITM proxy and SetCloudCodeURL are hard-disabled while read-only context-window helpers stay intact', async () => {
+  const expectedDisabled = {
+    state: 'disabled',
+    active: false,
+    disabled: true,
+    ruleCount: 0,
+    appliedModels: [],
+    upstreamUrl: '',
+    localUrl: '',
+    syncedAtMs: 0,
+    error: '',
+  };
 
-  const rpcCalls = [];
-  let failSetUrl = false;
+  let sideEffectsCalled = false;
   const proxy = createCloudCodeProxyController({
     allowHttpUpstream: true,
     allowTestEndpoint: true,
-    retryCooldownMs: 5000,
-    detectUpstreamFn: () => upstreamUrl,
-    detectProxyFn: async () => '',
+    detectUpstreamFn: () => {
+      sideEffectsCalled = true;
+      return 'https://daily-cloudcode-pa.googleapis.com';
+    },
+    detectProxyFn: async () => {
+      sideEffectsCalled = true;
+      return 'http://127.0.0.1:8888';
+    },
     getEndpointFn: () => ({ addr: '127.0.0.1:44444', baseUrl: 'http://127.0.0.1:44444', csrfToken: 'tok-1' }),
-    callRpcFn: async (method, body) => {
-      rpcCalls.push({ method, body });
-      if (failSetUrl && method === 'SetCloudCodeURL') {
-        throw new Error('enterprise gateway pinned');
-      }
-      return {};
+    callRpcFn: async () => {
+      sideEffectsCalled = true;
+      throw new Error('SetCloudCodeURL must never be called');
     },
   });
 
-  try {
-    // 1. Enable with rule -> starts proxy & calls SetCloudCodeURL
-    const st1 = await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 300000 } });
-    assert.equal(st1.state, 'active');
-    assert.equal(st1.active, true);
-    assert.equal(st1.ruleCount, 1);
-    assert.equal(rpcCalls.length, 1);
-    assert.equal(rpcCalls[0].method, 'SetCloudCodeURL');
-    assert.equal(rpcCalls[0].body.url, st1.localUrl);
+  assert.deepEqual(proxy.getStatus(), expectedDisabled);
+  assert.deepEqual(
+    await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 300000 } }),
+    expectedDisabled
+  );
+  assert.deepEqual(await proxy.stop(), expectedDisabled);
+  assert.equal(sideEffectsCalled, false);
 
-    // 2. Fetch through proxy: /v1internal:fetchAvailableModels rewritten + upstream default captured
-    const modelsRes = await fetch(`${st1.localUrl}/v1internal:fetchAvailableModels`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    assert.equal(modelsRes.status, 200);
-    const modelsJson = await modelsRes.json();
-    const rewrittenLimit = JSON.parse(
-      modelsJson.models['gemini-4-carbon-high'].modelExperiments.experiments.CASCADE_USE_EXPERIMENT_CHECKPOINTER
-        .stringValue
-    ).max_token_limit;
-    assert.equal(rewrittenLimit, '300000');
-    assert.deepEqual(proxy.getUpstreamDefaults(), { [carbon]: 512000 });
+  assert.deepEqual(getDefaultCloudCodeProxyStatus(), expectedDisabled);
+  assert.deepEqual(
+    await reconcileDefaultCloudCodeProxy({ enabled: true, rulesByModelId: { [carbon]: 300000 } }),
+    expectedDisabled
+  );
+  assert.deepEqual(await stopDefaultCloudCodeProxy(), expectedDisabled);
 
-    // 3. Non-intercepted path passes through verbatim
-    const streamRes = await fetch(`${st1.localUrl}/v1internal:streamGenerateContent`, {
-      method: 'POST',
-      body: '{}',
-    });
-    assert.equal(await streamRes.text(), 'chunk-1:chunk-2');
+  // Windows registry `reg query` proxy lookup is removed; win32 without env proxy returns ''
+  assert.equal(
+    await detectSystemHttpsProxy('daily-cloudcode-pa.googleapis.com', { env: {}, platform: 'win32' }),
+    ''
+  );
+  assert.equal(
+    await detectSystemHttpsProxy('daily-cloudcode-pa.googleapis.com', {
+      env: { HTTPS_PROXY: 'http://127.0.0.1:7890' },
+      platform: 'win32',
+    }),
+    'http://127.0.0.1:7890'
+  );
 
-    // 4. Same reconcile is idempotent (no redundant SetCloudCodeURL)
-    await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 300000 } });
-    assert.equal(rpcCalls.length, 1);
+  // Read-only context-windows catalog/schema helpers continue working
+  assert.equal(isContextWindowSettingId(carbon), true);
+  assert.equal(isContextWindowSettingId(carbonGroup), true);
+  assert.equal(isContextWindowOption('512K'), true);
+  assert.equal(isContextWindowOption('default'), false);
+  const parsedModels = getContextWindowModels(carbonModels, availableModels);
+  assert.deepEqual(resolveContextWindowRules(parsedModels, { [carbonGroup]: '512000' }), {
+    [carbon]: 512000,
+    [carbonLow]: 512000,
+  });
 
-    // 5. Rule change re-triggers SetCloudCodeURL to flush LS cache
-    await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 256000 } });
-    assert.equal(rpcCalls.length, 2);
-    assert.equal(rpcCalls[1].body.url, st1.localUrl);
-
-    // 6. Disabling restores upstream URL and closes proxy
-    const stOff = await proxy.reconcile({ enabled: false, rulesByModelId: { [carbon]: 256000 } });
-    assert.equal(stOff.state, 'disabled');
-    assert.equal(stOff.active, false);
-    assert.equal(rpcCalls.length, 3);
-    assert.equal(rpcCalls[2].body.url, upstreamUrl);
-
-    // 7. Error handling & cooldown
-    failSetUrl = true;
-    const stErr = await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 256000 } });
-    assert.equal(stErr.state, 'error');
-    assert.match(stErr.error, /enterprise gateway pinned/);
-    assert.equal(rpcCalls.length, 4);
-    await proxy.reconcile({ enabled: true, rulesByModelId: { [carbon]: 256000 } });
-    assert.equal(rpcCalls.length, 4, 'cooldown skips immediate retry');
-  } finally {
-    failSetUrl = false;
-    await proxy.stop();
-    await new Promise((resolve) => upstreamServer.close(() => resolve()));
-  }
-  assert.ok(upstreamHits.some((u) => u.includes('fetchAvailableModels')));
-  assert.ok(upstreamHits.some((u) => u.includes('streamGenerateContent')));
+  // Verify neither cloudcode-proxy.mjs nor context-windows.mjs references SetCloudCodeURL, createServer, or reg query
+  const proxySrc = readFileSync(new URL('../backend/cloudcode-proxy.mjs', import.meta.url), 'utf8');
+  const ctxSrc = readFileSync(new URL('../backend/context-windows.mjs', import.meta.url), 'utf8');
+  assert.equal(proxySrc.includes('SetCloudCodeURL'), false);
+  assert.equal(proxySrc.includes('createServer'), false);
+  assert.equal(proxySrc.includes('reg query'), false);
+  assert.equal(ctxSrc.includes('SetCloudCodeURL'), false);
 });
 
-test('independent Main Agent & Subagents/Swarm switches persist, pin back main defaults, and reconcile across all 4 combos', async () => {
+test('independent Main Agent & Subagents/Swarm switches persist, pin back main defaults, and keep CloudCode MITM proxy disabled', async () => {
   // 1. Settings defaults, persistence, telemetry exposure, and factory reset
   const h = backendHarness({
     availableModels,
     userStatus: { cascadeModelConfigData: { clientModelConfigs: carbonModels } },
   });
   const initSettings = h.loadSettings();
-  assert.equal(initSettings.contextWindowMainEnabled, true);
+  assert.equal(initSettings.contextWindowMainEnabled, false);
   assert.equal(initSettings.contextWindowSwarmEnabled, false);
 
   const patchRes = h.executeSettingsAction({
-    contextWindowMainEnabled: false,
+    contextWindowMainEnabled: true,
     contextWindowSwarmEnabled: true,
   });
   assert.equal(patchRes.status, 200);
-  assert.equal(h.loadSettings().contextWindowMainEnabled, false);
+  assert.equal(h.loadSettings().contextWindowMainEnabled, true);
   assert.equal(h.loadSettings().contextWindowSwarmEnabled, true);
 
   const tele = await h.buildTelemetryPayloadInternal('');
-  assert.equal(tele.settings.contextWindowMainEnabled, false);
+  assert.equal(tele.settings.contextWindowMainEnabled, true);
   assert.equal(tele.settings.contextWindowSwarmEnabled, true);
   assert.equal(tele.cloudCodeProxy.state, 'disabled');
+  assert.equal(tele.cloudCodeProxy.active, false);
+  assert.equal(tele.cloudCodeProxy.disabled, true);
 
   h.executeResetSettingsAction();
-  assert.equal(h.loadSettings().contextWindowMainEnabled, true);
+  assert.equal(h.loadSettings().contextWindowMainEnabled, false);
   assert.equal(h.loadSettings().contextWindowSwarmEnabled, false);
 
   // 2. syncHostContextWindows pin-back mode overrides preferences with upstream default even when csrfToken exists
@@ -613,9 +589,7 @@ test('independent Main Agent & Subagents/Swarm switches persist, pin back main d
   }
   assert.equal(win.fetch, nativeFetch);
 
-  // 3. Window bridge reconciles CloudCode proxy even without CDP ports when Swarm toggle is enabled
-  const proxyLog = [];
-  let proxyStopped = false;
+  // 3. Window bridge keeps CloudCode proxy hard-disabled even when Swarm toggle is enabled
   let currentSettings = {
     enableWindowOverlay: false,
     windowMountMode: 'sidebar',
@@ -623,16 +597,11 @@ test('independent Main Agent & Subagents/Swarm switches persist, pin back main d
     contextWindowMainEnabled: false,
     contextWindowSwarmEnabled: true,
   };
-  const mockCloudCodeProxy = {
-    async reconcile(opts) {
-      proxyLog.push(opts);
-      return { state: opts.enabled ? 'active' : 'disabled', active: Boolean(opts.enabled) };
+  const hardenedProxy = createCloudCodeProxyController({
+    callRpcFn: async () => {
+      throw new Error('SetCloudCodeURL must never be called');
     },
-    getUpstreamDefaults: () => ({ [carbon]: 512000 }),
-    async stop() {
-      proxyStopped = true;
-    },
-  };
+  });
   const bridgeCtrl = createWindowBridgeController({
     handleApiRequest: async () => ({ status: 200, body: '{}' }),
     readAssetFn: async () => '',
@@ -640,7 +609,7 @@ test('independent Main Agent & Subagents/Swarm switches persist, pin back main d
     env: {},
     homeDir: '/nonexistent-home-for-test',
     autoConfigureIdeArgv: false,
-    cloudCodeProxy: mockCloudCodeProxy,
+    cloudCodeProxy: hardenedProxy,
     resolveLocalContextRulesFn: async () => ({
       verified: true,
       rules: { [carbon]: 300000 },
@@ -648,18 +617,17 @@ test('independent Main Agent & Subagents/Swarm switches persist, pin back main d
     }),
   });
   await bridgeCtrl.syncAllWindows();
-  assert.equal(proxyLog.length, 1);
-  assert.equal(proxyLog[0].enabled, true);
-  assert.deepEqual(proxyLog[0].rulesByModelId, { [carbon]: 300000 });
+  assert.equal(hardenedProxy.getStatus().state, 'disabled');
+  assert.equal(hardenedProxy.getStatus().active, false);
+  assert.equal(hardenedProxy.getStatus().disabled, true);
+  assert.equal(hardenedProxy.getStatus().localUrl, '');
 
-  // Turning off Swarm switch disables CloudCode proxy
   currentSettings = { ...currentSettings, contextWindowSwarmEnabled: false };
   await bridgeCtrl.syncAllWindows();
-  assert.equal(proxyLog.length, 2);
-  assert.equal(proxyLog[1].enabled, false);
+  assert.equal(hardenedProxy.getStatus().state, 'disabled');
 
   await bridgeCtrl.stop();
-  assert.equal(proxyStopped, true);
+  assert.equal(hardenedProxy.getStatus().state, 'disabled');
 });
 
 test('SettingsOtherTab renders independent Main Agent and Subagents/Swarm switches with live sync feedback', async () => {

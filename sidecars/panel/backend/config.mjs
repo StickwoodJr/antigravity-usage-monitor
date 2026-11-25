@@ -227,10 +227,8 @@ export function setLsRuntimeEndpoint(nextAddr, nextCsrfToken, { isDynamic = true
 /**
  * GitHub 官方云端价格目录与插件发布包地址配置。
  */
-export const OFFICIAL_GITHUB_REPO = 'yuhuan-dev/antigravity-usage-monitor';
-export const LEGACY_GITHUB_REPOS = Object.freeze([
-  'yuhuan2498281558/antigravity-usage-monitor',
-]);
+export const OFFICIAL_GITHUB_REPO = 'StickwoodJr/antigravity-usage-monitor';
+export const LEGACY_GITHUB_REPOS = Object.freeze([]);
 export const CLOUD_CATALOG_URLS = [
   `https://raw.githubusercontent.com/${OFFICIAL_GITHUB_REPO}/main/pricing-catalog.json`,
 ];
@@ -238,8 +236,7 @@ export const DEFAULT_RELEASE_URL =
   `https://github.com/${OFFICIAL_GITHUB_REPO}/releases/latest`;
 export const DEFAULT_DOWNLOAD_URL =
   `https://github.com/${OFFICIAL_GITHUB_REPO}/releases/latest/download/usage-monitor.zip`;
-export const DEFAULT_ARCHIVE_FALLBACK_URL =
-  `https://codeload.github.com/${OFFICIAL_GITHUB_REPO}/zip/refs/heads/main`;
+export const DEFAULT_ARCHIVE_FALLBACK_URL = '';
 
 /**
  * 检测当前插件目录是否关联了非官方自定义 GitHub Fork 远端（如二次开发分支）。

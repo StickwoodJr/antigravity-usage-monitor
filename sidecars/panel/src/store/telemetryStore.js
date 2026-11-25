@@ -541,7 +541,7 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    (pSet?.contextWindowMainEnabled !== false) !== (nSet?.contextWindowMainEnabled !== false) ||
+    Boolean(pSet?.contextWindowMainEnabled) !== Boolean(nSet?.contextWindowMainEnabled) ||
     Boolean(pSet?.contextWindowSwarmEnabled) !== Boolean(nSet?.contextWindowSwarmEnabled)
   ) {
     return false;
@@ -597,7 +597,7 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (pSet?.enableWindowOverlay !== nSet?.enableWindowOverlay) return false;
-  if ((pSet?.enableCliStatusLine !== false) !== (nSet?.enableCliStatusLine !== false)) {
+  if (Boolean(pSet?.enableCliStatusLine) !== Boolean(nSet?.enableCliStatusLine)) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
@@ -1802,6 +1802,17 @@ export async function saveSettingsPatch(patch) {
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'weeklyLimitMode')) {
     safePatch.weeklyLimitMode = normalizeWeeklyLimitMode(safePatch.weeklyLimitMode);
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(safePatch, 'pluginUpdateMode') ||
+    Object.prototype.hasOwnProperty.call(safePatch, 'autoUpdatePlugin')
+  ) {
+    const normUpdateMode = normalizeClientUpdateMode(
+      safePatch.pluginUpdateMode,
+      safePatch.autoUpdatePlugin
+    );
+    safePatch.pluginUpdateMode = normUpdateMode === 'auto' ? 'manual' : normUpdateMode;
+    safePatch.autoUpdatePlugin = false;
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);

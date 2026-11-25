@@ -46,7 +46,6 @@ function getFontScaleOptions() {
 function getUpdateModeOptions() {
   return [
     { value: 'manual', label: t('settings.gen.updateManual') },
-    { value: 'auto', label: t('settings.gen.updateAuto') },
     { value: 'off', label: t('settings.gen.updateOff') },
   ];
 }
@@ -71,7 +70,7 @@ export const SettingsGeneralTab = defineComponent({
     let draftThemeAccent = 'host';
     let draftFontScale = 'md';
     let draftModernUi = true;
-    let draftPluginUpdateMode = 'manual';
+    let draftPluginUpdateMode = 'off';
     let latestSettings = null;
     let latestCloudStatus = null;
     let appearanceTimer = null;
@@ -278,11 +277,12 @@ export const SettingsGeneralTab = defineComponent({
     });
 
     const autoUpdateSelect = CustomSelect({
-      modelValue: 'manual',
+      modelValue: 'off',
       icon: 'refresh',
       options: getUpdateModeOptions(),
       onUpdateModelValue: async (val) => {
-        const nextMode = normalizeClientUpdateMode(val);
+        const normalizedMode = normalizeClientUpdateMode(val);
+        const nextMode = normalizedMode === 'auto' ? 'manual' : normalizedMode;
         draftPluginUpdateMode = nextMode;
         autoUpdateSelect.setValue(nextMode);
         if (latestCloudStatus) {
@@ -292,7 +292,7 @@ export const SettingsGeneralTab = defineComponent({
         try {
           await saveSettingsPatch({
             pluginUpdateMode: nextMode,
-            autoUpdatePlugin: nextMode === 'auto',
+            autoUpdatePlugin: false,
           });
           showCloudFeedback(t('settings.saved'), 1800);
         } catch {
@@ -419,10 +419,11 @@ export const SettingsGeneralTab = defineComponent({
       draftThemeAccent = normalizeClientThemeAccent(settings.themeAccent);
       draftFontScale = normalizeClientFontScale(settings.fontScale);
       draftModernUi = resolveSettingsModernUi(settings);
-      draftPluginUpdateMode = normalizeClientUpdateMode(
+      const normalizedUpdateMode = normalizeClientUpdateMode(
         settings.pluginUpdateMode,
         settings.autoUpdatePlugin
       );
+      draftPluginUpdateMode = normalizedUpdateMode === 'auto' ? 'manual' : normalizedUpdateMode;
 
       languageSwitch.setProps({
         modelValue: draftLanguage,

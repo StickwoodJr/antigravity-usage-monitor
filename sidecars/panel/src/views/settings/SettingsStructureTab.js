@@ -233,7 +233,7 @@ export const SettingsStructureTab = defineComponent({
     let draftWindowMountMode = 'dual';
     let draftPopoverWidthMode = 'auto';
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
-    let draftEnableCliStatusLine = true;
+    let draftEnableCliStatusLine = false;
     let draftCliStatusLineSlots = null;
     let draftShowTopbarMulti = true;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
@@ -431,7 +431,7 @@ export const SettingsStructureTab = defineComponent({
           }
           if (res?.settings && typeof res.settings === 'object') {
             latestSettings = { ...(latestSettings || {}), ...res.settings };
-            draftEnableCliStatusLine = latestSettings.enableCliStatusLine !== false;
+            draftEnableCliStatusLine = latestSettings.enableCliStatusLine === true;
           }
           mountSection.refs.showStatus(
             res?.ok === false ? t('settings.saveFailed') : t('settings.saved'),
@@ -539,7 +539,7 @@ export const SettingsStructureTab = defineComponent({
     const cliCapsuleToggle = ToggleSwitch({
       ariaLabelKey: 'settings.str.cliCapsuleToggle',
       preset: 'enable',
-      modelValue: 'on',
+      modelValue: 'off',
       onUpdateModelValue: (val) => {
         draftEnableCliStatusLine = val !== 'off';
         syncMountSectionMeta();
@@ -650,7 +650,7 @@ export const SettingsStructureTab = defineComponent({
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
-        draftEnableCliStatusLine = true;
+        draftEnableCliStatusLine = false;
         draftCliStatusLineSlots = null;
         draftShowTopbarMulti = true;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
@@ -665,7 +665,7 @@ export const SettingsStructureTab = defineComponent({
             enableWindowOverlay: true,
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
-            enableCliStatusLine: true,
+            enableCliStatusLine: false,
             cliStatusLineSlots: null,
             showTopbarMultiSession: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
@@ -840,7 +840,7 @@ export const SettingsStructureTab = defineComponent({
         draftWindowMountMode === 'dual' &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
-        draftEnableCliStatusLine === true &&
+        draftEnableCliStatusLine === false &&
         draftCliStatusLineSlots === null &&
         draftShowTopbarMulti === true &&
         draftContextAgentMode === DEFAULT_CLIENT_CONTEXT_AGENT_MODE &&
@@ -1453,7 +1453,7 @@ export const SettingsStructureTab = defineComponent({
       );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
-      draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
+      draftEnableCliStatusLine = settings.enableCliStatusLine === true;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
       draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
