@@ -912,6 +912,261 @@ function classifySubagentDisplayMeta(subSum, subEntry, idx, counters) {
   };
 }
 
+function allocateIntegerShares(weights) {
+  const total = weights.reduce((acc, w) => acc + Math.max(0, Number(w || 0)), 0);
+  if (!(total > 0)) return weights.map(() => 0);
+  const raw = weights.map((w) => (Math.max(0, Number(w || 0)) / total) * 100);
+  const floors = raw.map((v) => Math.floor(v));
+  let remainder = 100 - floors.reduce((acc, v) => acc + v, 0);
+  if (remainder > 0) {
+    const order = raw
+      .map((v, idx) => ({ idx, frac: v - floors[idx], weight: weights[idx] }))
+      .filter((item) => item.weight > 0)
+      .sort((a, b) => b.frac - a.frac || b.weight - a.weight || a.idx - b.idx);
+    for (let i = 0; i < remainder && order.length > 0; i++) {
+      floors[order[i % order.length].idx] += 1;
+    }
+  }
+  return floors;
+}
+
+function aggregateTurnStepMetrics(steps) {
+  let completedSteps = 0;
+  let totalSteps = 0;
+  let ctx = 0;
+  let inputTokens = 0;
+  let cacheReadTokens = 0;
+  let think = 0;
+  let reply = 0;
+  let outputTokens = 0;
+  let durationSec = 0;
+  let speedOut = 0;
+  let speedDur = 0;
+
+  for (const st of steps) {
+    const stepCtx = Number(st.contextTokens || 0);
+    if (stepCtx > ctx) ctx = stepCtx;
+    inputTokens += Number(st.inputTokens || 0);
+    cacheReadTokens += Number(st.cacheReadTokens || 0);
+    think += Number(st.thinkingTokens || 0);
+    reply += Number(st.responseTokens || 0);
+    const stOut = resolveStepOutputTokens(st);
+    outputTokens += stOut;
+
+    if (!st.isCompactionStep) {
+      totalSteps += 1;
+      if (st.isComplete) completedSteps += 1;
+      const dur = Number(st.totalDurationSec);
+      if (Number.isFinite(dur) && dur > 0) {
+        durationSec += dur;
+        if (st.tokPerSec !== null && st.tokPerSec !== undefined) {
+          speedOut += stOut;
+          speedDur += dur;
+        }
+      }
+    }
+  }
+
+  return {
+    completedSteps,
+    totalSteps,
+    ctx,
+    inputTokens,
+    cacheReadTokens,
+    think,
+    reply,
+    outputTokens,
+    durationSec: +durationSec.toFixed(2),
+    tokPerSec: speedDur > 0 ? roundMetric(speedOut / speedDur) : null,
+  };
+}
+
+function buildConversationTurnSummaries({ steps = [], agents = [], anyAgentRunning = false }) {
+  if (!Array.isArray(steps) || steps.length === 0) return [];
+  const agentMetaById = new Map();
+  for (const ag of agents || []) {
+    if (ag?.agentId) agentMetaById.set(ag.agentId, ag);
+  }
+
+  const stepsByTurn = new Map();
+  let maxTurnIndex = 0;
+  for (const st of steps) {
+    const tIdx = Number.isInteger(st?.rootTurnIndex) && st.rootTurnIndex > 0
+      ? st.rootTurnIndex
+      : Number.isInteger(st?.turnIndex) && st.turnIndex > 0
+        ? st.turnIndex
+        : 0;
+    if (tIdx <= 0) continue;
+    if (tIdx > maxTurnIndex) maxTurnIndex = tIdx;
+    let bucket = stepsByTurn.get(tIdx);
+    if (!bucket) {
+      bucket = [];
+      stepsByTurn.set(tIdx, bucket);
+    }
+    bucket.push(st);
+  }
+
+  const sortedTurns = Array.from(stepsByTurn.entries()).sort((a, b) => a[0] - b[0]);
+  return sortedTurns.map(([turnIndex, turnSteps]) => {
+    let turnPromptClean = '';
+    let isLatestTurn = turnIndex === maxTurnIndex;
+    let startedAtMs = 0;
+    let endedAtMs = 0;
+
+    for (const st of turnSteps) {
+      if (!turnPromptClean) {
+        const candidate = String(st.rootTurnPromptClean || st.turnPromptClean || '').trim();
+        if (candidate) turnPromptClean = candidate;
+      }
+      if (st.isRootLatestTurn || st.isLatestTurn) isLatestTurn = true;
+      const startMs = Number(st.createdAtMs || 0);
+      if (startMs > 0) {
+        if (startedAtMs === 0 || startMs < startedAtMs) startedAtMs = startMs;
+        const durMs =
+          Number.isFinite(Number(st.totalDurationSec)) && Number(st.totalDurationSec) > 0
+            ? Math.round(Number(st.totalDurationSec) * 1000)
+            : 0;
+        const endMs = startMs + durMs;
+        if (endMs > endedAtMs) endedAtMs = endMs;
+      }
+    }
+
+    const totalsAgg = aggregateTurnStepMetrics(turnSteps);
+    const isRunning = Boolean(isLatestTurn && anyAgentRunning);
+
+    const orchSteps = turnSteps.filter((s) => s.orchestratorRole === 'orchestrator');
+    const implSteps = turnSteps.filter((s) => s.orchestratorRole === 'implementor');
+    let orchestratorBreakdown = null;
+    if (orchSteps.length > 0 || implSteps.length > 0) {
+      const orchAgg = aggregateTurnStepMetrics(orchSteps);
+      const implAgg = aggregateTurnStepMetrics(implSteps);
+      const useTotalFallback = orchAgg.completedSteps + implAgg.completedSteps === 0;
+      const [orchPct, implPct] = allocateIntegerShares([
+        useTotalFallback ? orchAgg.totalSteps : orchAgg.completedSteps,
+        useTotalFallback ? implAgg.totalSteps : implAgg.completedSteps,
+      ]);
+      const collectModels = (roleSteps) => {
+        const seen = new Set();
+        const models = [];
+        for (const s of roleSteps) {
+          const lbl = String(s.baseModelLabel || s.modelLabel || '').trim();
+          if (lbl && !seen.has(lbl)) {
+            seen.add(lbl);
+            models.push(lbl);
+          }
+        }
+        return models;
+      };
+      const orchModels = collectModels(orchSteps);
+      const implModels = collectModels(implSteps);
+      orchestratorBreakdown = {
+        orchestrator: {
+          ...orchAgg,
+          pct: orchPct,
+          modelLabel: orchModels[0] || '',
+          models: orchModels,
+        },
+        implementor: {
+          ...implAgg,
+          pct: implPct,
+          modelLabel: implModels[0] || '',
+          models: implModels,
+        },
+      };
+    }
+
+    const byAgent = new Map();
+    for (const st of turnSteps) {
+      const aId = st.agentId || 'main';
+      let list = byAgent.get(aId);
+      if (!list) {
+        list = [];
+        byAgent.set(aId, list);
+      }
+      list.push(st);
+    }
+
+    const agentRows = Array.from(byAgent.entries()).map(([agentId, aSteps]) => {
+      const meta = agentMetaById.get(agentId) || null;
+      const first = aSteps[0] || {};
+      const last = aSteps[aSteps.length - 1] || first;
+      const isMain = Boolean(meta ? meta.isMain : !first.isSubagent);
+      const agentKind = meta?.agentKind || first.agentKind || (isMain ? 'main' : 'subagent');
+      const isAuxiliary = Boolean(meta?.isSwarmAuxiliary);
+      const ordinal = Number(meta?.agentOrdinal ?? first.agentOrdinal ?? 0);
+      const agg = aggregateTurnStepMetrics(aSteps);
+      return {
+        agentId,
+        label: meta?.shortLabel || (isMain ? 'Main' : first.agentLabel || agentId),
+        role: meta?.role || first.agentRole || (isMain ? 'Main' : ''),
+        agentKind,
+        isMain,
+        isAuxiliary,
+        ordinal,
+        modelLabel: String(
+          last.baseModelLabel || last.modelLabel || meta?.activeBaseModelLabel || meta?.activeModelLabel || ''
+        ).trim(),
+        ...agg,
+      };
+    });
+
+    agentRows.sort((a, b) => {
+      if (a.isMain !== b.isMain) return a.isMain ? -1 : 1;
+      if (a.isAuxiliary !== b.isAuxiliary) return a.isAuxiliary ? 1 : -1;
+      if (b.completedSteps !== a.completedSteps) return b.completedSteps - a.completedSteps;
+      if (b.totalSteps !== a.totalSteps) return b.totalSteps - a.totalSteps;
+      return a.ordinal - b.ordinal;
+    });
+
+    const nonAuxRows = agentRows.filter((r) => !r.isAuxiliary);
+    const shareTarget = nonAuxRows.length > 0 ? nonAuxRows : agentRows;
+    const useTotalFallback = shareTarget.every((r) => r.completedSteps === 0);
+    const shares = allocateIntegerShares(
+      shareTarget.map((r) => (useTotalFallback ? r.totalSteps : r.completedSteps))
+    );
+    const shareById = new Map(shareTarget.map((r, idx) => [r.agentId, shares[idx]]));
+    const agentBreakdown = agentRows.map(({ ordinal: _ordinal, ...row }) => ({
+      ...row,
+      pct: shareById.get(row.agentId) ?? 0,
+    }));
+
+    const hasSwarm = agentBreakdown.some((a) => a.agentKind === 'swarm_worker');
+    const hasSubagent = agentBreakdown.some((a) => !a.isMain);
+    const mode = hasSwarm
+      ? 'swarm'
+      : hasSubagent
+        ? 'subagent'
+        : orchestratorBreakdown
+          ? 'orchestrator'
+          : 'single';
+
+    return {
+      turnIndex,
+      turnPromptClean,
+      isLatestTurn,
+      isRunning,
+      startedAtMs,
+      endedAtMs,
+      durationSec: totalsAgg.durationSec,
+      mode,
+      totalCompletedSteps: totalsAgg.completedSteps,
+      totalSteps: totalsAgg.totalSteps,
+      totals: {
+        ctx: totalsAgg.ctx,
+        inputTokens: totalsAgg.inputTokens,
+        cacheReadTokens: totalsAgg.cacheReadTokens,
+        think: totalsAgg.think,
+        reply: totalsAgg.reply,
+        outputTokens: totalsAgg.outputTokens,
+        durationSec: totalsAgg.durationSec,
+        tokPerSec: totalsAgg.tokPerSec,
+      },
+      orchestratorBreakdown,
+      agentBreakdown,
+    };
+  });
+}
+
 function buildActiveConversationAssembly({
   activeCascadeId,
   activeConvSummary,
@@ -1322,6 +1577,12 @@ function buildActiveConversationAssembly({
       ? allCombinedEnrichedSteps[allCombinedEnrichedSteps.length - 1]
       : latestEnriched;
 
+  const turnSummaries = buildConversationTurnSummaries({
+    steps: subAgentTelemetries.length > 0 ? allCombinedEnrichedSteps : enrichedActiveSteps,
+    agents: allAgents,
+    anyAgentRunning: allAgents.some((a) => a.isRunning),
+  });
+
   const activeConversation = {
     cascadeId: activeCascadeId,
     title: activeConvSummary?.title || 'Current Session',
@@ -1365,6 +1626,7 @@ function buildActiveConversationAssembly({
       latestEnriched?.modelUpstream || latestEnriched?.modelShort || 'Unknown Model',
     context,
     recentSteps: mainRecentSteps,
+    turnSummaries,
     modelBreakdown: mainModelBreakdown,
     agents: allAgents,
     aggregated: aggregatedTelemetry,

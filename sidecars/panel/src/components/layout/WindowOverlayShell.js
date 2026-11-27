@@ -41,6 +41,11 @@ import {
   syncCapsuleSlotNodes,
 } from '../widgets/CapsuleBarWidget.js';
 import { LiveActivityWidget } from '../widgets/LiveActivityWidget.js';
+import {
+  ChatTurnSummaryBar,
+  resolveDefaultTurnSummaryExpanded,
+  shouldRenderTurnSummary,
+} from '../widgets/ChatTurnSummaryBar.js';
 import { createDynamicWidgetHost } from '../../registries/widgetRegistry.js';
 import {
   DEFAULT_CLIENT_HOVER_MODULES,
@@ -68,6 +73,7 @@ import { uiStore } from '../../store/uiStore.js';
 
 const CAPSULE_HOST_ID = 'ag-usage-monitor-capsule';
 const PORTAL_HOST_ID = 'ag-usage-monitor-portal';
+const TURN_SUMMARY_HOST_CLASS = 'wm-turn-summary-host';
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
@@ -828,6 +834,268 @@ function isImmediatelyBeforeNode(node, refNode) {
   return idx >= 0 && parent.children[idx + 1] === refNode;
 }
 
+function normalizePromptForMatch(raw) {
+  return String(raw || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+const BLOCK_PROMPT_TAGS = new Set([
+  'div',
+  'p',
+  'br',
+  'li',
+  'pre',
+  'blockquote',
+  'section',
+  'article',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+]);
+
+function extractVisiblePromptText(node) {
+  if (!node) return '';
+  const tag = String(node.tagName || node.nodeName || '').toLowerCase();
+  if (tag === 'style' || tag === 'script' || tag === 'svg') return '';
+  if (node.hasAttribute?.('data-find-ignore') || node.getAttribute?.('aria-hidden') === 'true') {
+    return '';
+  }
+  const cls = String(node.className || '');
+  if (/\bsr-only\b/.test(cls)) return '';
+  if (tag === 'br') return ' ';
+  if (tag === '#text' || node.nodeType === 3) {
+    return String(node.nodeValue ?? node.textContent ?? '');
+  }
+  const childNodes = node.childNodes || node.children;
+  if (!childNodes || childNodes.length === 0) {
+    return String(node.textContent || '');
+  }
+  let acc = '';
+  for (const ch of childNodes) {
+    const chTag = String(ch?.tagName || ch?.nodeName || '').toLowerCase();
+    const chText = extractVisiblePromptText(ch);
+    if (!chText) continue;
+    if (acc && BLOCK_PROMPT_TAGS.has(chTag)) {
+      acc += ' ';
+    }
+    acc += chText;
+  }
+  return BLOCK_PROMPT_TAGS.has(tag) ? `${acc} ` : acc;
+}
+
+function findPairedUserMessage(agentResponseEl) {
+  if (!agentResponseEl) return null;
+  const turnContent = agentResponseEl.closest?.('[data-turn-content]');
+  if (turnContent?.querySelector) {
+    const msg = turnContent.querySelector('[data-testid="user-message"]');
+    if (msg) return msg;
+  }
+  let prev = agentResponseEl.previousElementSibling;
+  while (prev) {
+    if (prev.getAttribute?.('data-testid') === 'user-message') return prev;
+    const nested = prev.querySelector?.('[data-testid="user-message"]');
+    if (nested) return nested;
+    prev = prev.previousElementSibling;
+  }
+  return null;
+}
+
+function extractUserMessagePromptText(userMsgEl) {
+  if (!userMsgEl) return '';
+  const contentEl = userMsgEl.querySelector?.('[data-testid="user-message-content"]') || userMsgEl;
+  return normalizePromptForMatch(extractVisiblePromptText(contentEl));
+}
+
+function findActiveConversationContainer(routeCascadeId = '') {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+    return null;
+  }
+  const targetId = String(routeCascadeId || '').trim().toLowerCase();
+  const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+  const visibleViews = [];
+  for (const viewEl of views) {
+    if (!viewEl || isInsideOwnOverlay(viewEl)) continue;
+    if (viewEl.hasAttribute?.('hidden')) continue;
+    if (viewEl.getBoundingClientRect) {
+      const r = viewEl.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) continue;
+    }
+    const cid = String(viewEl.getAttribute?.('data-cascade-id') || '').trim().toLowerCase();
+    if (targetId && cid === targetId) return viewEl;
+    visibleViews.push(viewEl);
+  }
+  if (visibleViews.length > 0) {
+    const activeEl = document.activeElement || null;
+    if (activeEl) {
+      const focused = visibleViews.find((v) => v.contains?.(activeEl));
+      if (focused) return focused;
+    }
+    return visibleViews[0];
+  }
+  if (isIdeExtensionChatFrame()) {
+    return document.body || document.documentElement || null;
+  }
+  return null;
+}
+
+function collectChatDomTurns(container) {
+  if (!container || typeof container.querySelectorAll !== 'function') return [];
+  const nodes = container.querySelectorAll(
+    '[data-testid="user-message"], [data-testid="agent-response"]'
+  );
+  const turns = [];
+  let activeTurnUserMsg = null;
+  let currentTurnEntry = null;
+  for (const el of nodes) {
+    if (!el || isInsideOwnOverlay(el)) continue;
+    const testId = el.getAttribute?.('data-testid');
+    if (testId === 'user-message') {
+      activeTurnUserMsg = el;
+      currentTurnEntry = null;
+      continue;
+    }
+    if (testId === 'agent-response') {
+      const pairedUserMsg = findPairedUserMessage(el) || activeTurnUserMsg;
+      const turnContentEl = el.closest?.('[data-turn-content]') || null;
+      const isSameTurn = Boolean(
+        currentTurnEntry &&
+          ((pairedUserMsg && pairedUserMsg === currentTurnEntry.userMsgEl) ||
+            (!pairedUserMsg &&
+              (!turnContentEl || turnContentEl === currentTurnEntry.turnContentEl)))
+      );
+      if (isSameTurn) {
+        currentTurnEntry.agentResponseEl = el;
+      } else {
+        const entry = {
+          agentResponseEl: el,
+          userMsgEl: pairedUserMsg,
+          turnContentEl,
+          promptText: extractUserMessagePromptText(pairedUserMsg),
+          domIndex: turns.length,
+        };
+        turns.push(entry);
+        currentTurnEntry = entry;
+      }
+    }
+  }
+  return turns;
+}
+
+function preparePromptMatchVariants(raw) {
+  const withoutEllipsis = String(raw || '').replace(/(?:\u2026|\.\.\.)+$/g, '');
+  const full = normalizePromptForMatch(withoutEllipsis);
+  const hasMentionToken = /@\[[^\]]*\]/.test(withoutEllipsis);
+  const stripped = hasMentionToken
+    ? normalizePromptForMatch(withoutEllipsis.replace(/@\[[^\]]*\]/g, ' '))
+    : '';
+  return { full, stripped, hasMentionToken };
+}
+
+function doesPromptMatchSummary(normDom, rawSummaryPrompt) {
+  if (!normDom) return false;
+  const { full, stripped, hasMentionToken } = preparePromptMatchVariants(rawSummaryPrompt);
+  const candidates = [];
+  if (full) candidates.push({ text: full, isStripped: false });
+  if (stripped && stripped !== full) candidates.push({ text: stripped, isStripped: true });
+
+  for (const { text: cand, isStripped } of candidates) {
+    if (normDom === cand) return true;
+    if (cand.length >= 4 && normDom.startsWith(cand)) return true;
+    if (normDom.length >= 4 && cand.startsWith(normDom)) return true;
+    if (cand.length >= 8) {
+      const anchor = cand.slice(0, Math.min(64, cand.length));
+      if (normDom.includes(anchor)) return true;
+    }
+    if (normDom.length >= 8) {
+      const domAnchor = normDom.slice(0, Math.min(64, normDom.length));
+      if (cand.includes(domAnchor)) return true;
+    }
+    if (
+      (isStripped || hasMentionToken) &&
+      cand.length >= 3 &&
+      (normDom === cand || normDom.endsWith(` ${cand}`))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Match DOM `[data-testid="agent-response"]` nodes to `activeConversation.turnSummaries`
+ * using chronological normalized prompt matching (handling truncated `…` summaries and
+ * `@[...]` mention chips) with reverse-alignment fallback for empty/media-only prompts
+ * or the latest active turn.
+ *
+ * @param {Array<{ agentResponseEl?: object, promptText?: string, domIndex?: number }>} domTurns
+ * @param {Array<object>} turnSummaries
+ * @returns {Array<{ domTurn: object, summary: object, domIndex: number, summaryIndex: number }>}
+ */
+export function matchDomTurnsToSummaries(domTurns, turnSummaries) {
+  if (!Array.isArray(domTurns) || !Array.isArray(turnSummaries)) return [];
+  if (domTurns.length === 0 || turnSummaries.length === 0) return [];
+
+  const matchedSummaryByDom = new Map();
+  const matchedDomBySummary = new Map();
+  let sumCursor = 0;
+
+  // Pass 1: Chronological prompt match
+  for (let i = 0; i < domTurns.length; i += 1) {
+    const normDom = normalizePromptForMatch(domTurns[i]?.promptText);
+    if (!normDom) continue;
+    for (let j = sumCursor; j < turnSummaries.length; j += 1) {
+      if (matchedDomBySummary.has(j)) continue;
+      const rawSumPrompt = turnSummaries[j]?.turnPromptClean;
+      if (!normalizePromptForMatch(rawSumPrompt)) continue;
+      if (doesPromptMatchSummary(normDom, rawSumPrompt)) {
+        matchedSummaryByDom.set(i, j);
+        matchedDomBySummary.set(j, i);
+        sumCursor = j + 1;
+        break;
+      }
+    }
+  }
+
+  // Pass 2: Reverse alignment fallback for empty/media-only prompts or unmatched latest turn
+  let j = turnSummaries.length - 1;
+  for (let i = domTurns.length - 1; i >= 0 && j >= 0; i -= 1) {
+    if (matchedSummaryByDom.has(i)) {
+      j = Math.min(j, matchedSummaryByDom.get(i) - 1);
+      continue;
+    }
+    while (j >= 0 && matchedDomBySummary.has(j)) {
+      j -= 1;
+    }
+    if (j < 0) break;
+    const normDom = normalizePromptForMatch(domTurns[i]?.promptText);
+    const normSum = normalizePromptForMatch(turnSummaries[j]?.turnPromptClean);
+    if (!normDom || !normSum) {
+      matchedSummaryByDom.set(i, j);
+      matchedDomBySummary.set(j, i);
+      j -= 1;
+    }
+  }
+
+  const out = [];
+  for (let i = 0; i < domTurns.length; i += 1) {
+    if (!matchedSummaryByDom.has(i)) continue;
+    const sIdx = matchedSummaryByDom.get(i);
+    out.push({
+      domTurn: domTurns[i],
+      summary: turnSummaries[sIdx],
+      domIndex: i,
+      summaryIndex: sIdx,
+    });
+  }
+  return out;
+}
+
 function isIdeExtensionChatFrame() {
   try {
     if (typeof window === 'undefined') return false;
@@ -911,6 +1179,7 @@ function findNativeTopRightAnchor() {
 
 const SIDEBAR_EXTENSION_LABEL_RE =
   /^usage\s*(?:&\s*speed\s*)?monitor$/i;
+const SWARM_SIDEBAR_LABEL_RE = /^swarm(?:\s+ui)?$/i;
 const PLUGINS_MENU_ITEM_RE = /^plugins\b/i;
 let activeSidebarOpenTimers = [];
 
@@ -956,7 +1225,9 @@ function isSidebarTabActive(el) {
 }
 
 function isInsideOwnOverlay(el) {
-  return Boolean(el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`));
+  return Boolean(
+    el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}, .${TURN_SUMMARY_HOST_CLASS}`)
+  );
 }
 
 function isInsideChatLink(el) {
@@ -1125,6 +1396,9 @@ function findOpenMenuItem(pattern, beforeEls = null, beforeBodyChildren = null) 
   return null;
 }
 
+const EXCLUDED_TRIGGER_LABEL_RE =
+  /\b(?:fullscreen|full[\s-]?screen|maximize|unmaximize|minimize|restore|expand|collapse|close|split|pin|unpin)\b|toggle[-_\s]?(?:aux|side)/i;
+
 function findPluginsMenuTrigger(capsuleHostEl = null) {
   if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
     return null;
@@ -1136,29 +1410,40 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
       titlebar?.querySelector?.(':scope > div.shrink-0') ||
       titlebar?.lastElementChild ||
       capsuleHostEl?.parentElement ||
-      auxToggle?.parentElement ||
       null;
+
+    const isExcludedTrigger = (el) => {
+      if (!el || el === auxToggle) return true;
+      const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('data-testid') || ''}`;
+      return EXCLUDED_TRIGGER_LABEL_RE.test(label);
+    };
 
     const collectButtons = (root) => {
       if (!root?.querySelectorAll) return [];
       return Array.from(root.querySelectorAll('button, [role="button"]')).filter(
-        (el) => el && el !== auxToggle && !isInsideOwnOverlay(el) && isHostElementVisible(el)
+        (el) => el && !isExcludedTrigger(el) && !isInsideOwnOverlay(el) && isHostElementVisible(el)
       );
     };
 
-    const isMenuTriggerAttr = (el) => {
+    const hasMenuPopupAttr = (el) => {
       const hasPopup = String(el.getAttribute?.('aria-haspopup') || '').toLowerCase();
-      if (hasPopup === 'menu' || hasPopup === 'true') return true;
-      const dataState = el.getAttribute?.('data-state');
-      if (dataState === 'open' || dataState === 'closed') return true;
+      return hasPopup === 'menu' || hasPopup === 'true';
+    };
+
+    const hasMenuLabelAttr = (el) => {
       const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('data-testid') || ''}`;
-      return /\b(?:overview|plugins?|more|menu|pane|sidebar)\b/i.test(label);
+      return /\b(?:overview|plugins?|more|menu)\b/i.test(label);
+    };
+
+    const hasOpenClosedStateAttr = (el) => {
+      const dataState = el.getAttribute?.('data-state');
+      return dataState === 'open' || dataState === 'closed';
     };
 
     const primaryCandidates = [
-      ...collectButtons(auxToggle?.parentElement),
       ...collectButtons(capsuleHostEl?.parentElement),
       ...collectButtons(rightGroup),
+      ...collectButtons(titlebar),
     ];
     const seen = new Set();
     const uniquePrimary = primaryCandidates.filter((el) => {
@@ -1167,45 +1452,51 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
       return true;
     });
 
-    const attrMatch = uniquePrimary.find(isMenuTriggerAttr);
-    if (attrMatch) return attrMatch;
+    const popupMatch = uniquePrimary.find(hasMenuPopupAttr);
+    if (popupMatch) return popupMatch;
+
+    const labelMatch = uniquePrimary.find(hasMenuLabelAttr);
+    if (labelMatch) return labelMatch;
+
+    if (capsuleHostEl) {
+      let next = capsuleHostEl.nextElementSibling;
+      while (next) {
+        if (!isExcludedTrigger(next) && !isInsideOwnOverlay(next) && isHostElementVisible(next)) {
+          const btn =
+            next.tagName?.toLowerCase() === 'button' || next.getAttribute?.('role') === 'button'
+              ? next
+              : next.querySelector?.('button, [role="button"]');
+          if (btn && !isExcludedTrigger(btn) && !isInsideOwnOverlay(btn) && isHostElementVisible(btn)) {
+            return btn;
+          }
+        }
+        next = next.nextElementSibling;
+      }
+    }
+
+    const stateMatch = uniquePrimary.find(hasOpenClosedStateAttr);
+    if (stateMatch) return stateMatch;
+
+    if (uniquePrimary.length > 0) {
+      return uniquePrimary[0];
+    }
 
     if (auxToggle) {
-      if (capsuleHostEl) {
-        let next = capsuleHostEl.nextElementSibling;
-        while (next) {
-          if (next !== auxToggle && !isInsideOwnOverlay(next) && isHostElementVisible(next)) {
-            const btn =
-              next.tagName?.toLowerCase() === 'button' || next.getAttribute?.('role') === 'button'
-                ? next
-                : next.querySelector?.('button, [role="button"]');
-            if (btn && btn !== auxToggle && !isInsideOwnOverlay(btn) && isHostElementVisible(btn)) {
-              return btn;
-            }
-          }
-          next = next.nextElementSibling;
-        }
-      }
-
       const prev = auxToggle.previousElementSibling;
-      if (prev && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
+      if (prev && !isExcludedTrigger(prev) && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
         const prevBtn =
           prev.tagName?.toLowerCase() === 'button' || prev.getAttribute?.('role') === 'button'
             ? prev
             : prev.querySelector?.('button, [role="button"]');
-        if (prevBtn && !isInsideOwnOverlay(prevBtn) && isHostElementVisible(prevBtn)) {
+        if (prevBtn && !isExcludedTrigger(prevBtn) && !isInsideOwnOverlay(prevBtn) && isHostElementVisible(prevBtn)) {
           return prevBtn;
         }
       }
 
-      if (uniquePrimary.length > 0) {
-        return uniquePrimary[uniquePrimary.length - 1];
+      const auxParentBtns = collectButtons(auxToggle.parentElement);
+      if (auxParentBtns.length > 0) {
+        return auxParentBtns[auxParentBtns.length - 1];
       }
-    }
-
-    if (titlebar) {
-      const tbMatch = collectButtons(titlebar).find(isMenuTriggerAttr);
-      if (tbMatch) return tbMatch;
     }
   } catch {
     return null;
@@ -1213,7 +1504,7 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
   return null;
 }
 
-function findSidebarExtensionTab() {
+function findSidebarExtensionTab(labelPattern = SIDEBAR_EXTENSION_LABEL_RE) {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
     return null;
   }
@@ -1225,9 +1516,9 @@ function findSidebarExtensionTab() {
       const title = normalizeMenuLabel(el.getAttribute?.('title'));
       const text = normalizeMenuLabel(el.textContent);
       if (
-        SIDEBAR_EXTENSION_LABEL_RE.test(aria) ||
-        SIDEBAR_EXTENSION_LABEL_RE.test(title) ||
-        SIDEBAR_EXTENSION_LABEL_RE.test(text)
+        labelPattern.test(aria) ||
+        labelPattern.test(title) ||
+        labelPattern.test(text)
       ) {
         return el;
       }
@@ -1262,10 +1553,10 @@ function openPluginsSubmenuElement(pluginsItem, attemptIndex = 0) {
   }
 }
 
-function openSidebarExtension(capsuleHostEl = null) {
+function openSidebarExtension(capsuleHostEl = null, labelPattern = SIDEBAR_EXTENSION_LABEL_RE) {
   clearPendingSidebarOpenTimers();
 
-  const immediateMenuItem = findOpenMenuItem(SIDEBAR_EXTENSION_LABEL_RE, null, null);
+  const immediateMenuItem = findOpenMenuItem(labelPattern, null, null);
   if (immediateMenuItem) {
     triggerHostElementClick(immediateMenuItem);
     return true;
@@ -1277,7 +1568,7 @@ function openSidebarExtension(capsuleHostEl = null) {
       typeof document !== 'undefined' && document.body?.children
         ? new Set(Array.from(document.body.children))
         : null;
-    const beforeUsageEls = new Set(findAllExactMenuCandidates(SIDEBAR_EXTENSION_LABEL_RE, document));
+    const beforeTargetEls = new Set(findAllExactMenuCandidates(labelPattern, document));
     const beforePluginsEls = new Set(findAllExactMenuCandidates(PLUGINS_MENU_ITEM_RE, document));
 
     scheduleSidebarOpenTimer(() => {
@@ -1291,13 +1582,13 @@ function openSidebarExtension(capsuleHostEl = null) {
       let pluginsHoverAttempts = 0;
       const pollStep = () => {
         attempts += 1;
-        const usageItem = findOpenMenuItem(
-          SIDEBAR_EXTENSION_LABEL_RE,
-          beforeUsageEls,
+        const targetItem = findOpenMenuItem(
+          labelPattern,
+          beforeTargetEls,
           beforeBodyChildren
         );
-        if (usageItem) {
-          triggerHostElementClick(usageItem);
+        if (targetItem) {
+          triggerHostElementClick(targetItem);
           clearPendingSidebarOpenTimers();
           return;
         }
@@ -1328,7 +1619,7 @@ function openSidebarExtension(capsuleHostEl = null) {
     return true;
   }
 
-  const existingTab = findSidebarExtensionTab();
+  const existingTab = findSidebarExtensionTab(labelPattern);
   if (existingTab) {
     if (!isSidebarTabActive(existingTab)) {
       triggerHostElementClick(existingTab);
@@ -1818,9 +2109,32 @@ export function mountWindowOverlay() {
       updateDot,
     ]
   );
+  const swarmBtn = h(
+    'button',
+    {
+      type: 'button',
+      className: 'wm-swarm-btn',
+      'aria-label': t('capsule.ariaSwarm'),
+      title: t('capsule.ariaSwarm'),
+      onClick: (e) => {
+        e.stopPropagation();
+        setTooltipOpen(false);
+        if (multiOpen && !multiPinned) {
+          setMultiOpen(false);
+        }
+        if (popoverOpen) {
+          setPopoverOpen(false);
+        }
+        openSidebarExtension(capsuleHost, SWARM_SIDEBAR_LABEL_RE);
+      },
+    },
+    [createSvgIcon('swarm', { size: 14 })]
+  );
+
   capsuleShadow.appendChild(multiBtn);
   capsuleShadow.appendChild(capsuleBtn);
   capsuleShadow.appendChild(topbarUpdateBtn);
+  capsuleShadow.appendChild(swarmBtn);
 
   // --- 2. 创建 Body 顶层浮层 Portal Shadow Host ---
   const portalHost = document.createElement('div');
@@ -1960,9 +2274,16 @@ export function mountWindowOverlay() {
     return appInstance;
   }
 
+  const turnSummaryHosts = new Map();
+  const turnSummaryExpandedState = new Map();
+  let isSyncingTurnSummaries = false;
+
   function syncPortalAppearance(settings) {
     applyAppearanceToRoot(capsuleHost, settings, { includeFontScale: false });
     applyAppearanceToRoot(portalHost, settings, { includeFontScale: true });
+    for (const entry of turnSummaryHosts.values()) {
+      applyAppearanceToRoot(entry.host, settings, { includeFontScale: true });
+    }
     const scaleKey = normalizeClientFontScale(settings?.fontScale);
     const isModernUi = resolveSettingsModernUi(settings);
     const colorScheme = portalHost.getAttribute?.('data-color-scheme') || 'light';
@@ -2034,6 +2355,9 @@ export function mountWindowOverlay() {
           for (const k of mirroredThemeVars.keys()) {
             portalHost.style.removeProperty?.(k);
             capsuleHost.style.removeProperty?.(k);
+            for (const entry of turnSummaryHosts.values()) {
+              entry.host.style.removeProperty?.(k);
+            }
           }
           mirroredThemeVars.clear();
         }
@@ -2091,6 +2415,9 @@ export function mountWindowOverlay() {
           if (prevVal !== val) {
             portalHost.style.setProperty?.(cssVar, val);
             capsuleHost.style.setProperty?.(cssVar, val);
+            for (const entry of turnSummaryHosts.values()) {
+              entry.host.style.setProperty?.(cssVar, val);
+            }
             mirroredThemeVars.set(cssVar, val);
           }
         } else if (prevVal) {
@@ -2103,6 +2430,13 @@ export function mountWindowOverlay() {
             capsuleHost.style.removeProperty(cssVar);
           } else {
             capsuleHost.style.setProperty?.(cssVar, '');
+          }
+          for (const entry of turnSummaryHosts.values()) {
+            if (typeof entry.host.style.removeProperty === 'function') {
+              entry.host.style.removeProperty(cssVar);
+            } else {
+              entry.host.style.setProperty?.(cssVar, '');
+            }
           }
           mirroredThemeVars.delete(cssVar);
         }
@@ -2122,6 +2456,251 @@ export function mountWindowOverlay() {
         themeObserver.observe(wb, { attributes: true, attributeFilter: ['class', 'style'] });
       } catch {
         // 忽略工作台属性观察异常
+      }
+    }
+  }
+
+  function clearAllTurnSummaryHosts() {
+    isSyncingTurnSummaries = true;
+    try {
+      for (const entry of turnSummaryHosts.values()) {
+        try {
+          entry.widget?.refs?.destroy?.();
+        } catch {}
+        try {
+          entry.host?.remove?.();
+        } catch {}
+      }
+      turnSummaryHosts.clear();
+      if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+        for (const stray of document.querySelectorAll(`.${TURN_SUMMARY_HOST_CLASS}`)) {
+          try {
+            stray.remove?.();
+          } catch {}
+        }
+      }
+    } finally {
+      isSyncingTurnSummaries = false;
+    }
+  }
+
+  function syncTurnSummaryHostAppearance(host, settings) {
+    applyAppearanceToRoot(host, settings, { includeFontScale: true });
+    for (const [cssVar, val] of mirroredThemeVars.entries()) {
+      host.style.setProperty?.(cssVar, val);
+    }
+  }
+
+  function findChatScrollContainer(startEl) {
+    if (!startEl) return null;
+    const docRoot = typeof document !== 'undefined' ? document.documentElement : null;
+    let node = startEl;
+    while (node && node !== docRoot) {
+      const sh = Number(node.scrollHeight || 0);
+      const ch = Number(node.clientHeight || 0);
+      if (sh > ch + 4) {
+        let ovY = '';
+        try {
+          const cs =
+            typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+              ? window.getComputedStyle(node)
+              : null;
+          ovY = String(cs?.overflowY || node.style?.overflowY || '').toLowerCase();
+        } catch {
+          ovY = String(node.style?.overflowY || '').toLowerCase();
+        }
+        if (!ovY || ovY === 'auto' || ovY === 'scroll' || ovY === 'overlay') {
+          return node;
+        }
+      }
+      node = node.parentElement || node.parentNode || null;
+    }
+    return null;
+  }
+
+  function syncChatTurnSummaries() {
+    if (disposed) return;
+    const telemetry = telemetryStore.getState().telemetry;
+    const settings = telemetry?.settings;
+    const mountMode = normalizeClientWindowMountMode(
+      settings?.windowMountMode ?? readInjectedWindowBridge()?.mountMode,
+      settings?.enableWindowOverlay
+    );
+    if (
+      settings?.enableChatTurnSummary === false ||
+      settings?.enableWindowOverlay === false ||
+      mountMode === 'sidebar'
+    ) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const activeConv = telemetry?.activeConversation;
+    const cascadeId = String(activeConv?.cascadeId || '').trim();
+    const summaries = Array.isArray(activeConv?.turnSummaries) ? activeConv.turnSummaries : [];
+    if (!cascadeId || summaries.length === 0) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const container = findActiveConversationContainer(cascadeId);
+    if (!container) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const domTurns = collectChatDomTurns(container);
+    const matched = matchDomTurnsToSummaries(domTurns, summaries);
+    const desired = new Map();
+    for (const item of matched) {
+      if (!shouldRenderTurnSummary(item.summary)) continue;
+      const turnIdx = item.summary.turnIndex ?? item.summary.rootTurnIndex ?? item.summaryIndex;
+      const turnKey = `${cascadeId}:${turnIdx}`;
+      desired.set(turnKey, {
+        agentResponseEl: item.domTurn.agentResponseEl,
+        summary: item.summary,
+      });
+    }
+
+    const desiredEntries = Array.from(desired.entries());
+    const lastDesiredEntry = desiredEntries[desiredEntries.length - 1] || null;
+    const scroller = findChatScrollContainer(lastDesiredEntry?.[1]?.agentResponseEl || container);
+    const distFromBottomBefore = scroller
+      ? Math.max(
+          0,
+          Number(scroller.scrollHeight || 0) -
+            Number(scroller.clientHeight || 0) -
+            Number(scroller.scrollTop || 0)
+        )
+      : Infinity;
+    const wasNearBottom = Boolean(scroller && distFromBottomBefore <= 120);
+    let insertedLatestTurnHost = false;
+
+    isSyncingTurnSummaries = true;
+    try {
+      for (const [key, entry] of turnSummaryHosts.entries()) {
+        const next = desired.get(key);
+        if (!next || next.agentResponseEl !== entry.agentResponseEl) {
+          try {
+            entry.widget?.refs?.destroy?.();
+          } catch {}
+          try {
+            entry.host?.remove?.();
+          } catch {}
+          turnSummaryHosts.delete(key);
+        }
+      }
+
+      for (let idx = 0; idx < desiredEntries.length; idx += 1) {
+        const [turnKey, { agentResponseEl, summary }] = desiredEntries[idx];
+        const parent = agentResponseEl?.parentElement || agentResponseEl?.parentNode;
+        if (!parent) continue;
+        const isLatestEntry = Boolean(summary?.isLatestTurn || idx === desiredEntries.length - 1);
+        const expanded = turnSummaryExpandedState.has(turnKey)
+          ? Boolean(turnSummaryExpandedState.get(turnKey))
+          : resolveDefaultTurnSummaryExpanded(summary);
+        const existing = turnSummaryHosts.get(turnKey);
+        if (existing) {
+          if (!existing.host.isConnected || !isImmediatelyBeforeNode(agentResponseEl, existing.host)) {
+            if (!existing.host.isConnected && isLatestEntry) {
+              insertedLatestTurnHost = true;
+            }
+            parent.insertBefore(existing.host, agentResponseEl.nextSibling || null);
+          }
+          syncTurnSummaryHostAppearance(existing.host, settings);
+          existing.widget.refs.update({ summary, expanded });
+          continue;
+        }
+
+        if (isLatestEntry) {
+          insertedLatestTurnHost = true;
+        }
+
+        const host = document.createElement('div');
+        host.className = TURN_SUMMARY_HOST_CLASS;
+        host.setAttribute('data-wm-turn-key', turnKey);
+        host.addEventListener?.('mousedown', (e) => e.stopPropagation?.());
+        host.addEventListener?.('click', (e) => e.stopPropagation?.());
+        host.addEventListener?.('keydown', (e) => {
+          if (e?.key !== 'Escape') {
+            e.stopPropagation?.();
+          }
+        });
+        const shadow = host.attachShadow({ mode: 'open' });
+        attachShadowStyles(shadow, stylesCss, { slimCapsule: true });
+        syncTurnSummaryHostAppearance(host, settings);
+        const widget = ChatTurnSummaryBar({
+          summary,
+          expanded,
+          onToggleExpand: (nextExpanded) => {
+            turnSummaryExpandedState.set(turnKey, Boolean(nextExpanded));
+            if (nextExpanded) {
+              const scrollExpandedIntoView = () => {
+                if (disposed || !host.isConnected) return;
+                const expandScroller = findChatScrollContainer(host);
+                if (
+                  expandScroller &&
+                  typeof host.getBoundingClientRect === 'function' &&
+                  typeof expandScroller.getBoundingClientRect === 'function'
+                ) {
+                  const hr = host.getBoundingClientRect();
+                  const sr = expandScroller.getBoundingClientRect();
+                  if (hr && sr && hr.bottom > sr.bottom - 4) {
+                    expandScroller.scrollTop =
+                      Number(expandScroller.scrollTop || 0) + (hr.bottom - sr.bottom) + 12;
+                  }
+                } else {
+                  host.scrollIntoView?.({ block: 'nearest' });
+                }
+              };
+              if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(scrollExpandedIntoView);
+              } else {
+                scrollExpandedIntoView();
+              }
+            }
+          },
+        });
+        shadow.appendChild(widget.el);
+        parent.insertBefore(host, agentResponseEl.nextSibling || null);
+        turnSummaryHosts.set(turnKey, {
+          host,
+          shadow,
+          widget,
+          agentResponseEl,
+          turnKey,
+        });
+      }
+
+      if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+        const trackedHosts = new Set(Array.from(turnSummaryHosts.values()).map((e) => e.host));
+        for (const el of document.querySelectorAll(`.${TURN_SUMMARY_HOST_CLASS}`)) {
+          if (!trackedHosts.has(el)) {
+            try {
+              el.remove?.();
+            } catch {}
+          }
+        }
+      }
+    } finally {
+      isSyncingTurnSummaries = false;
+    }
+
+    if (insertedLatestTurnHost && wasNearBottom && scroller) {
+      const pinBottom = () => {
+        if (!disposed && scroller.isConnected !== false) {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
+      };
+      pinBottom();
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(pinBottom);
       }
     }
   }
@@ -3000,6 +3579,7 @@ export function mountWindowOverlay() {
       renderHoverWidgets();
       positionFloatingElements();
     }
+    syncChatTurnSummaries();
   }
 
   let lastAppliedMountMode = normalizeClientWindowMountMode(
@@ -3064,6 +3644,8 @@ export function mountWindowOverlay() {
     () => {
       patchAttr(multiBtn, 'aria-label', t('capsule.ariaMulti'));
       patchAttr(capsuleBtn, 'aria-label', t('capsule.ariaMonitor'));
+      patchAttr(swarmBtn, 'aria-label', t('capsule.ariaSwarm'));
+      patchAttr(swarmBtn, 'title', t('capsule.ariaSwarm'));
       patchAttr(topbarUpdateBtn, 'aria-label', t('capsule.ariaUpdateTitle'));
       patchAttr(topbarUpdateBtn, 'title', t('capsule.ariaUpdateTitle'));
       patchAttr(multiPanelEl, 'aria-label', t('multi.ariaDialog'));
@@ -3172,6 +3754,7 @@ export function mountWindowOverlay() {
     if (!isDockPlacementSynced(dock)) {
       scheduleDockSync();
     }
+    syncChatTurnSummaries();
   }
   function scheduleHostDomMutationCheck() {
     if (disposed) return;
@@ -3225,10 +3808,17 @@ export function mountWindowOverlay() {
       }
       if (document.body) {
         hostDomObserver = new MutationObserver((records) => {
+          if (isSyncingTurnSummaries) return;
           if (
             Array.isArray(records) &&
             records.length > 0 &&
-            records.every((r) => r?.target === capsuleHost || r?.target === portalHost)
+            records.every(
+              (r) =>
+                r?.target === capsuleHost ||
+                r?.target === portalHost ||
+                r?.target?.classList?.contains?.(TURN_SUMMARY_HOST_CLASS) ||
+                r?.target?.closest?.(`.${TURN_SUMMARY_HOST_CLASS}`)
+            )
           ) {
             return;
           }
@@ -3264,6 +3854,7 @@ export function mountWindowOverlay() {
     if (!isDockPlacementSynced(dock)) {
       ensureCapsuleDocked();
     }
+    syncChatTurnSummaries();
   }, 1200);
 
   ensureCapsuleDocked();
@@ -3447,6 +4038,8 @@ export function mountWindowOverlay() {
       window.removeEventListener?.('popstate', onPopState);
       navigator?.windowControlsOverlay?.removeEventListener?.('geometrychange', onWindowResize);
       restorePatchedActionToolbar();
+      clearAllTurnSummaryHosts();
+      turnSummaryExpandedState.clear();
       try {
         multiRunningWidget.destroy();
       } catch {}

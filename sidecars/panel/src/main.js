@@ -6,7 +6,7 @@
 
 import { App } from './App.js';
 import { mountWindowOverlay } from './components/layout/WindowOverlayShell.js';
-import { applyAppearanceToRoot } from './core/appearance.js';
+import { applyAppearanceToRoot, installPrismHostMessageThemeSync } from './core/appearance.js';
 import { isWindowOverlayMode } from './core/httpClient.js';
 import { setI18nLanguage } from './i18n/index.js';
 import { startAsyncTelemetryLoop, telemetryStore } from './store/telemetryStore.js';
@@ -65,12 +65,16 @@ async function bootstrapApp(mountTarget = document.getElementById('app-root')) {
     // ignore observer setup errors in constrained environments
   }
 
+  const stopThemeMessageSync = installPrismHostMessageThemeSync(
+    () => telemetryStore.getState().telemetry?.settings
+  );
   const stopPolling = startAsyncTelemetryLoop(2000);
   return {
     appInstance,
     stopPolling: () => {
       hostThemeObserver?.disconnect?.();
       colorSchemeMql?.removeEventListener?.('change', onHostThemeChange);
+      stopThemeMessageSync();
       unsubAppearance();
       stopPolling();
     },

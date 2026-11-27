@@ -42,7 +42,23 @@ export function hydrateTrajectoryCacheObject(rawLoaded) {
           break;
         }
       }
-      cacheObj[id] = { ...entry, steps: finalSteps };
+      const nextEntry = { ...entry, steps: finalSteps };
+      const idLower = String(id).trim().toLowerCase();
+      if (
+        typeof nextEntry.rootConversationId === 'string' &&
+        nextEntry.rootConversationId.trim().toLowerCase() === idLower
+      ) {
+        delete nextEntry.rootConversationId;
+        migrated = true;
+      }
+      if (
+        typeof nextEntry.parentConversationId === 'string' &&
+        nextEntry.parentConversationId.trim().toLowerCase() === idLower
+      ) {
+        delete nextEntry.parentConversationId;
+        migrated = true;
+      }
+      cacheObj[id] = nextEntry;
     }
   }
   return { cacheObj, migrated };

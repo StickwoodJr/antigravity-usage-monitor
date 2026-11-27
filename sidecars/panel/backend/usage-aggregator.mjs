@@ -544,9 +544,14 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
     if (extMatch && (extMatch.steps?.length || 0) > (entry?.steps?.length || 0)) {
       continue;
     }
-    const groupCascadeId = String(
-      entry?.rootConversationId || entry?.parentConversationId || cidLower
-    ).toLowerCase();
+    const rawRoot = String(entry?.rootConversationId || '').trim().toLowerCase();
+    const rawParent = String(entry?.parentConversationId || '').trim().toLowerCase();
+    const groupCascadeId =
+      rawRoot && rawRoot !== cidLower
+        ? rawRoot
+        : rawParent && rawParent !== cidLower
+          ? rawParent
+          : cidLower;
     const rootLive = allLiveByLower.get(groupCascadeId);
     const entryTitle = String(
       rootLive?.title || entry?.title || extMatch?.title || ''

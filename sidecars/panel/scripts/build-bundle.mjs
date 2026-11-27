@@ -569,6 +569,7 @@ function validateBundleImport(
 export function buildBundle(panelDir = PANEL_DIR) {
   const cssOrder = [
     'src/styles/tokens.css',
+    'src/styles/prism-themes.css',
     'src/styles/base.css',
     'src/styles/animations.css',
     'src/styles/controls.css',
@@ -601,6 +602,7 @@ export function buildBundle(panelDir = PANEL_DIR) {
     'src/core/appearance.js',
     'src/core/domPatch.js',
     'src/core/component.js',
+    'src/core/prismColors.js',
     'src/core/formatters.js',
     'src/core/stepInspector.js',
     'src/core/settingsBackup.js',
@@ -629,6 +631,7 @@ export function buildBundle(panelDir = PANEL_DIR) {
     'src/components/widgets/ContextWindowWidget.js',
     'src/components/widgets/QuotaPoolsWidget.js',
     'src/components/widgets/LiveActivityWidget.js',
+    'src/components/widgets/ChatTurnSummaryBar.js',
     'src/registries/widgetRegistry.js',
     'src/registries/stepColumnRegistry.js',
     'src/components/widgets/CapsuleBarWidget.js',

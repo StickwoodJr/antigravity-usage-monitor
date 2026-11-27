@@ -45,6 +45,26 @@ export const BRIDGE_API_ROUTE_DEFS = Object.freeze([
     method: 'GET',
     action: 'quota_reservation_log',
   }),
+  Object.freeze({
+    path: '/api/prism/home-snapshot',
+    method: 'GET',
+    action: 'prism_home_snapshot',
+  }),
+  Object.freeze({
+    path: '/api/prism/settings-sync',
+    method: 'POST',
+    action: 'prism_settings_sync',
+  }),
+  Object.freeze({
+    path: '/api/prism/wallpaper',
+    method: 'POST',
+    action: 'prism_wallpaper',
+  }),
+  Object.freeze({
+    path: '/api/prism/omni-status',
+    method: 'GET',
+    action: 'prism_omni_status',
+  }),
 ]);
 
 export const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r.path));

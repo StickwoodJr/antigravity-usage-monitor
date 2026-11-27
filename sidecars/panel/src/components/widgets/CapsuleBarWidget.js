@@ -443,6 +443,8 @@ export const CapsuleBarWidget = defineComponent({
         className: 'wm-multi-btn',
         tabindex: '-1',
         'aria-hidden': 'true',
+        translate: 'no',
+        'data-ag-no-i18n': '1',
       },
       [multiDot, multiLabel]
     );
@@ -468,6 +470,8 @@ export const CapsuleBarWidget = defineComponent({
         className: 'wm-capsule-btn',
         tabindex: '-1',
         'aria-hidden': 'true',
+        translate: 'no',
+        'data-ag-no-i18n': '1',
       },
       [
         capsuleSlots[0].el,

@@ -19,7 +19,6 @@ import {
   patchText,
 } from '../core/domPatch.js';
 import {
-  buildDeterministicModelColorMap,
   formatCnyApprox,
   formatDateSpanBadge,
   formatMetric,
@@ -31,8 +30,11 @@ import {
   mergeModelsByDisplayName,
   normalizeModelDisplayMode,
   normalizeOrchestratorIdDisplayMode,
-  resolveDeterministicModelColor,
 } from '../core/formatters.js';
+import {
+  buildPrismModelColorMap,
+  resolvePrismChartModelColor,
+} from '../core/prismColors.js';
 import { scaleBucketsExact } from '../../shared/telemetry-display-rules.mjs';
 import {
   buildConsumptionExportBaseName,
@@ -802,7 +804,7 @@ export const ConsumptionView = defineComponent({
       const out = mainModels.map((m) => {
         const seed = getCanonicalModelColorSeed(m);
         const color =
-          modelColorMap?.get(seed) || resolveDeterministicModelColor(seed || m.displayText);
+          modelColorMap?.get(seed) || resolvePrismChartModelColor(seed || m.displayText);
         const tok = Number(m.totalTokens || 0);
         const pct = sumTok > 0 ? (tok / sumTok) * 100 : 0;
         const label = m.displayText || m.label || m.shortName || '—';
@@ -1933,14 +1935,17 @@ export const ConsumptionView = defineComponent({
         return merged;
       });
 
-      const modelColorMap = buildDeterministicModelColorMap([
+      const allColorSeeds = [
         ...models,
         ...allSourceMergedModels,
         ...allTopConvMergedModels,
         ...allWorkspaceMergedModels,
         ...allMonthMergedModels,
         ...allTrendMergedModels,
-      ]);
+      ]
+        .map((m) => getCanonicalModelColorSeed(m))
+        .filter(Boolean);
+      const modelColorMap = buildPrismModelColorMap(allColorSeeds);
 
       // 2. 同步历史趋势交互式 SVG 面积图 / 类 GitHub 每日热力图（>90天）与悬停分模型浮层
       const rangeBadgeText = isEnglishLocale()

@@ -21,6 +21,7 @@ import {
   triggerCloudSync,
   triggerPluginUpdate,
 } from '../../store/telemetryStore.js';
+import { callSidecarApi } from '../../core/httpClient.js';
 import { ThemeColorPicker } from '../../components/settings/ThemeColorPicker.js';
 import { CustomSelect } from '../../components/ui/CustomSelect.js';
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js';
@@ -261,6 +262,393 @@ export const SettingsGeneralTab = defineComponent({
       h('div', { className: 'form-row' }, [modernUiLabelEl, modernUiSwitch.el, modernUiHintEl]),
     ]);
 
+    // --- Card 1B: Obsidian Prism Optical UI & Host Modules ---
+    let draftPrismPalette = 'obsidian';
+    let draftPrismLightPreset = 'crystal';
+    let draftPrismAccent = 'follow';
+    let draftPrismCorners = 'balanced';
+    let draftPrismMotion = 'ultra';
+    let draftPrismCodeFont = 'default';
+    let draftPrismLigatures = false;
+    let draftPrismHomeRipple = true;
+    let draftPrismSmoothCaret = true;
+    let draftPrismEffortSlider = 'auto';
+    let draftPrismWorkbench = 'on';
+    let draftPrismHomeStudio = 'on';
+    let draftPrismOmni = 'on';
+    let draftPrismMascot = 'off';
+    let draftPrismWallpaper = false;
+
+    const prismStatusEl = h('span', {
+      className: 'text-muted',
+      style: 'font-size: var(--fs-md);',
+      text: '',
+    });
+    const prismTitleEl = h('span', { text: t('settings.prism.title') });
+
+    function applyLocalPrismPreview(partial) {
+      if (isWindowOverlayMode() || typeof document === 'undefined' || !document.documentElement) {
+        return;
+      }
+      applyAppearanceToRoot(
+        document.documentElement,
+        {
+          ...(latestSettings || {}),
+          prismPalette: draftPrismPalette,
+          prismLightPreset: draftPrismLightPreset,
+          prismAccentTone: draftPrismAccent,
+          prismCornerStyle: draftPrismCorners,
+          prismMotionLevel: draftPrismMotion,
+          prismCodeFont: draftPrismCodeFont,
+          prismCodeLigatures: draftPrismLigatures,
+          ...partial,
+        },
+        { includeFontScale: true }
+      );
+    }
+
+    async function savePrismPatch(patch) {
+      applyLocalPrismPreview(patch);
+      patchText(prismStatusEl, t('settings.saving'));
+      try {
+        await saveSettingsPatch(patch);
+        patchText(prismStatusEl, t('settings.saved'));
+        setTimeout(() => {
+          if (prismStatusEl.textContent === t('settings.saved')) patchText(prismStatusEl, '');
+        }, 1400);
+      } catch {
+        if (latestSettings) renderSettings(latestSettings);
+        patchText(prismStatusEl, t('settings.saveFailed'));
+      }
+    }
+
+    const mkPresetBtn = (key, labelKey, patchObj) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          className: 'prism-preset-btn',
+          'data-prism-preset': key,
+          'aria-pressed': 'false',
+          onClick: () => void savePrismPatch(patchObj),
+        },
+        [h('span', { text: t(labelKey) })]
+      );
+
+    const presetFullBtn = mkPresetBtn('full', 'settings.prism.presetFull', {
+      prismMotionLevel: 'ultra',
+      prismHomeRipple: true,
+      prismSmoothCaret: true,
+      prismAmbientIntensity: '100',
+    });
+    const presetFocusBtn = mkPresetBtn('focus', 'settings.prism.presetFocus', {
+      prismMotionLevel: 'standard',
+      prismHomeRipple: false,
+      prismSmoothCaret: true,
+      prismAmbientIntensity: '35',
+    });
+    const presetEcoBtn = mkPresetBtn('eco', 'settings.prism.presetEco', {
+      prismMotionLevel: 'off',
+      prismHomeRipple: false,
+      prismSmoothCaret: false,
+      prismAmbientIntensity: '0',
+    });
+
+    const mkPalCard = (id, titleKey, descKey, dotBg, patchKey, patchVal) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          className: 'prism-palette-card',
+          'data-pal-id': id,
+          'aria-pressed': 'false',
+          onClick: () => void savePrismPatch({ [patchKey]: patchVal }),
+        },
+        [
+          h('span', { className: 'prism-palette-dot', style: `background: ${dotBg};` }),
+          h('span', { style: 'display:flex;flex-direction:column;min-width:0;' }, [
+            h('strong', { style: 'font-size: var(--fs-sm); font-weight: 600;', text: t(titleKey) }),
+            h('span', { className: 'text-muted', style: 'font-size: var(--fs-2xs);', text: t(descKey) }),
+          ]),
+        ]
+      );
+
+    const palObsidianCard = mkPalCard(
+      'obsidian',
+      'settings.prism.palObsidian',
+      'settings.prism.palObsidianDesc',
+      'linear-gradient(135deg, #09090B 0%, #669DF6 100%)',
+      'prismPalette',
+      'obsidian'
+    );
+    const palWarmCard = mkPalCard(
+      'warm',
+      'settings.prism.palWarm',
+      'settings.prism.palWarmDesc',
+      'linear-gradient(135deg, #10100F 0%, #D97757 100%)',
+      'prismPalette',
+      'warm'
+    );
+    const palCrystalCard = mkPalCard(
+      'crystal',
+      'settings.prism.lightCrystal',
+      'settings.prism.lightCrystalDesc',
+      'linear-gradient(135deg, #E8EEF6 0%, #2563EB 100%)',
+      'prismLightPreset',
+      'crystal'
+    );
+    const palAlabasterCard = mkPalCard(
+      'alabaster',
+      'settings.prism.lightAlabaster',
+      'settings.prism.lightAlabasterDesc',
+      'linear-gradient(135deg, #EBE6DC 0%, #C25934 100%)',
+      'prismLightPreset',
+      'alabaster'
+    );
+
+    const prismAccentCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.accent'),
+      modelValue: draftPrismAccent,
+      options: [
+        { value: 'follow', label: t('settings.prism.accentFollow') },
+        { value: 'cobalt', label: t('settings.prism.accentCobalt') },
+        { value: 'iris', label: t('settings.prism.accentIris') },
+        { value: 'amber', label: t('settings.prism.accentAmber') },
+        { value: 'mono', label: t('settings.prism.accentMono') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismAccent = val;
+        void savePrismPatch({ prismAccentTone: val });
+      },
+    });
+
+    const prismCornersCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.corners'),
+      modelValue: draftPrismCorners,
+      options: [
+        { value: 'sharp', label: t('settings.prism.cornersSharp') },
+        { value: 'balanced', label: t('settings.prism.cornersBalanced') },
+        { value: 'soft', label: t('settings.prism.cornersSoft') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismCorners = val;
+        void savePrismPatch({ prismCornerStyle: val });
+      },
+    });
+
+    const prismMotionCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.motion'),
+      modelValue: draftPrismMotion,
+      options: [
+        { value: 'off', label: t('settings.prism.motionOff') },
+        { value: 'subtle', label: t('settings.prism.motionSubtle') },
+        { value: 'standard', label: t('settings.prism.motionStandard') },
+        { value: 'ultra', label: t('settings.prism.motionUltra') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismMotion = val;
+        void savePrismPatch({ prismMotionLevel: val });
+      },
+    });
+
+    const prismCodeFontSelect = CustomSelect({
+      modelValue: draftPrismCodeFont,
+      icon: 'code',
+      options: [
+        { value: 'default', label: t('settings.prism.fontDefault') },
+        { value: 'jetbrains', label: t('settings.prism.fontJetbrains') },
+        { value: 'cascadia', label: t('settings.prism.fontCascadia') },
+        { value: 'sfmono', label: t('settings.prism.fontSfmono') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismCodeFont = val;
+        void savePrismPatch({ prismCodeFont: val });
+      },
+    });
+
+    const prismMascotSelect = CustomSelect({
+      modelValue: draftPrismMascot,
+      icon: 'sparkles',
+      options: [
+        { value: 'off', label: t('settings.prism.mascotOff') },
+        { value: 'crab', label: t('settings.prism.mascotCrab') },
+        { value: 'quad-minis', label: t('settings.prism.mascotQuad') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismMascot = val;
+        void savePrismPatch({ prismMascot: val });
+      },
+    });
+
+    const mkOptSwitch = (labelKey, onChange) =>
+      ToggleSwitch({
+        ariaLabelKey: labelKey,
+        modelValue: 'on',
+        onUpdateModelValue: (val) => onChange(val !== 'off'),
+      });
+
+    const ligaturesSwitch = mkOptSwitch('settings.prism.ligatures', (on) => {
+      draftPrismLigatures = on;
+      void savePrismPatch({ prismCodeLigatures: on });
+    });
+    const homeRippleSwitch = mkOptSwitch('settings.prism.homeRipple', (on) => {
+      draftPrismHomeRipple = on;
+      void savePrismPatch({ prismHomeRipple: on });
+    });
+    const smoothCaretSwitch = mkOptSwitch('settings.prism.smoothCaret', (on) => {
+      draftPrismSmoothCaret = on;
+      void savePrismPatch({ prismSmoothCaret: on });
+    });
+    const effortSliderSwitch = mkOptSwitch('settings.prism.effortSlider', (on) => {
+      draftPrismEffortSlider = on ? 'auto' : 'off';
+      void savePrismPatch({ prismEffortSlider: draftPrismEffortSlider });
+    });
+    const workbenchSwitch = mkOptSwitch('settings.prism.workbench', (on) => {
+      draftPrismWorkbench = on ? 'on' : 'off';
+      void savePrismPatch({ prismWorkbenchEnhancer: draftPrismWorkbench });
+    });
+    const homeStudioSwitch = mkOptSwitch('settings.prism.homeStudio', (on) => {
+      draftPrismHomeStudio = on ? 'on' : 'off';
+      void savePrismPatch({ prismHomeStudio: draftPrismHomeStudio });
+    });
+    const omniSwitch = mkOptSwitch('settings.prism.omni', (on) => {
+      draftPrismOmni = on ? 'on' : 'off';
+      void savePrismPatch({ prismOmniModule: draftPrismOmni });
+    });
+    const wallpaperSwitch = mkOptSwitch('settings.prism.wallpaper', (on) => {
+      draftPrismWallpaper = on;
+      patchAttr(wallpaperControlsRow, 'hidden', !on);
+      void savePrismPatch({ prismWallpaperEnabled: on });
+    });
+
+    const wallpaperInfoEl = h('span', {
+      className: 'text-muted',
+      style: 'font-size: var(--fs-xs);',
+      text: t('settings.prism.wallpaperNone'),
+    });
+    const wallpaperPickBtn = h(
+      'button',
+      {
+        type: 'button',
+        className: 'btn-secondary',
+        onClick: async () => {
+          try {
+            const res = await callSidecarApi('/api/prism/wallpaper', {
+              method: 'POST',
+              body: { action: 'pick-media' },
+            });
+            if (res?.config?.mediaPath) {
+              patchText(wallpaperInfoEl, res.config.mediaPath);
+            }
+          } catch {
+            // ignore picker errors
+          }
+        },
+      },
+      [h('span', { text: t('settings.prism.wallpaperPick') })]
+    );
+    const wallpaperClearBtn = h(
+      'button',
+      {
+        type: 'button',
+        className: 'btn-secondary',
+        onClick: async () => {
+          try {
+            await callSidecarApi('/api/prism/wallpaper', {
+              method: 'POST',
+              body: { action: 'clear-media' },
+            });
+            patchText(wallpaperInfoEl, t('settings.prism.wallpaperNone'));
+          } catch {
+            // ignore clear errors
+          }
+        },
+      },
+      [h('span', { text: t('settings.prism.wallpaperClear') })]
+    );
+    const wallpaperControlsRow = h(
+      'div',
+      { className: 'form-row', hidden: true, style: 'flex-wrap: wrap; gap: 6px;' },
+      [wallpaperPickBtn, wallpaperClearBtn, wallpaperInfoEl]
+    );
+
+    const prismPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('sparkles', { size: 13 }),
+          prismTitleEl,
+        ]),
+        prismStatusEl,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.presets') }),
+        h('div', { className: 'prism-preset-bar' }, [presetFullBtn, presetFocusBtn, presetEcoBtn]),
+      ]),
+      h('div', { className: 'form-row', style: 'align-items: flex-start;' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.palette') }),
+        h('div', { className: 'prism-palette-swatches' }, [
+          palObsidianCard,
+          palWarmCard,
+          palCrystalCard,
+          palAlabasterCard,
+        ]),
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.accent') }),
+        prismAccentCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.corners') }),
+        prismCornersCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.motion') }),
+        prismMotionCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.codeFont') }),
+        prismCodeFontSelect.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.ligatures') }),
+        ligaturesSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.homeRipple') }),
+        homeRippleSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.smoothCaret') }),
+        smoothCaretSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.effortSlider') }),
+        effortSliderSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.workbench') }),
+        workbenchSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.homeStudio') }),
+        homeStudioSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.omni') }),
+        omniSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.mascot') }),
+        prismMascotSelect.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.wallpaper') }),
+        wallpaperSwitch.el,
+      ]),
+      wallpaperControlsRow,
+      h('div', { className: 'prism-attribution-box', text: t('settings.prism.attribution') }),
+    ]);
+
     // --- Card 2: 版本更新 ---
     const updateTitleEl = h('span', { text: t('settings.gen.updateTitle') });
     const updateModeLabelEl = h('span', {
@@ -410,7 +798,11 @@ export const SettingsGeneralTab = defineComponent({
       h('div', { className: 'cloud-actions-row' }, [syncPricingBtn, updatePluginBtn]),
     ]);
 
-    const rootEl = h('div', { className: 'settings-tab-stack' }, [appearancePanel, cloudPanel]);
+    const rootEl = h('div', { className: 'settings-tab-stack' }, [
+      appearancePanel,
+      prismPanel,
+      cloudPanel,
+    ]);
 
     function renderSettings(settings) {
       if (!settings) return;
@@ -424,6 +816,59 @@ export const SettingsGeneralTab = defineComponent({
         settings.autoUpdatePlugin
       );
       draftPluginUpdateMode = normalizedUpdateMode === 'auto' ? 'manual' : normalizedUpdateMode;
+
+      draftPrismPalette = settings.prismPalette === 'warm' ? 'warm' : 'obsidian';
+      draftPrismLightPreset = settings.prismLightPreset === 'alabaster' ? 'alabaster' : 'crystal';
+      draftPrismAccent = settings.prismAccentTone || 'follow';
+      draftPrismCorners = settings.prismCornerStyle || 'balanced';
+      draftPrismMotion = settings.prismMotionLevel || 'ultra';
+      draftPrismCodeFont = settings.prismCodeFont || 'default';
+      draftPrismLigatures = settings.prismCodeLigatures === true;
+      draftPrismHomeRipple = settings.prismHomeRipple !== false;
+      draftPrismSmoothCaret = settings.prismSmoothCaret !== false;
+      draftPrismEffortSlider = settings.prismEffortSlider || 'auto';
+      draftPrismWorkbench = settings.prismWorkbenchEnhancer === 'off' ? 'off' : 'on';
+      draftPrismHomeStudio = settings.prismHomeStudio === 'off' ? 'off' : 'on';
+      draftPrismOmni = settings.prismOmniModule === 'off' ? 'off' : 'on';
+      draftPrismMascot = settings.prismMascot || 'off';
+      draftPrismWallpaper = settings.prismWallpaperEnabled === true;
+
+      patchAttr(palObsidianCard, 'aria-pressed', String(draftPrismPalette === 'obsidian'));
+      patchAttr(palWarmCard, 'aria-pressed', String(draftPrismPalette === 'warm'));
+      patchAttr(palCrystalCard, 'aria-pressed', String(draftPrismLightPreset === 'crystal'));
+      patchAttr(palAlabasterCard, 'aria-pressed', String(draftPrismLightPreset === 'alabaster'));
+      patchAttr(
+        presetFullBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'ultra' && draftPrismHomeRipple && draftPrismSmoothCaret)
+      );
+      patchAttr(
+        presetFocusBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'standard' && !draftPrismHomeRipple && draftPrismSmoothCaret)
+      );
+      patchAttr(
+        presetEcoBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'off' && !draftPrismHomeRipple && !draftPrismSmoothCaret)
+      );
+
+      prismAccentCtrl.setValue(draftPrismAccent);
+      prismCornersCtrl.setValue(draftPrismCorners);
+      prismMotionCtrl.setValue(draftPrismMotion);
+      prismCodeFontSelect.setValue(draftPrismCodeFont);
+      prismMascotSelect.setValue(
+        ['off', 'crab', 'quad-minis'].includes(draftPrismMascot) ? draftPrismMascot : 'crab'
+      );
+      ligaturesSwitch.setValue(draftPrismLigatures ? 'on' : 'off');
+      homeRippleSwitch.setValue(draftPrismHomeRipple ? 'on' : 'off');
+      smoothCaretSwitch.setValue(draftPrismSmoothCaret ? 'on' : 'off');
+      effortSliderSwitch.setValue(draftPrismEffortSlider === 'off' ? 'off' : 'on');
+      workbenchSwitch.setValue(draftPrismWorkbench);
+      homeStudioSwitch.setValue(draftPrismHomeStudio);
+      omniSwitch.setValue(draftPrismOmni);
+      wallpaperSwitch.setValue(draftPrismWallpaper ? 'on' : 'off');
+      patchAttr(wallpaperControlsRow, 'hidden', !draftPrismWallpaper);
 
       languageSwitch.setProps({
         modelValue: draftLanguage,
@@ -538,6 +983,19 @@ export const SettingsGeneralTab = defineComponent({
       fontScaleSwitch.destroy();
       modernUiSwitch.destroy();
       autoUpdateSelect.destroy();
+      prismAccentCtrl.destroy();
+      prismCornersCtrl.destroy();
+      prismMotionCtrl.destroy();
+      prismCodeFontSelect.destroy();
+      prismMascotSelect.destroy();
+      ligaturesSwitch.destroy();
+      homeRippleSwitch.destroy();
+      smoothCaretSwitch.destroy();
+      effortSliderSwitch.destroy();
+      workbenchSwitch.destroy();
+      homeStudioSwitch.destroy();
+      omniSwitch.destroy();
+      wallpaperSwitch.destroy();
     });
 
     return {

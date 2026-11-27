@@ -196,6 +196,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   },
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
+  boolField('enableChatTurnSummary', true),
   boolField('enableCliStatusLine', false),
   normField('cliStatusLineSlots', normalizeCliStatusLineSlots),
   normField('standalonePort', normalizeStandalonePort),

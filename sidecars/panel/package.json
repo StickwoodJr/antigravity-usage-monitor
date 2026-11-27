@@ -8,6 +8,7 @@
     "build": "node scripts/build-bundle.mjs",
     "pack:release": "node scripts/pack-release-zip.mjs",
     "standalone": "node standalone.mjs",
+    "workbench": "node scripts/workbench-dev.mjs",
     "test": "node --test test/*.test.mjs"
   }
 }

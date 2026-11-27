@@ -575,3 +575,292 @@ export function normalizeExperimentalModernUi(val) {
   }
   return Boolean(val);
 }
+
+/**
+ * 归一化对话内轮次多代理/编排器摘要卡片开关（默认 `true`）。
+ *
+ * @param {unknown} val
+ * @returns {boolean}
+ */
+export function normalizeEnableChatTurnSummary(val) {
+  if (val === undefined || val === null || val === '') return true;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return true;
+  }
+  return Boolean(val);
+}
+
+// ---------------------------------------------------------------------------
+// Obsidian Prism Optical UI & Host Module Settings (GPL-3.0-only, @RMvdesi)
+// ---------------------------------------------------------------------------
+
+export const PRISM_PALETTE_KEYS = Object.freeze(['obsidian', 'warm']);
+export const PRISM_LIGHT_PRESET_KEYS = Object.freeze(['crystal', 'alabaster']);
+export const PRISM_DARK_AURA_STYLE_KEYS = Object.freeze(['prism', 'neon']);
+export const PRISM_ACCENT_TONE_KEYS = Object.freeze(['follow', 'cobalt', 'iris', 'amber', 'mono']);
+export const PRISM_CORNER_STYLE_KEYS = Object.freeze(['sharp', 'balanced', 'soft']);
+export const PRISM_CODE_FONT_KEYS = Object.freeze(['default', 'jetbrains', 'cascadia', 'sfmono']);
+export const PRISM_AMBIENT_INTENSITY_KEYS = Object.freeze(['0', '35', '70', '100']);
+export const PRISM_DARK_AURA_KEYS = Object.freeze(['subtle', 'balanced', 'vivid']);
+export const PRISM_MOTION_LEVEL_KEYS = Object.freeze(['off', 'subtle', 'standard', 'ultra']);
+export const PRISM_TARGET_FPS_KEYS = Object.freeze(['60', '120', '180', 'native']);
+export const PRISM_CONV_RIPPLE_KEYS = Object.freeze(['off', 'subtle', 'medium', 'full']);
+export const PRISM_ON_OFF_AUTO_KEYS = Object.freeze(['auto', 'on', 'off']);
+export const PRISM_ON_OFF_KEYS = Object.freeze(['on', 'off']);
+export const PRISM_LINK_TARGET_KEYS = Object.freeze(['builtin', 'external']);
+
+function normalizeEnumValue(raw, allowed, fallback) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  return allowed.includes(clean) ? clean : fallback;
+}
+
+function normalizeBoolDefault(raw, defaultValue) {
+  if (raw === undefined || raw === null || raw === '') return defaultValue;
+  if (typeof raw === 'string') {
+    const lower = raw.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return defaultValue;
+  }
+  return Boolean(raw);
+}
+
+export function normalizePrismPalette(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'claude' || clean === 'warm') return 'warm';
+  return 'obsidian';
+}
+
+export function normalizePrismLightPreset(raw) {
+  return normalizeEnumValue(raw, PRISM_LIGHT_PRESET_KEYS, 'crystal');
+}
+
+export function normalizePrismDarkAuraStyle(raw) {
+  return normalizeEnumValue(raw, PRISM_DARK_AURA_STYLE_KEYS, 'prism');
+}
+
+export function normalizePrismAccentTone(raw) {
+  return normalizeEnumValue(raw, PRISM_ACCENT_TONE_KEYS, 'follow');
+}
+
+export function normalizePrismCornerStyle(raw) {
+  return normalizeEnumValue(raw, PRISM_CORNER_STYLE_KEYS, 'balanced');
+}
+
+export function normalizePrismCodeFont(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'fira') return 'jetbrains';
+  if (clean === 'system') return 'sfmono';
+  return PRISM_CODE_FONT_KEYS.includes(clean) ? clean : 'default';
+}
+
+export function normalizePrismAmbientIntensity(raw) {
+  const clean = String(raw ?? '').trim();
+  if (PRISM_AMBIENT_INTENSITY_KEYS.includes(clean)) return clean;
+  const num = Number(clean);
+  if (Number.isFinite(num)) {
+    if (num <= 10) return '0';
+    if (num <= 52) return '35';
+    if (num <= 85) return '70';
+    return '100';
+  }
+  return '100';
+}
+
+export function normalizePrismDarkAura(raw) {
+  return normalizeEnumValue(raw, PRISM_DARK_AURA_KEYS, 'balanced');
+}
+
+export function normalizePrismMotionLevel(raw) {
+  return normalizeEnumValue(raw, PRISM_MOTION_LEVEL_KEYS, 'ultra');
+}
+
+export function normalizePrismTargetFps(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === '144') return '180';
+  if (clean === '240' || clean === '300') return 'native';
+  return PRISM_TARGET_FPS_KEYS.includes(clean) ? clean : '180';
+}
+
+export function normalizePrismConvRipple(raw) {
+  if (raw === true) return 'medium';
+  if (raw === false) return 'off';
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'true' || clean === 'on') return 'medium';
+  return PRISM_CONV_RIPPLE_KEYS.includes(clean) ? clean : 'off';
+}
+
+export function normalizePrismAutoOnOff(raw, fallback = 'auto') {
+  if (raw === true) return 'on';
+  if (raw === false) return 'off';
+  return normalizeEnumValue(raw, PRISM_ON_OFF_AUTO_KEYS, fallback);
+}
+
+export function normalizePrismOnOff(raw, fallback = 'on') {
+  if (raw === true) return 'on';
+  if (raw === false) return 'off';
+  return normalizeEnumValue(raw, PRISM_ON_OFF_KEYS, fallback);
+}
+
+export function normalizePrismLinkTarget(raw) {
+  return normalizeEnumValue(raw, PRISM_LINK_TARGET_KEYS, 'builtin');
+}
+
+export function normalizePrismMascot(raw) {
+  if (raw === undefined || raw === null || raw === '' || raw === false || raw === 'off') {
+    return 'off';
+  }
+  const clean = String(raw).trim();
+  if (clean === 'dual') return 'crab';
+  if (clean === 'all') return 'quad-minis';
+  if (clean === 'cat') return 'r:k1';
+  if (clean === 'dragon') return 'r:d1';
+  if (clean === 'whale') return 'r:w1';
+  if (/^(crab|minis|quad|quad-minis|r:(?:[ckdw][0-4](?:,[ckdw][0-4])*)?(?:\+m)?)$/.test(clean)) {
+    return clean;
+  }
+  return 'off';
+}
+
+export function normalizePrismEnabled(raw) {
+  return normalizeBoolDefault(raw, true);
+}
+
+export function normalizePrismBoolTrue(raw) {
+  return normalizeBoolDefault(raw, true);
+}
+
+export function normalizePrismBoolFalse(raw) {
+  return normalizeBoolDefault(raw, false);
+}
+
+/**
+ * Translate canonical Usage Monitor settings into Obsidian Prism runtime config.
+ *
+ * @param {object|null|undefined} settings
+ * @returns {Record<string, any>}
+ */
+export function mapSettingsToPrismRuntimeConfig(settings) {
+  const s = settings && typeof settings === 'object' ? settings : {};
+  const enabled = normalizePrismEnabled(s.prismEnabled);
+  const mascot = normalizePrismMascot(s.prismMascot);
+  const homeStudio = normalizePrismOnOff(s.prismHomeStudio, 'on');
+  const workbench = normalizePrismOnOff(s.prismWorkbenchEnhancer, 'on');
+  const omni = normalizePrismOnOff(s.prismOmniModule, 'on');
+  const effort = normalizePrismAutoOnOff(s.prismEffortSlider, 'auto');
+  const effortMem = normalizePrismOnOff(s.prismEffortMemory, 'on');
+  const wallpaperOn = normalizePrismBoolFalse(s.prismWallpaperEnabled);
+  const homeRipple = normalizePrismBoolTrue(s.prismHomeRipple);
+  const composerRestyle = normalizePrismBoolTrue(s.prismComposerRestyle);
+  const sidebarRestyle = normalizePrismBoolTrue(s.prismSidebarRestyle);
+  return {
+    prismEnabled: enabled,
+    language: normalizeLanguageSetting(s.language),
+    lang: normalizeLanguageSetting(s.language),
+    palette: normalizePrismPalette(s.prismPalette),
+    lightPreset: normalizePrismLightPreset(s.prismLightPreset),
+    darkAuraStyle: normalizePrismDarkAuraStyle(s.prismDarkAuraStyle),
+    accentTone: normalizePrismAccentTone(s.prismAccentTone),
+    cornerStyle: normalizePrismCornerStyle(s.prismCornerStyle),
+    codeFont: normalizePrismCodeFont(s.prismCodeFont),
+    codeLigatures: normalizePrismBoolFalse(s.prismCodeLigatures),
+    ambientIntensity: normalizePrismAmbientIntensity(s.prismAmbientIntensity),
+    darkAura: normalizePrismDarkAura(s.prismDarkAura),
+    motionLevel: normalizePrismMotionLevel(s.prismMotionLevel),
+    targetFps: normalizePrismTargetFps(s.prismTargetFps),
+    homeLayout: homeStudio === 'on' ? 'studio' : 'off',
+    homeMode: homeStudio === 'on' ? 'studio' : 'off',
+    homeRipple,
+    ripple: homeRipple ? 'on' : 'off',
+    convRipple: normalizePrismConvRipple(s.prismConvRipple),
+    smoothCaret: normalizePrismBoolTrue(s.prismSmoothCaret),
+    scrollBottomMotion: normalizeEnumValue(s.prismScrollBottomMotion, ['smooth', 'instant'], 'smooth'),
+    composerRestyle,
+    composer: composerRestyle ? 'on' : 'off',
+    sidebarRestyle,
+    sidebar: sidebarRestyle ? 'on' : 'off',
+    sidebarCompact: normalizePrismBoolFalse(s.prismSidebarCompact),
+    sidebarNavFold: normalizePrismOnOff(s.prismSidebarNavFold, 'off'),
+    placeholderStyle: normalizeEnumValue(s.prismPlaceholderStyle, ['studio', 'host'], 'studio'),
+    promptStyle: normalizeEnumValue(s.prismPlaceholderStyle, ['studio', 'host'], 'studio'),
+    logoInk: normalizeEnumValue(s.prismLogoInk, ['accent', 'mono', 'native'], 'accent'),
+    effortSliderModule: effort,
+    effortMemory: effortMem,
+    workbenchEnhancer: workbench,
+    omniModule: omni,
+    linkTarget: normalizePrismLinkTarget(s.prismLinkTarget),
+    mascot,
+    wallpaperEnabled: wallpaperOn,
+    // Strictly disabled excluded features
+    telemetryModule: 'off',
+    periodicModelPicker: 'off',
+    thoughtTranslate: 'off',
+    contextMenu: false,
+    inlineDiff: 'off',
+    sidebarStudio: 'off',
+    hostLocalization: 'off',
+    autoUpdate: 'off',
+  };
+}
+
+/**
+ * Translate a partial Obsidian Prism settings patch back to canonical Usage Monitor settings keys.
+ *
+ * @param {object|null|undefined} prismPatch
+ * @returns {Record<string, any>}
+ */
+export function mapPrismPatchToSettingsPatch(prismPatch) {
+  if (!prismPatch || typeof prismPatch !== 'object' || Array.isArray(prismPatch)) return {};
+  const out = {};
+  if ('prismEnabled' in prismPatch) out.prismEnabled = normalizePrismEnabled(prismPatch.prismEnabled);
+  if ('palette' in prismPatch) out.prismPalette = normalizePrismPalette(prismPatch.palette);
+  if ('lightPreset' in prismPatch) out.prismLightPreset = normalizePrismLightPreset(prismPatch.lightPreset);
+  if ('darkAuraStyle' in prismPatch) out.prismDarkAuraStyle = normalizePrismDarkAuraStyle(prismPatch.darkAuraStyle);
+  if ('accentTone' in prismPatch) out.prismAccentTone = normalizePrismAccentTone(prismPatch.accentTone);
+  if ('cornerStyle' in prismPatch) out.prismCornerStyle = normalizePrismCornerStyle(prismPatch.cornerStyle);
+  if ('codeFont' in prismPatch) out.prismCodeFont = normalizePrismCodeFont(prismPatch.codeFont);
+  if ('codeLigatures' in prismPatch) out.prismCodeLigatures = normalizePrismBoolFalse(prismPatch.codeLigatures);
+  if ('ambientIntensity' in prismPatch) out.prismAmbientIntensity = normalizePrismAmbientIntensity(prismPatch.ambientIntensity);
+  if ('darkAura' in prismPatch) out.prismDarkAura = normalizePrismDarkAura(prismPatch.darkAura);
+  if ('motionLevel' in prismPatch) out.prismMotionLevel = normalizePrismMotionLevel(prismPatch.motionLevel);
+  if ('targetFps' in prismPatch) out.prismTargetFps = normalizePrismTargetFps(prismPatch.targetFps);
+  if ('homeRipple' in prismPatch || 'ripple' in prismPatch) {
+    const raw = 'homeRipple' in prismPatch ? prismPatch.homeRipple : prismPatch.ripple;
+    out.prismHomeRipple = normalizePrismBoolTrue(raw);
+  }
+  if ('convRipple' in prismPatch) out.prismConvRipple = normalizePrismConvRipple(prismPatch.convRipple);
+  if ('smoothCaret' in prismPatch) out.prismSmoothCaret = normalizePrismBoolTrue(prismPatch.smoothCaret);
+  if ('scrollBottomMotion' in prismPatch) {
+    out.prismScrollBottomMotion = normalizeEnumValue(prismPatch.scrollBottomMotion, ['smooth', 'instant'], 'smooth');
+  }
+  if ('composerRestyle' in prismPatch || 'composer' in prismPatch) {
+    const raw = 'composerRestyle' in prismPatch ? prismPatch.composerRestyle : prismPatch.composer;
+    out.prismComposerRestyle = normalizePrismBoolTrue(raw);
+  }
+  if ('sidebarRestyle' in prismPatch || 'sidebar' in prismPatch) {
+    const raw = 'sidebarRestyle' in prismPatch ? prismPatch.sidebarRestyle : prismPatch.sidebar;
+    out.prismSidebarRestyle = normalizePrismBoolTrue(raw);
+  }
+  if ('sidebarCompact' in prismPatch) out.prismSidebarCompact = normalizePrismBoolFalse(prismPatch.sidebarCompact);
+  if ('sidebarNavFold' in prismPatch) out.prismSidebarNavFold = normalizePrismOnOff(prismPatch.sidebarNavFold, 'off');
+  if ('placeholderStyle' in prismPatch || 'promptStyle' in prismPatch) {
+    const raw = 'placeholderStyle' in prismPatch ? prismPatch.placeholderStyle : prismPatch.promptStyle;
+    out.prismPlaceholderStyle = normalizeEnumValue(raw, ['studio', 'host'], 'studio');
+  }
+  if ('logoInk' in prismPatch) out.prismLogoInk = normalizeEnumValue(prismPatch.logoInk, ['accent', 'mono', 'native'], 'accent');
+  if ('effortSliderModule' in prismPatch) out.prismEffortSlider = normalizePrismAutoOnOff(prismPatch.effortSliderModule, 'auto');
+  if ('effortMemory' in prismPatch) out.prismEffortMemory = normalizePrismOnOff(prismPatch.effortMemory, 'on');
+  if ('homeLayout' in prismPatch || 'homeMode' in prismPatch || 'homeStudio' in prismPatch) {
+    const raw = prismPatch.homeStudio ?? prismPatch.homeLayout ?? prismPatch.homeMode;
+    out.prismHomeStudio = raw === 'off' || raw === false ? 'off' : 'on';
+  }
+  if ('workbenchEnhancer' in prismPatch) out.prismWorkbenchEnhancer = normalizePrismOnOff(prismPatch.workbenchEnhancer, 'on');
+  if ('omniModule' in prismPatch) out.prismOmniModule = normalizePrismOnOff(prismPatch.omniModule, 'on');
+  if ('linkTarget' in prismPatch) out.prismLinkTarget = normalizePrismLinkTarget(prismPatch.linkTarget);
+  if ('mascot' in prismPatch) out.prismMascot = normalizePrismMascot(prismPatch.mascot);
+  if ('wallpaperEnabled' in prismPatch) out.prismWallpaperEnabled = normalizePrismBoolFalse(prismPatch.wallpaperEnabled);
+  return out;
+}

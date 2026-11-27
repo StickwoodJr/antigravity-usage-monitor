@@ -236,6 +236,7 @@ export const SettingsStructureTab = defineComponent({
     let draftEnableCliStatusLine = false;
     let draftCliStatusLineSlots = null;
     let draftShowTopbarMulti = true;
+    let draftEnableChatTurnSummary = true;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
@@ -281,6 +282,7 @@ export const SettingsStructureTab = defineComponent({
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
           showTopbarMultiSession: draftShowTopbarMulti,
+          enableChatTurnSummary: draftEnableChatTurnSummary,
           contextAgentMode: draftContextAgentMode,
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
@@ -394,6 +396,10 @@ export const SettingsStructureTab = defineComponent({
     const multiToggleLabelEl = h('span', {
       className: 'form-label',
       text: t('settings.str.multiToggle'),
+    });
+    const chatTurnSummaryLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.chatTurnSummaryToggle'),
     });
     const contextAgentModeLabelEl = h('span', {
       className: 'form-label',
@@ -516,6 +522,19 @@ export const SettingsStructureTab = defineComponent({
         syncMountSectionMeta();
         void persistStructurePatch(mountSection, {
           showTopbarMultiSession: draftShowTopbarMulti,
+        });
+      },
+    });
+
+    const chatTurnSummaryToggle = ToggleSwitch({
+      ariaLabelKey: 'settings.str.chatTurnSummaryToggle',
+      preset: 'enable',
+      modelValue: 'on',
+      onUpdateModelValue: (val) => {
+        draftEnableChatTurnSummary = val !== 'off';
+        syncMountSectionMeta();
+        void persistStructurePatch(mountSection, {
+          enableChatTurnSummary: draftEnableChatTurnSummary,
         });
       },
     });
@@ -653,6 +672,7 @@ export const SettingsStructureTab = defineComponent({
         draftEnableCliStatusLine = false;
         draftCliStatusLineSlots = null;
         draftShowTopbarMulti = true;
+        draftEnableChatTurnSummary = true;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
         draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
         uiStore.setState({ ctxInspectorAgentId: DEFAULT_CLIENT_CONTEXT_AGENT_MODE });
@@ -668,6 +688,7 @@ export const SettingsStructureTab = defineComponent({
             enableCliStatusLine: false,
             cliStatusLineSlots: null,
             showTopbarMultiSession: true,
+            enableChatTurnSummary: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
             topbarCapsuleSlots: [...DEFAULT_CLIENT_TOPBAR_SLOTS],
           },
@@ -689,6 +710,10 @@ export const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-inline-row' }, [
           multiToggleLabelEl,
           multiSessionToggle.el,
+        ]),
+        h('div', { className: 'settings-inline-row' }, [
+          chatTurnSummaryLabelEl,
+          chatTurnSummaryToggle.el,
         ]),
         h('div', { className: 'settings-inline-row' }, [
           contextAgentModeLabelEl,
@@ -770,6 +795,9 @@ export const SettingsStructureTab = defineComponent({
       }
       multiSessionToggle.setProps({
         modelValue: draftShowTopbarMulti ? 'show' : 'hide',
+      });
+      chatTurnSummaryToggle.setProps({
+        modelValue: draftEnableChatTurnSummary ? 'on' : 'off',
       });
       contextAgentModeToggle.setProps({
         modelValue: draftContextAgentMode,
@@ -1456,6 +1484,7 @@ export const SettingsStructureTab = defineComponent({
       draftEnableCliStatusLine = settings.enableCliStatusLine === true;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
       draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
+      draftEnableChatTurnSummary = settings.enableChatTurnSummary !== false;
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
       draftTopbarSlots = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       draftHoverModules = normalizeClientHoverModules(settings.hoverModules);
@@ -1489,6 +1518,7 @@ export const SettingsStructureTab = defineComponent({
       patchText(popoverWidthLabelEl, t('settings.str.popoverWidthLabel'));
       popoverWidthStepper.setProps({ ariaLabel: t('settings.str.popoverWidthLabel') });
       patchText(multiToggleLabelEl, t('settings.str.multiToggle'));
+      patchText(chatTurnSummaryLabelEl, t('settings.str.chatTurnSummaryToggle'));
       patchText(contextAgentModeLabelEl, t('settings.str.contextAgentModeLabel'));
       patchText(cliCapsuleLabelEl, t('settings.str.cliCapsuleToggle'));
       patchText(cliSlotsLabelEl, t('settings.str.cliSlotsLabel'));

@@ -20,6 +20,8 @@ test('pack-release-zip ships only runtime-essential files, excludes dev bloat, a
     'mcp_config.json',
     'pricing-catalog.json',
     'LICENSE',
+    'NOTICE',
+    'THIRD_PARTY_NOTICES.md',
     'assets/logo.svg',
     'sidecars/panel/sidecar.json',
     'sidecars/panel/index.html',
@@ -32,10 +34,13 @@ test('pack-release-zip ships only runtime-essential files, excludes dev bloat, a
     'sidecars/panel/cli-statusline.mjs',
     'sidecars/panel/trajectory-metrics.mjs',
     'sidecars/panel/backend/api-actions.mjs',
+    'sidecars/panel/backend/prism-cdp-host.mjs',
+    'sidecars/panel/prism/prism-bundler.mjs',
     'sidecars/panel/shared/settings-normalization.mjs',
   ]) {
     assert.ok(relFiles.includes(mustHave), `Release whitelist must include ${mustHave}`);
   }
+  assert.equal(relFiles.includes('sidecars/panel/scripts/workbench-dev.mjs'), false);
 
   assert.equal(relFiles.some((rel) => rel.endsWith('.ps1')), false, 'Release ZIP must contain zero .ps1 files');
   assert.equal(relFiles.includes('sidecars/panel/backend/account-credentials.ps1'), false);
@@ -67,8 +72,8 @@ test('pack-release-zip ships only runtime-essential files, excludes dev bloat, a
   assert.ok(existsSync(zipPath));
   assert.ok(summary.zipBytes > 100 * 1024, 'ZIP should contain compiled assets and backend');
   assert.ok(
-    summary.zipBytes < 750 * 1024,
-    `Runtime-only ZIP should stay compact (<750 KB), got ${(summary.zipBytes / 1024).toFixed(1)} KB`
+    summary.zipBytes < 2500 * 1024,
+    `Runtime-only ZIP should stay compact (<2500 KB), got ${(summary.zipBytes / 1024).toFixed(1)} KB`
   );
 
   // Extract via OS-native expander (same path used by plugin-updater.mjs, where extractDir already exists)

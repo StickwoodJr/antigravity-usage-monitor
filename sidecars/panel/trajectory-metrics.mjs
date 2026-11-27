@@ -884,6 +884,7 @@ function buildStepAnomalyRecord(step, meta, chat, pendingErrorSteps = []) {
 export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
   const genByStep = new Map();
   const orchestratorExecModels = new Set();
+  const orchestratorPlanModels = new Set();
   const collectOrchestratorExecModel = (pc) => {
     const execModel = pc?.planExecuteConfig?.executionModel;
     if (typeof execModel !== 'string' || !execModel.trim()) {
@@ -898,6 +899,9 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
       (cleanPlan && cleanExec !== cleanPlan)
     ) {
       orchestratorExecModels.add(cleanExec);
+      if (cleanPlan) {
+        orchestratorPlanModels.add(cleanPlan);
+      }
     }
   };
   let latestBreakdownChat = null;
@@ -938,6 +942,125 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
     }
     return Boolean(step.userInput && typeof step.userInput === 'object');
   };
+
+  const isValidModelValue = (value) =>
+    typeof value === 'string' &&
+    value.trim() &&
+    !/^(?:0|unknown|MODEL_(?:UNSPECIFIED|UNKNOWN))$/i.test(value.trim());
+
+  const execPhaseRawIndices = new Set();
+  const planPhaseRawIndices = new Set();
+  const nonOrchTurnRawIndices = new Set();
+  let hasPlanExecHandoff = false;
+  {
+    const readRawStepModelKey = (step, idx) => {
+      const m = step?.metadata;
+      const stepIdx = m?.sourceTrajectoryStepInfo?.stepIndex ?? idx;
+      const gm = genByStep.get(Number(stepIdx));
+      const candidates = [
+        m?.modelUsage?.model,
+        m?.generatorModel,
+        gm?.chatModel?.model,
+        gm?.chatModel?.usage?.model,
+      ];
+      const found = candidates.find(isValidModelValue);
+      return found ? found.trim() : '';
+    };
+    let inPlanExecPhase = false;
+    let lastPlanPhaseModel = '';
+    let activeTurnHasExplicitConfig = false;
+    let activeTurnIsPlanExecute = false;
+    let activeTurnPlanModel = '';
+    let activeTurnExecModel = '';
+    for (let i = 0; i < rawSteps.length; i += 1) {
+      const s = rawSteps[i];
+      if (isUserTurnBoundary(s)) {
+        inPlanExecPhase = false;
+        const ui = s?.userInput;
+        const userPc = ui?.userConfig?.plannerConfig;
+        const defaultAgentSpec = ui?.userAgentSpec?.builtinAgent?.defaultAgent;
+        const hasExplicit = Boolean(
+          (ui?.userAgentSpec && typeof ui.userAgentSpec === 'object') ||
+            (userPc && typeof userPc === 'object')
+        );
+        const turnExec = String(userPc?.planExecuteConfig?.executionModel || '').trim();
+        const turnPlan = String(userPc?.planModel || '').trim();
+        const isPlanExec = Boolean(
+          defaultAgentSpec?.planExecute ||
+            turnExec ||
+            /orchestrator|MODEL_PLACEHOLDER_M(?:667|681|537)\b/i.test(
+              `${userPc?.modelName || ''} ${turnPlan}`
+            )
+        );
+        activeTurnHasExplicitConfig = hasExplicit;
+        activeTurnIsPlanExecute = isPlanExec;
+        activeTurnPlanModel = turnPlan;
+        activeTurnExecModel = turnExec;
+        if (isPlanExec) {
+          if (turnPlan) orchestratorPlanModels.add(turnPlan);
+          if (turnExec && (!turnPlan || turnExec !== turnPlan)) {
+            orchestratorExecModels.add(turnExec);
+          }
+        }
+        continue;
+      }
+      const sysMsg = String(s?.systemMessage?.message || s?.systemMessage?.text || '').trim();
+      if (/^Plan mode is off\b/i.test(sysMsg)) {
+        inPlanExecPhase = true;
+        hasPlanExecHandoff = true;
+        continue;
+      }
+      if (/^\[plan review\]/i.test(sysMsg)) {
+        inPlanExecPhase = false;
+        hasPlanExecHandoff = true;
+        continue;
+      }
+      const toolCalls = Array.isArray(s?.plannerResponse?.toolCalls) ? s.plannerResponse.toolCalls : [];
+      const callsExitPlan = toolCalls.some((tc) => String(tc?.name || '').trim() === 'exit_plan_mode');
+      const callsEnterPlan = toolCalls.some((tc) => String(tc?.name || '').trim() === 'enter_plan_mode');
+      const rawModel = readRawStepModelKey(s, i);
+      if (callsExitPlan) {
+        planPhaseRawIndices.add(i);
+        hasPlanExecHandoff = true;
+        if (rawModel) {
+          orchestratorPlanModels.add(rawModel);
+          lastPlanPhaseModel = rawModel;
+        }
+        inPlanExecPhase = true;
+        continue;
+      }
+      if (inPlanExecPhase) {
+        execPhaseRawIndices.add(i);
+        if (
+          rawModel &&
+          (!lastPlanPhaseModel || rawModel !== lastPlanPhaseModel) &&
+          !orchestratorPlanModels.has(rawModel)
+        ) {
+          orchestratorExecModels.add(rawModel);
+        }
+        if (callsEnterPlan) {
+          inPlanExecPhase = false;
+        }
+        continue;
+      }
+      if (activeTurnHasExplicitConfig) {
+        if (activeTurnIsPlanExecute) {
+          if (
+            activeTurnExecModel &&
+            rawModel &&
+            rawModel === activeTurnExecModel &&
+            rawModel !== activeTurnPlanModel
+          ) {
+            execPhaseRawIndices.add(i);
+          } else {
+            planPhaseRawIndices.add(i);
+          }
+        } else {
+          nonOrchTurnRawIndices.add(i);
+        }
+      }
+    }
+  }
 
   const hasHumanUserTurn = rawSteps.some(isUserTurnBoundary);
 
@@ -1296,11 +1419,6 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
 
     // 模型身份 5 级证据链优先级：仅采信当前请求自身的显式字段；
     // 若 Checkpoint 压缩步骤缺失模型字段，稍后由 inferCompactionStepModels 从同轨迹邻居步骤回退推断
-    const isValidModelValue = (value) =>
-      typeof value === 'string' &&
-      value.trim() &&
-      !/^(?:0|unknown|MODEL_(?:UNSPECIFIED|UNKNOWN))$/i.test(value.trim());
-
     const modelCandidates = [
       ['usage.model', u.model],
       ['chat.usage.model', chat?.usage?.model],
@@ -1332,7 +1450,8 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
       resolvedModelKey === 'MODEL_PLACEHOLDER_M669' ||
       /^gemini-flash-worker-agy$/i.test(rawResponseModel || '');
     const isNeonWorkerStep = /^gemini-(?:4-)?neon-worker-agy$/i.test(rawResponseModel || '');
-    const isExecWorkerStep = orchestratorExecModels.has(resolvedModelKey);
+    const isNonOrchTurnStep = nonOrchTurnRawIndices.has(index);
+    const isExecWorkerStep = !isNonOrchTurnStep && orchestratorExecModels.has(resolvedModelKey);
 
     let resolvedDisplayName = rawDisplayName;
     if (isHydrogenWorkerStep && isGenericWorkerDisplay) {
@@ -1344,11 +1463,33 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
       resolvedDisplayName = '';
     }
 
+    const isImplementorStep =
+      execPhaseRawIndices.has(index) ||
+      isExecWorkerStep ||
+      resolvedModelKey === 'MODEL_PLACEHOLDER_M669' ||
+      /worker-agy/i.test(rawResponseModel || '') ||
+      /orchestrator\s+worker/i.test(resolvedDisplayName || rawDisplayName || '');
+    const isOrchestratorPlannerStep =
+      !isImplementorStep &&
+      (planPhaseRawIndices.has(index) ||
+        /\bMODEL_PLACEHOLDER_M(?:667|681|537)\b/i.test(resolvedModelKey) ||
+        /gemini-pro-orchestrator/i.test(`${resolvedModelKey} ${rawResponseModel || ''}`) ||
+        /^orchestrator\s*\(/i.test(resolvedDisplayName || rawDisplayName || '') ||
+        (!isNonOrchTurnStep &&
+          (orchestratorExecModels.size > 0 || hasPlanExecHandoff) &&
+          orchestratorPlanModels.has(resolvedModelKey)));
+    const orchestratorRole = isImplementorStep
+      ? 'implementor'
+      : isOrchestratorPlannerStep
+        ? 'orchestrator'
+        : null;
+
     const anomalyRec = buildStepAnomalyRecord(s, m, chat, stepPendingErrors);
 
     result.push({
       stepIndex,
       isCompactionStep,
+      orchestratorRole,
       modelKey: resolvedModelKey,
       modelSource: identity?.[0] || 'unavailable',
       responseModel: rawResponseModel ? rawResponseModel.trim() : '',

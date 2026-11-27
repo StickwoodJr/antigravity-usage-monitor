@@ -1622,9 +1622,9 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(mockSettings.enableWindowOverlay, true, 'enableWindowOverlay persisted back to true');
     assert.equal(previewCapsuleBar.getAttribute('data-mount-mode'), 'dual');
 
-    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session switch, capsule/hover context agent mode (main -> auto -> main), and CLI bottom capsule switch
+    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session switch, chat turn summary switch, capsule/hover context agent mode (main -> auto -> main), and CLI bottom capsule switch
     const topbarSegBtns = sec0.querySelectorAll('.seg-btn');
-    assert.equal(topbarSegBtns.length, 8, 'Popover width + Topbar multi-session + Capsule/Hover context mode + CLI bottom capsule toggles render 8 buttons');
+    assert.equal(topbarSegBtns.length, 10, 'Popover width + Topbar multi-session + Chat turn summary + Capsule/Hover context mode + CLI bottom capsule toggles render 10 buttons');
     const popWidthInput = sec0.querySelector('.num-field');
     const popWidthStepBtns = sec0.querySelectorAll('.num-step-btn');
     assert.ok(popWidthInput, 'CustomNumberInput field exists without native <input type="number">');
@@ -1659,15 +1659,22 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
 
     topbarSegBtns[5].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.contextAgentMode, 'auto', 'Capsule/Hover context mode switches to follow active (auto)');
+    assert.equal(mockSettings.enableChatTurnSummary, false, 'Chat turn summary toggle turns off enableChatTurnSummary');
     topbarSegBtns[4].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.contextAgentMode, 'main', 'Capsule/Hover context mode switches back to lock main agent');
+    assert.equal(mockSettings.enableChatTurnSummary, true, 'Chat turn summary toggle restores enableChatTurnSummary');
 
     topbarSegBtns[7].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.enableCliStatusLine, false, 'CLI bottom capsule toggle turns off enableCliStatusLine');
+    assert.equal(mockSettings.contextAgentMode, 'auto', 'Capsule/Hover context mode switches to follow active (auto)');
     topbarSegBtns[6].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.contextAgentMode, 'main', 'Capsule/Hover context mode switches back to lock main agent');
+
+    topbarSegBtns[9].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.enableCliStatusLine, false, 'CLI bottom capsule toggle turns off enableCliStatusLine');
+    topbarSegBtns[8].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.enableCliStatusLine, true, 'CLI bottom capsule toggle restores enableCliStatusLine');
 
@@ -6521,6 +6528,299 @@ test('Clicking top bar capsule also handles custom non-Radix click menus without
     capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(usageMonitorClicks, 1);
+  } finally {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel);
+    uiStore.setState(prevUi);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: prevNav,
+      configurable: true,
+    });
+    if (globalThis.window && globalThis.window[WINDOW_OVERLAY_KEY]) {
+      delete globalThis.window[WINDOW_OVERLAY_KEY];
+    }
+  }
+});
+
+test('Clicking top bar Swarm button sits after capsule and opens host Plugins -> Swarm menu item', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const { telemetryStore } = await import('../src/store/telemetryStore.js');
+  const { uiStore } = await import('../src/store/uiStore.js');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevNav = globalThis.navigator;
+  const prevTel = { ...telemetryStore.getState() };
+  const prevUi = { ...uiStore.getState() };
+
+  const { body, document: mockDoc, makeElement } = createMockDom();
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex @container/titlebar';
+  titlebar.setRect({ left: 0, right: 1280, top: 0, bottom: 36, width: 1280, height: 36 });
+  const rightGroup = makeElement('div');
+  rightGroup.className = 'shrink-0 flex items-center';
+
+  const menuTrigger = makeElement('button');
+  menuTrigger.setAttribute('aria-haspopup', 'menu');
+  menuTrigger.setAttribute('data-state', 'closed');
+  menuTrigger.setRect({ left: 720, right: 744, top: 6, bottom: 30, width: 24, height: 24 });
+
+  const auxToggle = makeElement('button');
+  auxToggle.setAttribute('data-testid', 'toggle-aux-sidebar');
+  auxToggle.setRect({ left: 748, right: 772, top: 6, bottom: 30, width: 24, height: 24 });
+
+  rightGroup.appendChild(menuTrigger);
+  rightGroup.appendChild(auxToggle);
+  titlebar.appendChild(rightGroup);
+  body.appendChild(titlebar);
+
+  let swarmClicks = 0;
+  let usageMonitorClicks = 0;
+  let menuEl = null;
+  let submenuEl = null;
+
+  menuTrigger.addEventListener('pointerdown', () => {
+    menuTrigger.setAttribute('data-state', 'open');
+    menuTrigger.setAttribute('aria-expanded', 'true');
+    if (menuEl) menuEl.remove();
+    menuEl = makeElement('div');
+    menuEl.setAttribute('role', 'menu');
+    const pluginsItem = makeElement('div');
+    pluginsItem.setAttribute('role', 'menuitem');
+    pluginsItem.textContent = 'Plugins';
+    pluginsItem.setRect({ left: 560, right: 720, top: 140, bottom: 168, width: 160, height: 28 });
+    pluginsItem.addEventListener('pointermove', () => {
+      if (submenuEl) return;
+      submenuEl = makeElement('div');
+      submenuEl.setAttribute('role', 'menu');
+
+      const swarmItem = makeElement('div');
+      swarmItem.setAttribute('role', 'menuitem');
+      swarmItem.textContent = 'Swarm';
+      swarmItem.setRect({ left: 390, right: 550, top: 112, bottom: 140, width: 160, height: 28 });
+      swarmItem.click = () => {
+        swarmClicks += 1;
+        menuTrigger.setAttribute('data-state', 'closed');
+        menuTrigger.setAttribute('aria-expanded', 'false');
+        menuEl?.remove();
+        submenuEl?.remove();
+        menuEl = null;
+        submenuEl = null;
+      };
+
+      const usageItem = makeElement('div');
+      usageItem.setAttribute('role', 'menuitem');
+      usageItem.textContent = 'Usage Monitor';
+      usageItem.setRect({ left: 390, right: 550, top: 140, bottom: 168, width: 160, height: 28 });
+      usageItem.click = () => {
+        usageMonitorClicks += 1;
+        menuEl?.remove();
+        submenuEl?.remove();
+      };
+
+      submenuEl.appendChild(swarmItem);
+      submenuEl.appendChild(usageItem);
+      body.appendChild(submenuEl);
+    });
+    menuEl.appendChild(pluginsItem);
+    body.appendChild(menuEl);
+  });
+
+  globalThis.document = mockDoc;
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 820,
+    location: { pathname: '/' },
+    addEventListener() {},
+    removeEventListener() {},
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { language: 'en-US' },
+    configurable: true,
+  });
+
+  const ov = mountWindowOverlay();
+  try {
+    const capsuleHost = mockDoc.getElementById('ag-usage-monitor-capsule');
+    const portalHost = mockDoc.getElementById('ag-usage-monitor-portal');
+    const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+    const swarmBtn = capsuleHost.shadowRoot.querySelector('.wm-swarm-btn');
+    const hoverTipEl = portalHost.shadowRoot.querySelector('.wm-hover-tip');
+    const popoverEl = portalHost.shadowRoot.querySelector('.wm-popover-panel');
+
+    assert.ok(swarmBtn, 'Swarm button rendered in capsule shadowRoot');
+    const shadowChildren = Array.from(capsuleHost.shadowRoot.children);
+    assert.ok(
+      shadowChildren.indexOf(swarmBtn) > shadowChildren.indexOf(capsuleBtn),
+      'Swarm button sits after the top pill (between pill and 3-dots button)'
+    );
+
+    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 640, clientY: 18 });
+    assert.equal(hoverTipEl.hasAttribute('hidden'), false);
+
+    swarmBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 150));
+    assert.equal(hoverTipEl.hasAttribute('hidden'), true);
+    assert.equal(popoverEl.hasAttribute('hidden'), true);
+    assert.equal(swarmClicks, 1);
+    assert.equal(usageMonitorClicks, 0);
+  } finally {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel);
+    uiStore.setState(prevUi);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: prevNav,
+      configurable: true,
+    });
+    if (globalThis.window && globalThis.window[WINDOW_OVERLAY_KEY]) {
+      delete globalThis.window[WINDOW_OVERLAY_KEY];
+    }
+  }
+});
+
+test('Clicking top bar pill or Swarm button while sidebar is open does not click side panel Maximize/Fullscreen button', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { WINDOW_OVERLAY_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const { telemetryStore } = await import('../src/store/telemetryStore.js');
+  const { uiStore } = await import('../src/store/uiStore.js');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevNav = globalThis.navigator;
+  const prevTel = { ...telemetryStore.getState() };
+  const prevUi = { ...uiStore.getState() };
+
+  const { body, document: mockDoc, makeElement } = createMockDom();
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex @container/titlebar';
+  titlebar.setRect({ left: 0, right: 800, top: 0, bottom: 36, width: 800, height: 36 });
+  const rightGroup = makeElement('div');
+  rightGroup.className = 'shrink-0 flex items-center';
+
+  // Conversation header's 3-dots trigger without aria-haspopup (plain button / tooltip state)
+  const menuTrigger = makeElement('button');
+  menuTrigger.setAttribute('data-state', 'closed');
+  menuTrigger.setRect({ left: 720, right: 744, top: 6, bottom: 30, width: 24, height: 24 });
+
+  rightGroup.appendChild(menuTrigger);
+  titlebar.appendChild(rightGroup);
+  body.appendChild(titlebar);
+
+  // Separate side panel header (when sidebar is already open) with Maximize/Fullscreen + toggle-aux-sidebar
+  const auxHeader = makeElement('div');
+  auxHeader.className = 'flex items-center';
+  const maximizeBtn = makeElement('button');
+  maximizeBtn.setAttribute('aria-label', 'Maximize side pane');
+  maximizeBtn.setAttribute('data-state', 'closed');
+  maximizeBtn.setRect({ left: 1210, right: 1234, top: 6, bottom: 30, width: 24, height: 24 });
+
+  const auxToggle = makeElement('button');
+  auxToggle.setAttribute('data-testid', 'toggle-aux-sidebar');
+  auxToggle.setRect({ left: 1240, right: 1264, top: 6, bottom: 30, width: 24, height: 24 });
+
+  auxHeader.appendChild(maximizeBtn);
+  auxHeader.appendChild(auxToggle);
+  body.appendChild(auxHeader);
+
+  let fullscreenClicks = 0;
+  let auxToggleClicks = 0;
+  let usageMonitorClicks = 0;
+  let swarmClicks = 0;
+  let menuEl = null;
+  let submenuEl = null;
+
+  maximizeBtn.click = () => {
+    fullscreenClicks += 1;
+  };
+  auxToggle.click = () => {
+    auxToggleClicks += 1;
+  };
+
+  menuTrigger.addEventListener('pointerdown', () => {
+    menuTrigger.setAttribute('data-state', 'open');
+    if (menuEl) menuEl.remove();
+    if (submenuEl) submenuEl.remove();
+    menuEl = makeElement('div');
+    menuEl.setAttribute('role', 'menu');
+    const pluginsItem = makeElement('div');
+    pluginsItem.setAttribute('role', 'menuitem');
+    pluginsItem.textContent = 'Plugins';
+    pluginsItem.setRect({ left: 560, right: 720, top: 140, bottom: 168, width: 160, height: 28 });
+    pluginsItem.addEventListener('pointermove', () => {
+      if (submenuEl) return;
+      submenuEl = makeElement('div');
+      submenuEl.setAttribute('role', 'menu');
+
+      const swarmItem = makeElement('div');
+      swarmItem.setAttribute('role', 'menuitem');
+      swarmItem.textContent = 'Swarm';
+      swarmItem.setRect({ left: 390, right: 550, top: 112, bottom: 140, width: 160, height: 28 });
+      swarmItem.click = () => {
+        swarmClicks += 1;
+        menuTrigger.setAttribute('data-state', 'closed');
+        menuEl?.remove();
+        submenuEl?.remove();
+        menuEl = null;
+        submenuEl = null;
+      };
+
+      const usageItem = makeElement('div');
+      usageItem.setAttribute('role', 'menuitem');
+      usageItem.textContent = 'Usage Monitor';
+      usageItem.setRect({ left: 390, right: 550, top: 140, bottom: 168, width: 160, height: 28 });
+      usageItem.click = () => {
+        usageMonitorClicks += 1;
+        menuTrigger.setAttribute('data-state', 'closed');
+        menuEl?.remove();
+        submenuEl?.remove();
+        menuEl = null;
+        submenuEl = null;
+      };
+
+      submenuEl.appendChild(swarmItem);
+      submenuEl.appendChild(usageItem);
+      body.appendChild(submenuEl);
+    });
+    menuEl.appendChild(pluginsItem);
+    body.appendChild(menuEl);
+  });
+
+  globalThis.document = mockDoc;
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 820,
+    location: { pathname: '/' },
+    addEventListener() {},
+    removeEventListener() {},
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { language: 'en-US' },
+    configurable: true,
+  });
+
+  const ov = mountWindowOverlay();
+  try {
+    const capsuleHost = mockDoc.getElementById('ag-usage-monitor-capsule');
+    const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+    const swarmBtn = capsuleHost.shadowRoot.querySelector('.wm-swarm-btn');
+
+    capsuleBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 150));
+
+    swarmBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 150));
+
+    assert.equal(fullscreenClicks, 0, 'Must never click side panel Maximize/Fullscreen button');
+    assert.equal(auxToggleClicks, 0, 'Must never click toggle-aux-sidebar');
+    assert.equal(usageMonitorClicks, 1);
+    assert.equal(swarmClicks, 1);
   } finally {
     ov?.dispose?.();
     telemetryStore.setState(prevTel);

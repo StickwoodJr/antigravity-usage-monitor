@@ -23,6 +23,8 @@ const ROOT_WHITELIST = Object.freeze([
   'mcp_config.json',
   'pricing-catalog.json',
   'LICENSE',
+  'NOTICE',
+  'THIRD_PARTY_NOTICES.md',
   'assets/logo.svg',
 ]);
 
@@ -42,9 +44,10 @@ const PANEL_TOP_WHITELIST = Object.freeze([
 const RUNTIME_SUBDIRS = Object.freeze([
   'sidecars/panel/backend',
   'sidecars/panel/shared',
+  'sidecars/panel/prism',
 ]);
 
-const ALLOWED_SUBDIR_EXT_RE = /\.(?:mjs|ps1|sh|json)$/i;
+const ALLOWED_SUBDIR_EXT_RE = /\.(?:mjs|js|css|ps1|sh|json)$/i;
 const FORBIDDEN_PATH_RE =
   /(?:^|\/)(?:\.git|\.data|node_modules|plan|dist|src|test|scripts)(?:\/|$)|\.png$|\.jpg$|\.jpeg$|\.webp$|\.log$|\.dpapi$/i;
 

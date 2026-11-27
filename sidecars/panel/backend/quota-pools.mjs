@@ -410,6 +410,9 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
   for (const [poolKey, builder] of poolBuilders.entries()) {
     const b5h = builder.bucket5h || builder.fallback5h || null;
     const bWk = builder.bucketWeekly || null;
+    const forecast5h = b5h ? computeQuotaForecast(b5h, '5h', nowForQuotaMs) : null;
+    const forecastWeekly = bWk ? computeQuotaForecast(bWk, 'weekly', nowForQuotaMs) : null;
+    const pace = computeGroupQuotaPaceFromForecasts([forecast5h, forecastWeekly]);
     quotaPoolsMap.set(poolKey, {
       poolKey,
       poolLabel: builder.poolLabel,
@@ -428,6 +431,9 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
       weeklyRemainingIntPct: bWk?.remainingIntPct ?? null,
       weeklyUsedPct: bWk?.usedPct ?? null,
       weeklyResetTime: bWk?.resetTime || null,
+      forecast5h,
+      forecastWeekly,
+      pace,
       models: builder.models,
     });
   }
@@ -436,5 +442,133 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
     dynamicModelMap,
     quotaPoolsMap,
     modelQuotas,
+  };
+}
+
+/**
+ * Ported & adapted from Obsidian Prism (`usage-core.js` `quotaForecast` & `groupQuotaPace`)
+ * by @RMvdesi (GPL-3.0-only). Modified on 2026-11-26 for antigravity-usage-monitor.
+ *
+ * Computes linear depletion forecast for a `5h` or `weekly` quota bucket.
+ *
+ * @param {object|null|undefined} bucket
+ * @param {'5h'|'weekly'} windowKey
+ * @param {number} [nowMs=Date.now()]
+ * @returns {{
+ *   window: '5h'|'weekly',
+ *   remaining: number,
+ *   endRemaining: number,
+ *   forecastDrop: number,
+ *   willExhaust: boolean,
+ *   exhaustInMs: number|null,
+ *   paceRatio: number,
+ *   status: 'idle'|'ok'|'tight'|'exhaust',
+ *   resetAtMs: number|null,
+ *   resetInMs: number
+ * }|null}
+ */
+export function computeQuotaForecast(bucket, windowKey = '5h', nowMs = Date.now()) {
+  if (!bucket || typeof bucket !== 'object' || bucket.disabled === true) return null;
+  const rawRem = bucket.remainingFraction ?? bucket.remaining;
+  const remNum = Number(rawRem);
+  if (!Number.isFinite(remNum)) return null;
+  const rem = Math.max(0, Math.min(1, remNum));
+  const spanMs = windowKey === 'weekly' ? 7 * 86400 * 1000 : 5 * 3600 * 1000;
+  const rawReset = bucket.resetAtMs ?? bucket.resetTime ?? bucket.resetAt;
+  const resetMs =
+    typeof rawReset === 'number' && Number.isFinite(rawReset)
+      ? rawReset > 1e11
+        ? rawReset
+        : rawReset * 1000
+      : parseIsoMs(rawReset);
+
+  const mkFc = (
+    endRemaining,
+    forecastDrop,
+    willExhaust,
+    exhaustInMs,
+    paceRatio,
+    status,
+    resetAtMs,
+    resetInMs
+  ) => ({
+    window: windowKey === 'weekly' ? 'weekly' : '5h',
+    remaining: rem,
+    endRemaining,
+    forecastDrop,
+    willExhaust,
+    exhaustInMs,
+    paceRatio,
+    status,
+    resetAtMs,
+    resetInMs,
+  });
+
+  if (!(resetMs > 0) || resetMs <= nowMs) {
+    return mkFc(rem, 0, false, null, 0, rem < 1 ? 'ok' : 'idle', resetMs > 0 ? resetMs : null, 0);
+  }
+
+  const leftMs = Math.max(0, Math.min(spanMs, resetMs - nowMs));
+  const elapsedMs = Math.max(0, spanMs - leftMs);
+  const used = Math.max(0, 1 - rem);
+  const minSmoothMs = windowKey === 'weekly' ? 2 * 3600 * 1000 : 15 * 60 * 1000;
+
+  if (used < 0.005 || elapsedMs < 3 * 60 * 1000) {
+    return mkFc(
+      rem,
+      0,
+      rem <= 0.005,
+      rem <= 0.005 ? 0 : null,
+      0,
+      rem <= 0.005 ? 'exhaust' : 'idle',
+      resetMs,
+      leftMs
+    );
+  }
+
+  const burnPerMs = used / Math.max(elapsedMs, minSmoothMs);
+  const endRemaining = Math.max(0, Math.min(rem, rem - burnPerMs * leftMs));
+  const idealUsed = spanMs > 0 ? elapsedMs / spanMs : 0;
+  const paceRatio = idealUsed > 0.02 ? used / idealUsed : used / 0.02;
+  const timeToZeroMs = burnPerMs > 0 ? rem / burnPerMs : Infinity;
+  const willExhaust = rem <= 0.01 || (timeToZeroMs < leftMs * 0.95 && used >= 0.06);
+  const status = willExhaust
+    ? 'exhaust'
+    : paceRatio > 1.18 && used >= 0.05
+      ? 'tight'
+      : used < 0.01
+        ? 'idle'
+        : 'ok';
+
+  return mkFc(
+    +endRemaining.toFixed(4),
+    +Math.max(0, rem - endRemaining).toFixed(4),
+    willExhaust,
+    Number.isFinite(timeToZeroMs) && willExhaust ? Math.max(0, Math.round(timeToZeroMs)) : null,
+    Number(paceRatio.toFixed(2)),
+    status,
+    resetMs,
+    leftMs
+  );
+}
+
+/**
+ * Selects the tightest linear forecast status across a pool's 5h and weekly windows.
+ *
+ * @param {Array<ReturnType<typeof computeQuotaForecast>>} forecasts
+ * @returns {{ status: 'idle'|'ok'|'tight'|'exhaust', primary: object|null }}
+ */
+export function computeGroupQuotaPaceFromForecasts(forecasts) {
+  const rank = { exhaust: 3, tight: 2, ok: 1, idle: 0 };
+  let primary = null;
+  for (const f of Array.isArray(forecasts) ? forecasts : []) {
+    if (!f) continue;
+    if (!primary || (rank[f.status] ?? 0) > (rank[primary.status] ?? 0)) {
+      primary = f;
+    }
+  }
+  return {
+    status: primary ? primary.status : 'idle',
+    primary,
   };
 }

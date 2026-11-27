@@ -23,6 +23,7 @@ import {
 } from '../../core/formatters.js';
 import { SVG_NS } from '../../icons/SvgIcon.js';
 import { getEffectiveLocale, t } from '../../i18n/index.js';
+import { resolvePrismChartModelColor } from '../../core/prismColors.js';
 
 let sessionChartUid = 0;
 
@@ -1092,7 +1093,9 @@ export function createSessionLineChart() {
       for (let i = 0; i < targetKeys.length; i++) {
         const gk = targetKeys[i];
         const colorVar =
-          modelColorByGroup?.get(gk) || MODEL_COLOR_VARS[i % MODEL_COLOR_VARS.length];
+          modelColorByGroup?.get(gk) ||
+          resolvePrismChartModelColor(gk) ||
+          MODEL_COLOR_VARS[i % MODEL_COLOR_VARS.length];
         modelColorMap.set(gk, colorVar);
         const disp = resolveModelDisplayInfo({ modelLabel: gk, label: gk }, displaySettings, {
           fallback: gk,
@@ -1105,6 +1108,7 @@ export function createSessionLineChart() {
       if (!modelColorMap.has(gk)) {
         const colorVar =
           modelColorByGroup?.get(gk) ||
+          resolvePrismChartModelColor(gk) ||
           MODEL_COLOR_VARS[modelColorMap.size % MODEL_COLOR_VARS.length];
         modelColorMap.set(gk, colorVar);
       }

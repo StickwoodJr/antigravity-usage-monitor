@@ -1,0 +1,73 @@
+Antigravity Usage & Speed Monitor (with Obsidian Prism Optical UI Suite)
+================================================================================
+
+This distribution incorporates and adapts optical UI, motion, workbench,
+effort-slider, Omni viewer, Home Studio, wallpaper, and pixel-mascot modules
+from Obsidian Prism, alongside the security-hardened Usage & Speed Monitor
+telemetry engine.
+
+  - Upstream Optical UI Project: Obsidian Prism (黑曜棱镜)
+  - Upstream Author:           RMvdesi
+  - Upstream Source:           https://github.com/RMvdesi/obsidian-prism
+  - Copyright:                 Copyright (C) 2026 RMvdesi
+
+  - Usage Monitor Copyright:   Copyright (C) 2026 yuhuan-dev & StickwoodJr
+  - Usage Monitor Source:      https://github.com/StickwoodJr/antigravity-usage-monitor
+
+================================================================================
+1. PRIMARY LICENSE & DOWNSTREAM OBLIGATIONS (GNU GPL-3.0-only + Section 7)
+================================================================================
+
+This project as a unified work is licensed under the GNU General Public License
+v3.0 (GPL-3.0-only). See the `LICENSE` file in the root directory for the full
+license text.
+
+Pursuant to Sections 4, 5, and 7 of the GNU General Public License v3.0:
+
+  (a) Copyleft / Open-Source Reciprocity (Sections 5 & 6):
+      Any modified or derivative work distributed in source, bundled script, or
+      archive form MUST be licensed as a whole at no charge under GPL-3.0-only,
+      with complete corresponding source code made publicly accessible.
+
+  (b) Preservation of Legal & Attribution Notices (Section 7(b)):
+      All copyright notices, this `NOTICE` file, `THIRD_PARTY_NOTICES.md`, and
+      visible attribution crediting Obsidian Prism (RMvdesi,
+      https://github.com/RMvdesi/obsidian-prism) and upstream contributors MUST
+      be preserved in README, documentation, and interactive Settings/About UI.
+
+  (c) Prominent Modification Marking & Non-Endorsement (Sections 5(a), 7(c)-(e)):
+      Modified and adapted files carry notices stating that they were modified
+      for Antigravity Usage & Speed Monitor along with the modification date.
+      Neither "Obsidian Prism" nor "RMvdesi" may be used to endorse or promote
+      derived distributions as official Obsidian Prism releases without prior
+      written permission.
+
+================================================================================
+2. ABSORBED UPSTREAM OPEN-SOURCE COMPONENTS (MIT LICENSE — GPL-3.0 COMPATIBLE)
+================================================================================
+
+In addition to Obsidian Prism (GPL-3.0-only), the adapted components build upon
+the following permissively licensed (MIT) open-source works, whose full notices
+and MIT license text are preserved in `THIRD_PARTY_NOTICES.md`:
+
+  - 0DNANCY/agy-claude-style (https://github.com/0DNANCY/agy-claude-style)
+    Copyright (c) 2026 0DNANCY — MIT License (compatible with GPL-3.0-only)
+  - LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider
+    (https://github.com/LLYSH-HANNARI/antigravity-Codex-Claude-effort-slider)
+    Copyright (c) 2026 月上寒 / LLYSH-HANNARI — MIT License (compatible with GPL-3.0-only)
+  - wp3171216237/dsh-TUI (Deepy pixel whale design & spout inspiration)
+    Copyright (c) 2026 chimney (@wp3171216237) — MIT License (compatible with GPL-3.0-only)
+
+Design & interaction inspiration credits preserved from Obsidian Prism:
+  - Nwflower/dsh-claude-style
+  - Microqian2th/dsh-codex-effort-slider
+  - mobius/dsh-performance-slider
+  - claudenoshujin/claude-web (Mascot Pile & Micro-Ecology Interaction Inspiration)
+
+================================================================================
+3. NON-AFFILIATION DISCLAIMER
+================================================================================
+
+This project is an independent open-source project and is not affiliated with or
+endorsed by Google LLC. "Antigravity" and "Google" are trademarks or product
+names of Google LLC, referenced solely for descriptive compatibility purposes.

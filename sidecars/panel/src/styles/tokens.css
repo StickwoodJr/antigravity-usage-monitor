@@ -6,14 +6,14 @@
 
 :root,
 :host {
-  /* Cross-Platform Typography Stacks (macOS SF Pro / SF Mono + Windows / Linux Fallbacks) */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace;
+  /* Cross-Platform Typography Stacks (Obsidian Prism Sans & Mono) */
+  --font-sans: "Google Sans Flex", "Google Sans", "Google Sans Text", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Roboto, sans-serif;
+  --font-mono: var(--ag-cs-mono-stack, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace);
 
   /* Architectural Geometry: Only Top Nav uses --radius-pill */
   --radius-pill: 999px;
-  --radius-sm: 4px;
-  --radius-xs: 2px;
+  --radius-sm: var(--ag-cs-r-lg, 10px);
+  --radius-xs: var(--ag-cs-r-md, 6px);
 
   /* Host-Bridged Surfaces (Antigravity 2.0 + Antigravity IDE --vscode-* + safe fallback) */
   --surface-bg: var(--background, var(--vscode-sideBar-background, var(--vscode-editor-background, hsl(0 0% 100%))));
@@ -111,11 +111,11 @@
   --ctx-output: hsl(190 80% 38%);
 
   /* Elevation & Shadows */
-  --shadow-popover: 0 4px 12px rgb(0 0 0 / 0.22);
-  --shadow-overlay: 0 16px 38px rgb(0 0 0 / 0.38), 0 3px 10px rgb(0 0 0 / 0.22);
+  --shadow-popover: var(--_cp, 0 4px 12px rgb(0 0 0 / 0.22));
+  --shadow-overlay: var(--_gs, 0 16px 38px rgb(0 0 0 / 0.38), 0 3px 10px rgb(0 0 0 / 0.22));
 
-  /* Fast Hardware-Accelerated Motion Tokens */
-  --ease-fast: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Obsidian Prism Damped-Spring & Fast Hardware-Accelerated Motion Tokens */
+  --ease-fast: var(--ag-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
   --dur-instant: 90ms;
   --dur-fast: 140ms;
   --dur-normal: 180ms;

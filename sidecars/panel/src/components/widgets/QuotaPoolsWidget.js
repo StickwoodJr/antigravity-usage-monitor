@@ -80,7 +80,8 @@ export function buildQuotaPoolItems(
 export function createPoolQuotaRow() {
   const title5h = h('span', { className: 'quota-win-title', text: '5h' });
   const usage5h = h('span', { className: 'quota-win-usage', hidden: true, text: '' });
-  const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h]);
+  const pace5h = h('span', { className: 'quota-pace-pill', hidden: true, text: '' });
+  const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h, pace5h]);
   const meta5h = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fill5h = h('div', { className: 'progress-fill' });
   const fillReserved5h = h('div', { className: 'progress-fill-reserved' });
@@ -92,7 +93,8 @@ export function createPoolQuotaRow() {
 
   const titleWk = h('span', { className: 'quota-win-title', text: t('quota.weeklyShort') });
   const usageWk = h('span', { className: 'quota-win-usage', hidden: true, text: '' });
-  const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk]);
+  const paceWk = h('span', { className: 'quota-pace-pill', hidden: true, text: '' });
+  const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk, paceWk]);
   const metaWk = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fillWk = h('div', { className: 'progress-fill' });
   const fillReservedWk = h('div', { className: 'progress-fill-reserved' });
@@ -114,6 +116,7 @@ export function createPoolQuotaRow() {
       left5h,
       title5h,
       usage5h,
+      pace5h,
       meta5h,
       track5h,
       fill5h,
@@ -122,6 +125,7 @@ export function createPoolQuotaRow() {
       leftWk,
       titleWk,
       usageWk,
+      paceWk,
       metaWk,
       trackWk,
       fillWk,
@@ -213,6 +217,47 @@ function syncQuotaWindowMeter({
   });
 }
 
+function syncQuotaPacePill(paceEl, forecast, isPending, hasData) {
+  if (!paceEl) return;
+  if (isPending || !hasData || !forecast || !forecast.status || forecast.status === 'idle') {
+    paceEl.hidden = true;
+    patchText(paceEl, '');
+    patchAttr(paceEl, 'title', null);
+    patchClasses(paceEl, {
+      'tone-ok': false,
+      'tone-tight': false,
+      'tone-exhaust': false,
+    });
+    return;
+  }
+  const status = forecast.status;
+  const labelKey =
+    status === 'exhaust'
+      ? 'quota.pace.exhaust'
+      : status === 'tight'
+        ? 'quota.pace.tight'
+        : 'quota.pace.ok';
+  let tip = '';
+  if (forecast.willExhaust && Number.isFinite(forecast.exhaustInMs)) {
+    const mins = Math.max(1, Math.round(forecast.exhaustInMs / 60_000));
+    const hrs = Math.floor(mins / 60);
+    const remM = mins % 60;
+    const etaStr = hrs > 0 ? `${hrs}h ${remM}m` : `${mins}m`;
+    tip = t('quota.pace.exhaustTip', { eta: etaStr });
+  } else {
+    const endPct = Math.round((Number(forecast.endRemaining) || 0) * 100);
+    tip = t('quota.pace.endTip', { pct: endPct });
+  }
+  paceEl.hidden = false;
+  patchText(paceEl, t(labelKey));
+  patchAttr(paceEl, 'title', tip);
+  patchClasses(paceEl, {
+    'tone-ok': status === 'ok',
+    'tone-tight': status === 'tight',
+    'tone-exhaust': status === 'exhaust',
+  });
+}
+
 /**
  * 同步单个配额池行的 5h 及每周窗口状态。
  */
@@ -285,6 +330,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     fillEl: refs.fill5h,
     fillReservedEl: refs.fillReserved5h,
   });
+  syncQuotaPacePill(refs.pace5h, poolData?.forecast5h, isPending, has5h);
 
   const customTitle =
     useCustomWeekly && fallbackWeekly?.title
@@ -331,13 +377,21 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     fillEl: refs.fillWk,
     fillReservedEl: refs.fillReservedWk,
   });
+  syncQuotaPacePill(
+    refs.paceWk,
+    useCustomWeekly ? null : poolData?.forecastWeekly,
+    isPending,
+    hasWk && !useCustomWeekly
+  );
 }
 
 export function quotaPoolRowSig(item, idx) {
   const c5h = item.poolData?.cycle5h;
   const cWk = item.poolData?.cycleWeekly;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  const f5 = item.poolData?.forecast5h?.status || '';
+  const fwk = item.poolData?.forecastWeekly?.status || '';
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${f5}:${fwk}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 /**

@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizeOrchestratorIdMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi } = (() => {
+const { SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizeOrchestratorIdMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeEnableChatTurnSummary, PRISM_PALETTE_KEYS, PRISM_LIGHT_PRESET_KEYS, PRISM_DARK_AURA_STYLE_KEYS, PRISM_ACCENT_TONE_KEYS, PRISM_CORNER_STYLE_KEYS, PRISM_CODE_FONT_KEYS, PRISM_AMBIENT_INTENSITY_KEYS, PRISM_DARK_AURA_KEYS, PRISM_MOTION_LEVEL_KEYS, PRISM_TARGET_FPS_KEYS, PRISM_CONV_RIPPLE_KEYS, PRISM_ON_OFF_AUTO_KEYS, PRISM_ON_OFF_KEYS, PRISM_LINK_TARGET_KEYS, normalizePrismPalette, normalizePrismLightPreset, normalizePrismDarkAuraStyle, normalizePrismAccentTone, normalizePrismCornerStyle, normalizePrismCodeFont, normalizePrismAmbientIntensity, normalizePrismDarkAura, normalizePrismMotionLevel, normalizePrismTargetFps, normalizePrismConvRipple, normalizePrismAutoOnOff, normalizePrismOnOff, normalizePrismLinkTarget, normalizePrismMascot, normalizePrismEnabled, normalizePrismBoolTrue, normalizePrismBoolFalse, mapSettingsToPrismRuntimeConfig, mapPrismPatchToSettingsPatch } = (() => {
 /**
  * @fileoverview 前后端与 CLI 共用的偏好设置枚举常量、默认值与无状态纯函数归一化规则。
  */
@@ -580,7 +580,296 @@ function normalizeExperimentalModernUi(val) {
   }
   return Boolean(val);
 }
-return { SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizeOrchestratorIdMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi };
+
+/**
+ * 归一化对话内轮次多代理/编排器摘要卡片开关（默认 `true`）。
+ *
+ * @param {unknown} val
+ * @returns {boolean}
+ */
+function normalizeEnableChatTurnSummary(val) {
+  if (val === undefined || val === null || val === '') return true;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return true;
+  }
+  return Boolean(val);
+}
+
+// ---------------------------------------------------------------------------
+// Obsidian Prism Optical UI & Host Module Settings (GPL-3.0-only, @RMvdesi)
+// ---------------------------------------------------------------------------
+
+const PRISM_PALETTE_KEYS = Object.freeze(['obsidian', 'warm']);
+const PRISM_LIGHT_PRESET_KEYS = Object.freeze(['crystal', 'alabaster']);
+const PRISM_DARK_AURA_STYLE_KEYS = Object.freeze(['prism', 'neon']);
+const PRISM_ACCENT_TONE_KEYS = Object.freeze(['follow', 'cobalt', 'iris', 'amber', 'mono']);
+const PRISM_CORNER_STYLE_KEYS = Object.freeze(['sharp', 'balanced', 'soft']);
+const PRISM_CODE_FONT_KEYS = Object.freeze(['default', 'jetbrains', 'cascadia', 'sfmono']);
+const PRISM_AMBIENT_INTENSITY_KEYS = Object.freeze(['0', '35', '70', '100']);
+const PRISM_DARK_AURA_KEYS = Object.freeze(['subtle', 'balanced', 'vivid']);
+const PRISM_MOTION_LEVEL_KEYS = Object.freeze(['off', 'subtle', 'standard', 'ultra']);
+const PRISM_TARGET_FPS_KEYS = Object.freeze(['60', '120', '180', 'native']);
+const PRISM_CONV_RIPPLE_KEYS = Object.freeze(['off', 'subtle', 'medium', 'full']);
+const PRISM_ON_OFF_AUTO_KEYS = Object.freeze(['auto', 'on', 'off']);
+const PRISM_ON_OFF_KEYS = Object.freeze(['on', 'off']);
+const PRISM_LINK_TARGET_KEYS = Object.freeze(['builtin', 'external']);
+
+function normalizeEnumValue(raw, allowed, fallback) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  return allowed.includes(clean) ? clean : fallback;
+}
+
+function normalizeBoolDefault(raw, defaultValue) {
+  if (raw === undefined || raw === null || raw === '') return defaultValue;
+  if (typeof raw === 'string') {
+    const lower = raw.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return defaultValue;
+  }
+  return Boolean(raw);
+}
+
+function normalizePrismPalette(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'claude' || clean === 'warm') return 'warm';
+  return 'obsidian';
+}
+
+function normalizePrismLightPreset(raw) {
+  return normalizeEnumValue(raw, PRISM_LIGHT_PRESET_KEYS, 'crystal');
+}
+
+function normalizePrismDarkAuraStyle(raw) {
+  return normalizeEnumValue(raw, PRISM_DARK_AURA_STYLE_KEYS, 'prism');
+}
+
+function normalizePrismAccentTone(raw) {
+  return normalizeEnumValue(raw, PRISM_ACCENT_TONE_KEYS, 'follow');
+}
+
+function normalizePrismCornerStyle(raw) {
+  return normalizeEnumValue(raw, PRISM_CORNER_STYLE_KEYS, 'balanced');
+}
+
+function normalizePrismCodeFont(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'fira') return 'jetbrains';
+  if (clean === 'system') return 'sfmono';
+  return PRISM_CODE_FONT_KEYS.includes(clean) ? clean : 'default';
+}
+
+function normalizePrismAmbientIntensity(raw) {
+  const clean = String(raw ?? '').trim();
+  if (PRISM_AMBIENT_INTENSITY_KEYS.includes(clean)) return clean;
+  const num = Number(clean);
+  if (Number.isFinite(num)) {
+    if (num <= 10) return '0';
+    if (num <= 52) return '35';
+    if (num <= 85) return '70';
+    return '100';
+  }
+  return '100';
+}
+
+function normalizePrismDarkAura(raw) {
+  return normalizeEnumValue(raw, PRISM_DARK_AURA_KEYS, 'balanced');
+}
+
+function normalizePrismMotionLevel(raw) {
+  return normalizeEnumValue(raw, PRISM_MOTION_LEVEL_KEYS, 'ultra');
+}
+
+function normalizePrismTargetFps(raw) {
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === '144') return '180';
+  if (clean === '240' || clean === '300') return 'native';
+  return PRISM_TARGET_FPS_KEYS.includes(clean) ? clean : '180';
+}
+
+function normalizePrismConvRipple(raw) {
+  if (raw === true) return 'medium';
+  if (raw === false) return 'off';
+  const clean = String(raw ?? '').trim().toLowerCase();
+  if (clean === 'true' || clean === 'on') return 'medium';
+  return PRISM_CONV_RIPPLE_KEYS.includes(clean) ? clean : 'off';
+}
+
+function normalizePrismAutoOnOff(raw, fallback = 'auto') {
+  if (raw === true) return 'on';
+  if (raw === false) return 'off';
+  return normalizeEnumValue(raw, PRISM_ON_OFF_AUTO_KEYS, fallback);
+}
+
+function normalizePrismOnOff(raw, fallback = 'on') {
+  if (raw === true) return 'on';
+  if (raw === false) return 'off';
+  return normalizeEnumValue(raw, PRISM_ON_OFF_KEYS, fallback);
+}
+
+function normalizePrismLinkTarget(raw) {
+  return normalizeEnumValue(raw, PRISM_LINK_TARGET_KEYS, 'builtin');
+}
+
+function normalizePrismMascot(raw) {
+  if (raw === undefined || raw === null || raw === '' || raw === false || raw === 'off') {
+    return 'off';
+  }
+  const clean = String(raw).trim();
+  if (clean === 'dual') return 'crab';
+  if (clean === 'all') return 'quad-minis';
+  if (clean === 'cat') return 'r:k1';
+  if (clean === 'dragon') return 'r:d1';
+  if (clean === 'whale') return 'r:w1';
+  if (/^(crab|minis|quad|quad-minis|r:(?:[ckdw][0-4](?:,[ckdw][0-4])*)?(?:\+m)?)$/.test(clean)) {
+    return clean;
+  }
+  return 'off';
+}
+
+function normalizePrismEnabled(raw) {
+  return normalizeBoolDefault(raw, true);
+}
+
+function normalizePrismBoolTrue(raw) {
+  return normalizeBoolDefault(raw, true);
+}
+
+function normalizePrismBoolFalse(raw) {
+  return normalizeBoolDefault(raw, false);
+}
+
+/**
+ * Translate canonical Usage Monitor settings into Obsidian Prism runtime config.
+ *
+ * @param {object|null|undefined} settings
+ * @returns {Record<string, any>}
+ */
+function mapSettingsToPrismRuntimeConfig(settings) {
+  const s = settings && typeof settings === 'object' ? settings : {};
+  const enabled = normalizePrismEnabled(s.prismEnabled);
+  const mascot = normalizePrismMascot(s.prismMascot);
+  const homeStudio = normalizePrismOnOff(s.prismHomeStudio, 'on');
+  const workbench = normalizePrismOnOff(s.prismWorkbenchEnhancer, 'on');
+  const omni = normalizePrismOnOff(s.prismOmniModule, 'on');
+  const effort = normalizePrismAutoOnOff(s.prismEffortSlider, 'auto');
+  const effortMem = normalizePrismOnOff(s.prismEffortMemory, 'on');
+  const wallpaperOn = normalizePrismBoolFalse(s.prismWallpaperEnabled);
+  const homeRipple = normalizePrismBoolTrue(s.prismHomeRipple);
+  const composerRestyle = normalizePrismBoolTrue(s.prismComposerRestyle);
+  const sidebarRestyle = normalizePrismBoolTrue(s.prismSidebarRestyle);
+  return {
+    prismEnabled: enabled,
+    language: normalizeLanguageSetting(s.language),
+    lang: normalizeLanguageSetting(s.language),
+    palette: normalizePrismPalette(s.prismPalette),
+    lightPreset: normalizePrismLightPreset(s.prismLightPreset),
+    darkAuraStyle: normalizePrismDarkAuraStyle(s.prismDarkAuraStyle),
+    accentTone: normalizePrismAccentTone(s.prismAccentTone),
+    cornerStyle: normalizePrismCornerStyle(s.prismCornerStyle),
+    codeFont: normalizePrismCodeFont(s.prismCodeFont),
+    codeLigatures: normalizePrismBoolFalse(s.prismCodeLigatures),
+    ambientIntensity: normalizePrismAmbientIntensity(s.prismAmbientIntensity),
+    darkAura: normalizePrismDarkAura(s.prismDarkAura),
+    motionLevel: normalizePrismMotionLevel(s.prismMotionLevel),
+    targetFps: normalizePrismTargetFps(s.prismTargetFps),
+    homeLayout: homeStudio === 'on' ? 'studio' : 'off',
+    homeMode: homeStudio === 'on' ? 'studio' : 'off',
+    homeRipple,
+    ripple: homeRipple ? 'on' : 'off',
+    convRipple: normalizePrismConvRipple(s.prismConvRipple),
+    smoothCaret: normalizePrismBoolTrue(s.prismSmoothCaret),
+    scrollBottomMotion: normalizeEnumValue(s.prismScrollBottomMotion, ['smooth', 'instant'], 'smooth'),
+    composerRestyle,
+    composer: composerRestyle ? 'on' : 'off',
+    sidebarRestyle,
+    sidebar: sidebarRestyle ? 'on' : 'off',
+    sidebarCompact: normalizePrismBoolFalse(s.prismSidebarCompact),
+    sidebarNavFold: normalizePrismOnOff(s.prismSidebarNavFold, 'off'),
+    placeholderStyle: normalizeEnumValue(s.prismPlaceholderStyle, ['studio', 'host'], 'studio'),
+    promptStyle: normalizeEnumValue(s.prismPlaceholderStyle, ['studio', 'host'], 'studio'),
+    logoInk: normalizeEnumValue(s.prismLogoInk, ['accent', 'mono', 'native'], 'accent'),
+    effortSliderModule: effort,
+    effortMemory: effortMem,
+    workbenchEnhancer: workbench,
+    omniModule: omni,
+    linkTarget: normalizePrismLinkTarget(s.prismLinkTarget),
+    mascot,
+    wallpaperEnabled: wallpaperOn,
+    // Strictly disabled excluded features
+    telemetryModule: 'off',
+    periodicModelPicker: 'off',
+    thoughtTranslate: 'off',
+    contextMenu: false,
+    inlineDiff: 'off',
+    sidebarStudio: 'off',
+    hostLocalization: 'off',
+    autoUpdate: 'off',
+  };
+}
+
+/**
+ * Translate a partial Obsidian Prism settings patch back to canonical Usage Monitor settings keys.
+ *
+ * @param {object|null|undefined} prismPatch
+ * @returns {Record<string, any>}
+ */
+function mapPrismPatchToSettingsPatch(prismPatch) {
+  if (!prismPatch || typeof prismPatch !== 'object' || Array.isArray(prismPatch)) return {};
+  const out = {};
+  if ('prismEnabled' in prismPatch) out.prismEnabled = normalizePrismEnabled(prismPatch.prismEnabled);
+  if ('palette' in prismPatch) out.prismPalette = normalizePrismPalette(prismPatch.palette);
+  if ('lightPreset' in prismPatch) out.prismLightPreset = normalizePrismLightPreset(prismPatch.lightPreset);
+  if ('darkAuraStyle' in prismPatch) out.prismDarkAuraStyle = normalizePrismDarkAuraStyle(prismPatch.darkAuraStyle);
+  if ('accentTone' in prismPatch) out.prismAccentTone = normalizePrismAccentTone(prismPatch.accentTone);
+  if ('cornerStyle' in prismPatch) out.prismCornerStyle = normalizePrismCornerStyle(prismPatch.cornerStyle);
+  if ('codeFont' in prismPatch) out.prismCodeFont = normalizePrismCodeFont(prismPatch.codeFont);
+  if ('codeLigatures' in prismPatch) out.prismCodeLigatures = normalizePrismBoolFalse(prismPatch.codeLigatures);
+  if ('ambientIntensity' in prismPatch) out.prismAmbientIntensity = normalizePrismAmbientIntensity(prismPatch.ambientIntensity);
+  if ('darkAura' in prismPatch) out.prismDarkAura = normalizePrismDarkAura(prismPatch.darkAura);
+  if ('motionLevel' in prismPatch) out.prismMotionLevel = normalizePrismMotionLevel(prismPatch.motionLevel);
+  if ('targetFps' in prismPatch) out.prismTargetFps = normalizePrismTargetFps(prismPatch.targetFps);
+  if ('homeRipple' in prismPatch || 'ripple' in prismPatch) {
+    const raw = 'homeRipple' in prismPatch ? prismPatch.homeRipple : prismPatch.ripple;
+    out.prismHomeRipple = normalizePrismBoolTrue(raw);
+  }
+  if ('convRipple' in prismPatch) out.prismConvRipple = normalizePrismConvRipple(prismPatch.convRipple);
+  if ('smoothCaret' in prismPatch) out.prismSmoothCaret = normalizePrismBoolTrue(prismPatch.smoothCaret);
+  if ('scrollBottomMotion' in prismPatch) {
+    out.prismScrollBottomMotion = normalizeEnumValue(prismPatch.scrollBottomMotion, ['smooth', 'instant'], 'smooth');
+  }
+  if ('composerRestyle' in prismPatch || 'composer' in prismPatch) {
+    const raw = 'composerRestyle' in prismPatch ? prismPatch.composerRestyle : prismPatch.composer;
+    out.prismComposerRestyle = normalizePrismBoolTrue(raw);
+  }
+  if ('sidebarRestyle' in prismPatch || 'sidebar' in prismPatch) {
+    const raw = 'sidebarRestyle' in prismPatch ? prismPatch.sidebarRestyle : prismPatch.sidebar;
+    out.prismSidebarRestyle = normalizePrismBoolTrue(raw);
+  }
+  if ('sidebarCompact' in prismPatch) out.prismSidebarCompact = normalizePrismBoolFalse(prismPatch.sidebarCompact);
+  if ('sidebarNavFold' in prismPatch) out.prismSidebarNavFold = normalizePrismOnOff(prismPatch.sidebarNavFold, 'off');
+  if ('placeholderStyle' in prismPatch || 'promptStyle' in prismPatch) {
+    const raw = 'placeholderStyle' in prismPatch ? prismPatch.placeholderStyle : prismPatch.promptStyle;
+    out.prismPlaceholderStyle = normalizeEnumValue(raw, ['studio', 'host'], 'studio');
+  }
+  if ('logoInk' in prismPatch) out.prismLogoInk = normalizeEnumValue(prismPatch.logoInk, ['accent', 'mono', 'native'], 'accent');
+  if ('effortSliderModule' in prismPatch) out.prismEffortSlider = normalizePrismAutoOnOff(prismPatch.effortSliderModule, 'auto');
+  if ('effortMemory' in prismPatch) out.prismEffortMemory = normalizePrismOnOff(prismPatch.effortMemory, 'on');
+  if ('homeLayout' in prismPatch || 'homeMode' in prismPatch || 'homeStudio' in prismPatch) {
+    const raw = prismPatch.homeStudio ?? prismPatch.homeLayout ?? prismPatch.homeMode;
+    out.prismHomeStudio = raw === 'off' || raw === false ? 'off' : 'on';
+  }
+  if ('workbenchEnhancer' in prismPatch) out.prismWorkbenchEnhancer = normalizePrismOnOff(prismPatch.workbenchEnhancer, 'on');
+  if ('omniModule' in prismPatch) out.prismOmniModule = normalizePrismOnOff(prismPatch.omniModule, 'on');
+  if ('linkTarget' in prismPatch) out.prismLinkTarget = normalizePrismLinkTarget(prismPatch.linkTarget);
+  if ('mascot' in prismPatch) out.prismMascot = normalizePrismMascot(prismPatch.mascot);
+  if ('wallpaperEnabled' in prismPatch) out.prismWallpaperEnabled = normalizePrismBoolFalse(prismPatch.wallpaperEnabled);
+  return out;
+}
+return { SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizeOrchestratorIdMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeEnableChatTurnSummary, PRISM_PALETTE_KEYS, PRISM_LIGHT_PRESET_KEYS, PRISM_DARK_AURA_STYLE_KEYS, PRISM_ACCENT_TONE_KEYS, PRISM_CORNER_STYLE_KEYS, PRISM_CODE_FONT_KEYS, PRISM_AMBIENT_INTENSITY_KEYS, PRISM_DARK_AURA_KEYS, PRISM_MOTION_LEVEL_KEYS, PRISM_TARGET_FPS_KEYS, PRISM_CONV_RIPPLE_KEYS, PRISM_ON_OFF_AUTO_KEYS, PRISM_ON_OFF_KEYS, PRISM_LINK_TARGET_KEYS, normalizePrismPalette, normalizePrismLightPreset, normalizePrismDarkAuraStyle, normalizePrismAccentTone, normalizePrismCornerStyle, normalizePrismCodeFont, normalizePrismAmbientIntensity, normalizePrismDarkAura, normalizePrismMotionLevel, normalizePrismTargetFps, normalizePrismConvRipple, normalizePrismAutoOnOff, normalizePrismOnOff, normalizePrismLinkTarget, normalizePrismMascot, normalizePrismEnabled, normalizePrismBoolTrue, normalizePrismBoolFalse, mapSettingsToPrismRuntimeConfig, mapPrismPatchToSettingsPatch };
 })();
 
 // --- shared/telemetry-display-rules.mjs ---
@@ -922,6 +1211,26 @@ const BRIDGE_API_ROUTE_DEFS = Object.freeze([
     method: 'GET',
     action: 'quota_reservation_log',
   }),
+  Object.freeze({
+    path: '/api/prism/home-snapshot',
+    method: 'GET',
+    action: 'prism_home_snapshot',
+  }),
+  Object.freeze({
+    path: '/api/prism/settings-sync',
+    method: 'POST',
+    action: 'prism_settings_sync',
+  }),
+  Object.freeze({
+    path: '/api/prism/wallpaper',
+    method: 'POST',
+    action: 'prism_wallpaper',
+  }),
+  Object.freeze({
+    path: '/api/prism/omni-status',
+    method: 'GET',
+    action: 'prism_omni_status',
+  }),
 ]);
 
 const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r.path));
@@ -1066,6 +1375,19 @@ const SVG_ICON_DEFS = Object.freeze({
     { tag: 'circle', attrs: { cx: '10', cy: '8', r: '1.05', fill: 'currentColor', stroke: 'none' } },
     { tag: 'circle', attrs: { cx: '6', cy: '12', r: '1.05', fill: 'currentColor', stroke: 'none' } },
     { tag: 'circle', attrs: { cx: '10', cy: '12', r: '1.05', fill: 'currentColor', stroke: 'none' } },
+  ],
+  swarm: [
+    { tag: 'circle', attrs: { cx: '8', cy: '3.4', r: '1.9' } },
+    { tag: 'circle', attrs: { cx: '3.6', cy: '11.8', r: '1.9' } },
+    { tag: 'circle', attrs: { cx: '12.4', cy: '11.8', r: '1.9' } },
+    { tag: 'path', attrs: { d: 'M7.1 5.1L4.5 10.1M8.9 5.1l2.6 5M5.5 11.8h5' } },
+  ],
+  code: [
+    { tag: 'path', attrs: { d: 'M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9.2 3.2L6.8 12.8' } },
+  ],
+  sparkles: [
+    { tag: 'path', attrs: { d: 'M8 1.8l1.2 3.8L13 6.8l-3.8 1.2L8 11.8 6.8 8 3 6.8l3.8-1.2L8 1.8z' } },
+    { tag: 'path', attrs: { d: 'M12.8 10.8l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6.6-1.6z' } },
   ],
 });
 return { SVG_ICON_DEFS };
@@ -1324,6 +1646,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
 
   // Capsule & Multi-Session Overlay
   'capsule.ariaMonitor': 'Usage & Speed Monitor',
+  'capsule.ariaSwarm': 'Open Swarm UI',
   'capsule.ariaMulti': 'Active Sessions Overview',
   'capsule.multiZero': '0 active',
   'capsule.multiRunning': '{count} active',
@@ -1865,6 +2188,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.popoverWidthCustom': 'Custom',
   'settings.str.popoverWidthHint': 'Auto Fit widens wide tables like Step Records to avoid horizontal scroll; Custom accepts 440–1080 px',
   'settings.str.multiToggle': 'Active Sessions Pill',
+  'settings.str.chatTurnSummaryToggle': 'Chat Turn Summary Cards',
   'settings.str.contextAgentModeLabel': 'Capsule & Hover Context',
   'settings.str.contextAgentMain': 'Lock Main Agent',
   'settings.str.contextAgentAuto': 'Follow Active',
@@ -2128,6 +2452,94 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'ui.num.decrease': 'Decrease value',
   'ui.num.increase': 'Increase value',
   'ui.seg.defaultAria': 'Segmented switcher',
+
+  // Inline Chat Turn Summary Cards
+  'turnSummary.badgeOrchestrator': 'Orchestrator',
+  'turnSummary.badgeSwarm': 'Swarm',
+  'turnSummary.badgeMultiAgent': 'Multi-Agent',
+  'turnSummary.orchStepSplit': 'Orch {orchPct}% ({orchSteps}) · Impl {implPct}% ({implSteps})',
+  'turnSummary.swarmMeta': '{agents} agents · {steps} steps',
+  'turnSummary.colRole': 'Role / Agent',
+  'turnSummary.colSteps': 'Steps',
+  'turnSummary.colCtx': 'Ctx',
+  'turnSummary.colThink': 'Think',
+  'turnSummary.colReply': 'Reply',
+  'turnSummary.colPerf': 'Dur / TPS',
+  'turnSummary.roleOrchestrator': 'Orchestrator',
+  'turnSummary.roleImplementor': 'Implementor',
+  'turnSummary.roleMain': 'Coordinator / Main',
+  'turnSummary.auxBadge': 'Aux',
+  'turnSummary.orchSection': 'Orchestrator Split',
+  'turnSummary.agentsSection': 'Agents Breakdown',
+  'turnSummary.ctxShort': 'ctx',
+  'turnSummary.thinkShort': 'think',
+  'turnSummary.replyShort': 'reply',
+  'turnSummary.outShort': 'out',
+  'turnSummary.ariaExpand': 'Expand turn agent summary',
+  'turnSummary.ariaCollapse': 'Collapse turn agent summary',
+  'turnSummary.liveRunning': 'Turn in progress',
+
+  // Linear Quota Depletion Forecast
+  'quota.pace.ok': 'On track',
+  'quota.pace.tight': 'Burning fast',
+  'quota.pace.exhaust': 'Depleting early',
+  'quota.pace.exhaustTip': 'Linear burn rate projects depletion in ~{eta} before reset',
+  'quota.pace.endTip': 'Projected ~{pct}% remaining at window reset',
+
+  // Obsidian Prism Optical UI & Host Modules (General Settings)
+  'settings.prism.title': 'Obsidian Prism Optical UI',
+  'settings.prism.presets': 'Scene Presets',
+  'settings.prism.presetFull': 'Full Visuals',
+  'settings.prism.presetFocus': 'Deep Focus',
+  'settings.prism.presetEco': 'Silent Eco',
+  'settings.prism.palette': 'Dark Theme',
+  'settings.prism.palObsidian': 'Obsidian Dark',
+  'settings.prism.palObsidianDesc': 'Cool slate high-contrast',
+  'settings.prism.palWarm': 'Warm Charcoal',
+  'settings.prism.palWarmDesc': 'Low-glare warm charcoal',
+  'settings.prism.lightPreset': 'Daylight Theme',
+  'settings.prism.lightCrystal': 'Daylight Crystal',
+  'settings.prism.lightCrystalDesc': 'Cool slate-blue daylight',
+  'settings.prism.lightAlabaster': 'Warm Alabaster',
+  'settings.prism.lightAlabasterDesc': 'Warm paper daylight',
+  'settings.prism.accent': 'Prism Accent',
+  'settings.prism.accentFollow': 'Theme Default',
+  'settings.prism.accentCobalt': 'Cobalt',
+  'settings.prism.accentIris': 'Iris',
+  'settings.prism.accentAmber': 'Amber',
+  'settings.prism.accentMono': 'Mono',
+  'settings.prism.corners': 'Corner Radius',
+  'settings.prism.cornersSharp': 'Sharp',
+  'settings.prism.cornersBalanced': 'Balanced',
+  'settings.prism.cornersSoft': 'Soft',
+  'settings.prism.motion': 'Spring Physics',
+  'settings.prism.motionOff': 'Off',
+  'settings.prism.motionSubtle': 'Subtle',
+  'settings.prism.motionStandard': 'Standard',
+  'settings.prism.motionUltra': 'Ultra',
+  'settings.prism.codeFont': 'Code Font',
+  'settings.prism.fontDefault': 'Host Default',
+  'settings.prism.fontJetbrains': 'JetBrains Mono',
+  'settings.prism.fontCascadia': 'Cascadia Code',
+  'settings.prism.fontSfmono': 'SF Mono',
+  'settings.prism.ligatures': 'Code Ligatures',
+  'settings.prism.homeRipple': 'Home Ripple',
+  'settings.prism.smoothCaret': 'Smooth Caret',
+  'settings.prism.effortSlider': 'Effort Slider',
+  'settings.prism.workbench': 'Workbench Enhancer',
+  'settings.prism.homeStudio': 'Home Dashboard',
+  'settings.prism.omni': 'Omni File Viewer',
+  'settings.prism.mascot': 'Pixel Mascots',
+  'settings.prism.mascotOff': 'Off (Default)',
+  'settings.prism.mascotCrab': 'Claude Crab + Cat',
+  'settings.prism.mascotQuad': 'All 4 + Minis',
+  'settings.prism.wallpaper': 'Wallpaper (Beta)',
+  'settings.prism.wallpaperPick': 'Choose Media',
+  'settings.prism.wallpaperClear': 'Clear',
+  'settings.prism.wallpaperOpacity': 'Opacity',
+  'settings.prism.wallpaperBlur': 'Blur',
+  'settings.prism.wallpaperNone': 'No local image/video selected (0fps when off)',
+  'settings.prism.attribution': 'Optical UI, motion choreography, workbench enhancements, effort slider, Omni viewer, Home Studio, wallpaper, and pixel mascots adapted from Obsidian Prism (@RMvdesi, github.com/RMvdesi/obsidian-prism) under GNU GPL-3.0-only.',
 });
 return { I18N_MESSAGES_ZH_CN };
 })();
@@ -2213,6 +2625,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
 
   // Capsule & Multi-Session Overlay
   'capsule.ariaMonitor': 'Usage & Speed Monitor',
+  'capsule.ariaSwarm': 'Open Swarm UI',
   'capsule.ariaMulti': 'Active Sessions Overview',
   'capsule.multiZero': '0 active',
   'capsule.multiRunning': '{count} active',
@@ -2754,6 +3167,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.popoverWidthCustom': 'Custom',
   'settings.str.popoverWidthHint': 'Auto Fit widens wide tables like Step Records to avoid horizontal scroll; Custom accepts 440–1080 px',
   'settings.str.multiToggle': 'Active Sessions Pill',
+  'settings.str.chatTurnSummaryToggle': 'Chat Turn Summary Cards',
   'settings.str.contextAgentModeLabel': 'Capsule & Hover Context',
   'settings.str.contextAgentMain': 'Lock Main Agent',
   'settings.str.contextAgentAuto': 'Follow Active',
@@ -3017,6 +3431,94 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'ui.num.decrease': 'Decrease value',
   'ui.num.increase': 'Increase value',
   'ui.seg.defaultAria': 'Segmented switcher',
+
+  // Inline Chat Turn Summary Cards
+  'turnSummary.badgeOrchestrator': 'Orchestrator',
+  'turnSummary.badgeSwarm': 'Swarm',
+  'turnSummary.badgeMultiAgent': 'Multi-Agent',
+  'turnSummary.orchStepSplit': 'Orch {orchPct}% ({orchSteps}) · Impl {implPct}% ({implSteps})',
+  'turnSummary.swarmMeta': '{agents} agents · {steps} steps',
+  'turnSummary.colRole': 'Role / Agent',
+  'turnSummary.colSteps': 'Steps',
+  'turnSummary.colCtx': 'Ctx',
+  'turnSummary.colThink': 'Think',
+  'turnSummary.colReply': 'Reply',
+  'turnSummary.colPerf': 'Dur / TPS',
+  'turnSummary.roleOrchestrator': 'Orchestrator',
+  'turnSummary.roleImplementor': 'Implementor',
+  'turnSummary.roleMain': 'Coordinator / Main',
+  'turnSummary.auxBadge': 'Aux',
+  'turnSummary.orchSection': 'Orchestrator Split',
+  'turnSummary.agentsSection': 'Agents Breakdown',
+  'turnSummary.ctxShort': 'ctx',
+  'turnSummary.thinkShort': 'think',
+  'turnSummary.replyShort': 'reply',
+  'turnSummary.outShort': 'out',
+  'turnSummary.ariaExpand': 'Expand turn agent summary',
+  'turnSummary.ariaCollapse': 'Collapse turn agent summary',
+  'turnSummary.liveRunning': 'Turn in progress',
+
+  // Linear Quota Depletion Forecast
+  'quota.pace.ok': 'On track',
+  'quota.pace.tight': 'Burning fast',
+  'quota.pace.exhaust': 'Depleting early',
+  'quota.pace.exhaustTip': 'Linear burn rate projects depletion in ~{eta} before reset',
+  'quota.pace.endTip': 'Projected ~{pct}% remaining at window reset',
+
+  // Obsidian Prism Optical UI & Host Modules (General Settings)
+  'settings.prism.title': 'Obsidian Prism Optical UI',
+  'settings.prism.presets': 'Scene Presets',
+  'settings.prism.presetFull': 'Full Visuals',
+  'settings.prism.presetFocus': 'Deep Focus',
+  'settings.prism.presetEco': 'Silent Eco',
+  'settings.prism.palette': 'Dark Theme',
+  'settings.prism.palObsidian': 'Obsidian Dark',
+  'settings.prism.palObsidianDesc': 'Cool slate high-contrast',
+  'settings.prism.palWarm': 'Warm Charcoal',
+  'settings.prism.palWarmDesc': 'Low-glare warm charcoal',
+  'settings.prism.lightPreset': 'Daylight Theme',
+  'settings.prism.lightCrystal': 'Daylight Crystal',
+  'settings.prism.lightCrystalDesc': 'Cool slate-blue daylight',
+  'settings.prism.lightAlabaster': 'Warm Alabaster',
+  'settings.prism.lightAlabasterDesc': 'Warm paper daylight',
+  'settings.prism.accent': 'Prism Accent',
+  'settings.prism.accentFollow': 'Theme Default',
+  'settings.prism.accentCobalt': 'Cobalt',
+  'settings.prism.accentIris': 'Iris',
+  'settings.prism.accentAmber': 'Amber',
+  'settings.prism.accentMono': 'Mono',
+  'settings.prism.corners': 'Corner Radius',
+  'settings.prism.cornersSharp': 'Sharp',
+  'settings.prism.cornersBalanced': 'Balanced',
+  'settings.prism.cornersSoft': 'Soft',
+  'settings.prism.motion': 'Spring Physics',
+  'settings.prism.motionOff': 'Off',
+  'settings.prism.motionSubtle': 'Subtle',
+  'settings.prism.motionStandard': 'Standard',
+  'settings.prism.motionUltra': 'Ultra',
+  'settings.prism.codeFont': 'Code Font',
+  'settings.prism.fontDefault': 'Host Default',
+  'settings.prism.fontJetbrains': 'JetBrains Mono',
+  'settings.prism.fontCascadia': 'Cascadia Code',
+  'settings.prism.fontSfmono': 'SF Mono',
+  'settings.prism.ligatures': 'Code Ligatures',
+  'settings.prism.homeRipple': 'Home Ripple',
+  'settings.prism.smoothCaret': 'Smooth Caret',
+  'settings.prism.effortSlider': 'Effort Slider',
+  'settings.prism.workbench': 'Workbench Enhancer',
+  'settings.prism.homeStudio': 'Home Dashboard',
+  'settings.prism.omni': 'Omni File Viewer',
+  'settings.prism.mascot': 'Pixel Mascots',
+  'settings.prism.mascotOff': 'Off (Default)',
+  'settings.prism.mascotCrab': 'Claude Crab + Cat',
+  'settings.prism.mascotQuad': 'All 4 + Minis',
+  'settings.prism.wallpaper': 'Wallpaper (Beta)',
+  'settings.prism.wallpaperPick': 'Choose Media',
+  'settings.prism.wallpaperClear': 'Clear',
+  'settings.prism.wallpaperOpacity': 'Opacity',
+  'settings.prism.wallpaperBlur': 'Blur',
+  'settings.prism.wallpaperNone': 'No local image/video selected (0fps when off)',
+  'settings.prism.attribution': 'Optical UI, motion choreography, workbench enhancements, effort slider, Omni viewer, Home Studio, wallpaper, and pixel mascots adapted from Obsidian Prism (@RMvdesi, github.com/RMvdesi/obsidian-prism) under GNU GPL-3.0-only.',
 });
 return { I18N_MESSAGES_EN_US };
 })();
@@ -3092,7 +3594,7 @@ return { I18N_DICTIONARIES, normalizeI18nLanguage, detectHostSystemLocale, i18nS
 })();
 
 // --- src/core/appearance.js ---
-const { THEME_ACCENT_PRESETS, FONT_SCALE_FACTORS, PANEL_SCALE_FACTORS, normalizeClientThemeAccent, normalizeClientFontScale, normalizeClientModernUi, resolveSettingsModernUi, isModernUiActiveForElement, parseCssColorLuminance, detectHostColorScheme, applyAppearanceToRoot } = (() => {
+const { THEME_ACCENT_PRESETS, FONT_SCALE_FACTORS, PANEL_SCALE_FACTORS, normalizeClientThemeAccent, normalizeClientFontScale, normalizeClientModernUi, resolveSettingsModernUi, isModernUiActiveForElement, parseCssColorLuminance, detectHostColorScheme, applyAppearanceToRoot, installPrismHostMessageThemeSync } = (() => {
 /**
  * @fileoverview Theme accent palette & panel font-scale appearance engine.
  * Applies CSS custom properties cleanly to Sidebar `:root` and Shadow DOM hosts,
@@ -3524,8 +4026,106 @@ function applyAppearanceToRoot(targetEl, settings, { includeFontScale = true } =
     setOrClearStyleVar(targetEl, '--ui-panel-scale', '');
     removeAttrIfPresent(targetEl, 'data-font-scale');
   }
+
+  // Obsidian Prism Optical Theme & Motion Attributes (unified across Sidebar, Capsule, Portal, Standalone)
+  const prismPalette = settings?.prismPalette === 'warm' ? 'warm' : 'obsidian';
+  const prismLightPreset = settings?.prismLightPreset === 'alabaster' ? 'alabaster' : 'crystal';
+  const prismAccent = ['follow', 'cobalt', 'iris', 'amber', 'mono'].includes(settings?.prismAccentTone)
+    ? settings.prismAccentTone
+    : 'follow';
+  const prismCorners = ['sharp', 'balanced', 'soft'].includes(settings?.prismCornerStyle)
+    ? settings.prismCornerStyle
+    : 'balanced';
+  const prismCodeFont = ['default', 'jetbrains', 'cascadia', 'sfmono'].includes(settings?.prismCodeFont)
+    ? settings.prismCodeFont
+    : 'default';
+  const prismMotion = ['off', 'subtle', 'standard', 'ultra'].includes(settings?.prismMotionLevel)
+    ? settings.prismMotionLevel
+    : 'ultra';
+  const prismLigatures = settings?.prismCodeLigatures === true ? '1' : '0';
+
+  setAttrIfChanged(targetEl, 'data-prism-palette', prismPalette);
+  setAttrIfChanged(targetEl, 'data-prism-light-preset', prismLightPreset);
+  setAttrIfChanged(targetEl, 'data-prism-accent', prismAccent);
+  setAttrIfChanged(targetEl, 'data-prism-corners', prismCorners);
+  setAttrIfChanged(targetEl, 'data-prism-code-font', prismCodeFont);
+  setAttrIfChanged(targetEl, 'data-prism-ligatures', prismLigatures);
+  setAttrIfChanged(targetEl, 'data-ag-cs-motion', prismMotion);
 }
-return { THEME_ACCENT_PRESETS, FONT_SCALE_FACTORS, PANEL_SCALE_FACTORS, normalizeClientThemeAccent, normalizeClientFontScale, normalizeClientModernUi, resolveSettingsModernUi, isModernUiActiveForElement, parseCssColorLuminance, detectHostColorScheme, applyAppearanceToRoot };
+
+const ALLOWED_SIDECAR_THEME_VARS = new Set([
+  '--background', '--content', '--shell', '--body-background',
+  '--sidebar', '--sidebar-muted', '--sidebar-secondary',
+  '--card', '--card-border', '--border', '--secondary', '--secondary-foreground',
+  '--muted', '--muted-foreground', '--foreground', '--placeholder',
+  '--primary', '--primary-foreground', '--accent', '--link',
+  '--error', '--warning', '--success', '--scrim',
+  '--ag-cs-tonal-0', '--ag-cs-tonal-1', '--ag-cs-tonal-2', '--ag-cs-tonal-3', '--ag-cs-tonal-4',
+  '--font-sans',
+]);
+
+/**
+ * Listen for Obsidian Prism host `postMessage` theme sync packets inside Sidebar `iframe`
+ * (zero white flash when host theme switches) and attach 0fps idle/blur pause attributes.
+ *
+ * @param {() => object|null|undefined} [getSettingsFn]
+ * @returns {() => void}
+ */
+function installPrismHostMessageThemeSync(getSettingsFn = null) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => {};
+  }
+  const rootEl = document.documentElement;
+  if (!rootEl) return () => {};
+
+  const onMessage = (event) => {
+    const data = event?.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type !== 'ag-prism:theme-vars' && data.type !== 'obsidian-prism:theme') return;
+    if (data.theme === 'light' || data.theme === 'dark') {
+      setAttrIfChanged(rootEl, 'data-color-scheme', data.theme);
+    }
+    if (data.palette === 'obsidian' || data.palette === 'warm') {
+      setAttrIfChanged(rootEl, 'data-prism-palette', data.palette);
+    }
+    if (data.lightPreset === 'crystal' || data.lightPreset === 'alabaster') {
+      setAttrIfChanged(rootEl, 'data-prism-light-preset', data.lightPreset);
+    }
+    if (data.vars && typeof data.vars === 'object') {
+      for (const [k, v] of Object.entries(data.vars)) {
+        if (!ALLOWED_SIDECAR_THEME_VARS.has(k)) continue;
+        if (typeof v !== 'string' || v.length > 256 || /[;{}]/.test(v)) continue;
+        setOrClearStyleVar(rootEl, k, v.trim());
+      }
+    }
+  };
+
+  const syncIdlePause = () => {
+    const isHidden = document.visibilityState === 'hidden' || document.hidden === true;
+    const isBlurred = typeof document.hasFocus === 'function' ? !document.hasFocus() : false;
+    if (isHidden || isBlurred) {
+      setAttrIfChanged(rootEl, 'data-prism-win-blur', '1');
+    } else {
+      removeAttrIfPresent(rootEl, 'data-prism-win-blur');
+      if (typeof getSettingsFn === 'function') {
+        applyAppearanceToRoot(rootEl, getSettingsFn(), { includeFontScale: true });
+      }
+    }
+  };
+
+  window.addEventListener?.('message', onMessage);
+  window.addEventListener?.('blur', syncIdlePause);
+  window.addEventListener?.('focus', syncIdlePause);
+  document.addEventListener?.('visibilitychange', syncIdlePause);
+
+  return () => {
+    window.removeEventListener?.('message', onMessage);
+    window.removeEventListener?.('blur', syncIdlePause);
+    window.removeEventListener?.('focus', syncIdlePause);
+    document.removeEventListener?.('visibilitychange', syncIdlePause);
+  };
+}
+return { THEME_ACCENT_PRESETS, FONT_SCALE_FACTORS, PANEL_SCALE_FACTORS, normalizeClientThemeAccent, normalizeClientFontScale, normalizeClientModernUi, resolveSettingsModernUi, isModernUiActiveForElement, parseCssColorLuminance, detectHostColorScheme, applyAppearanceToRoot, installPrismHostMessageThemeSync };
 })();
 
 // --- src/core/domPatch.js ---
@@ -4023,6 +4623,208 @@ function defineComponent({ name, setup }) {
   };
 }
 return { defineComponent };
+})();
+
+// --- src/core/prismColors.js ---
+const { PRISM_MODEL_CAMP_PALETTES, PRISM_MODEL_OVERFLOW_PALETTE, detectPrismModelCamp, isPrismDarkColorScheme, resolvePrismModelCampPair, buildPrismModelColorMap, resolvePrismChartModelColor } = (() => {
+/**
+ * Ported & adapted from Obsidian Prism (`home-studio-panel.js` MODEL_CAMP_PALETTES)
+ * by @RMvdesi (GPL-3.0-only). Modified on 2026-11-26 for antigravity-usage-monitor.
+ *
+ * Curated dual-theme (dark/light) per-provider model-camp palettes ensuring
+ * high contrast and distinct hues between sibling models (Gemini, Claude, GPT, DeepSeek).
+ */
+
+const PRISM_MODEL_CAMP_PALETTES = Object.freeze({
+  gemini: Object.freeze([
+    ['#4F8BFF', '#2563EB'],
+    ['#22D3EE', '#0891B2'],
+    ['#818CF8', '#4F46E5'],
+    ['#2DD4BF', '#0D9488'],
+    ['#93C5FD', '#1E40AF'],
+  ]),
+  claude: Object.freeze([
+    ['#F59E0B', '#D97706'],
+    ['#FB7185', '#E11D48'],
+    ['#F97316', '#C2410C'],
+    ['#FBBF24', '#B45309'],
+    ['#F43F5E', '#BE123C'],
+  ]),
+  gpt: Object.freeze([
+    ['#34D399', '#059669'],
+    ['#A3E635', '#65A30D'],
+    ['#4ADE80', '#16A34A'],
+    ['#5EEAD4', '#0F766E'],
+  ]),
+  deepseek: Object.freeze([
+    ['#A78BFA', '#7C3AED'],
+    ['#E879F9', '#C026D3'],
+    ['#C084FC', '#9333EA'],
+    ['#F472B6', '#DB2777'],
+  ]),
+});
+
+const PRISM_MODEL_OVERFLOW_PALETTE = Object.freeze([
+  ['#38BDF8', '#0284C7'],
+  ['#EC4899', '#BE185D'],
+  ['#84CC16', '#4D7C0F'],
+  ['#FB923C', '#EA580C'],
+  ['#C4B5FD', '#6D28D9'],
+  ['#FACC15', '#CA8A04'],
+  ['#14B8A6', '#115E59'],
+  ['#94A3B8', '#475569'],
+]);
+
+const PRISM_ALL_FALLBACKS = Object.freeze([
+  ...PRISM_MODEL_OVERFLOW_PALETTE,
+  ...PRISM_MODEL_CAMP_PALETTES.gemini,
+  ...PRISM_MODEL_CAMP_PALETTES.claude,
+  ...PRISM_MODEL_CAMP_PALETTES.gpt,
+  ...PRISM_MODEL_CAMP_PALETTES.deepseek,
+]);
+
+function detectPrismModelCamp(modelSeed) {
+  const s = String(modelSeed || '').toLowerCase();
+  if (/gemini|argon|carbon|hydrogen|palm|bard|orchestrator/.test(s)) return 'gemini';
+  if (/claude|anthropic|opus|sonnet|haiku/.test(s)) return 'claude';
+  if (/gpt|openai|codex|chatgpt|\bo[134](?:-|\b)/.test(s)) return 'gpt';
+  if (/deepseek/.test(s)) return 'deepseek';
+  return 'other';
+}
+
+function prismHslToHex(hDeg, sPct, lPct) {
+  const h = (((hDeg % 360) + 360) % 360) / 360;
+  const s = sPct / 100;
+  const l = lPct / 100;
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const ch = (t) => {
+    const k = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    const v =
+      k < 1 / 6 ? p + (q - p) * 6 * k : k < 0.5 ? q : k < 2 / 3 ? p + (q - p) * (2 / 3 - k) * 6 : p;
+    return Math.round(v * 255)
+      .toString(16)
+      .padStart(2, '0')
+      .toUpperCase();
+  };
+  return '#' + ch(h + 1 / 3) + ch(h) + ch(h - 1 / 3);
+}
+
+function prismFnv1a32(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  }
+  return h >>> 0;
+}
+
+function hexToCssHsl(hex) {
+  const clean = String(hex || '').replace('#', '');
+  if (clean.length !== 6) return 'hsl(217 84% 53%)';
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  return `hsl(${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
+}
+
+function isPrismDarkColorScheme() {
+  if (typeof document === 'undefined' || !document.documentElement) return true;
+  const scheme = document.documentElement.getAttribute?.('data-color-scheme');
+  if (scheme === 'light') return false;
+  if (scheme === 'dark') return true;
+  return true;
+}
+
+/**
+ * Resolve a single deterministic `{ dark, light }` pair (CSS `hsl(...)`) for a model identifier.
+ *
+ * @param {string} seed
+ * @returns {{ dark: string, light: string, camp: string }}
+ */
+function resolvePrismModelCampPair(seed) {
+  const clean = String(seed || '').trim();
+  if (!clean) {
+    return { dark: 'hsl(217 91% 68%)', light: 'hsl(221 83% 53%)', camp: 'other' };
+  }
+  const camp = detectPrismModelCamp(clean);
+  const pool = PRISM_MODEL_CAMP_PALETTES[camp] || PRISM_MODEL_OVERFLOW_PALETTE;
+  const idx = prismFnv1a32(clean.toLowerCase()) % pool.length;
+  const pair = pool[idx] || PRISM_MODEL_OVERFLOW_PALETTE[0];
+  return { dark: hexToCssHsl(pair[0]), light: hexToCssHsl(pair[1]), camp };
+}
+
+/**
+ * Build a collision-free dark/light color map (`hsl(...)`) for a set of canonical model seeds.
+ *
+ * @param {string[]} seeds
+ * @param {{ isDark?: boolean }} [options]
+ * @returns {Map<string, string>}
+ */
+function buildPrismModelColorMap(seeds, { isDark = isPrismDarkColorScheme() } = {}) {
+  const uniqueSeeds = Array.from(
+    new Set((Array.isArray(seeds) ? seeds : []).map((s) => String(s || '').trim()).filter(Boolean))
+  ).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+  const usedDark = new Set();
+  const usedLight = new Set();
+  const out = new Map();
+
+  for (const seed of uniqueSeeds) {
+    const camp = detectPrismModelCamp(seed);
+    const campPool = PRISM_MODEL_CAMP_PALETTES[camp] || [];
+    const candidates = [...campPool, ...PRISM_ALL_FALLBACKS];
+    let picked = null;
+    for (const pair of candidates) {
+      if (!usedDark.has(pair[0]) && !usedLight.has(pair[1])) {
+        picked = pair;
+        break;
+      }
+    }
+    if (!picked) {
+      const baseHue = prismFnv1a32(seed) % 360;
+      for (let step = 0; step < 360; step += 1) {
+        const hue = (baseHue + step * 137.508) % 360;
+        const dHex = prismHslToHex(hue, 76, step % 2 === 0 ? 64 : 54);
+        const lHex = prismHslToHex(hue, 72, step % 2 === 0 ? 42 : 34);
+        if (!usedDark.has(dHex) && !usedLight.has(lHex)) {
+          picked = [dHex, lHex];
+          break;
+        }
+      }
+    }
+    const pair = picked || ['#4F8BFF', '#2563EB'];
+    usedDark.add(pair[0]);
+    usedLight.add(pair[1]);
+    out.set(seed, hexToCssHsl(isDark ? pair[0] : pair[1]));
+  }
+  return out;
+}
+
+/**
+ * Convenience resolver for chart/legend models using Obsidian Prism's dual-theme model-camp palettes.
+ *
+ * @param {string} seed
+ * @param {{ isDark?: boolean }} [options]
+ * @returns {string}
+ */
+function resolvePrismChartModelColor(seed, { isDark = isPrismDarkColorScheme() } = {}) {
+  const pair = resolvePrismModelCampPair(seed);
+  return isDark ? pair.dark : pair.light;
+}
+return { PRISM_MODEL_CAMP_PALETTES, PRISM_MODEL_OVERFLOW_PALETTE, detectPrismModelCamp, isPrismDarkColorScheme, resolvePrismModelCampPair, buildPrismModelColorMap, resolvePrismChartModelColor };
 })();
 
 // --- src/core/formatters.js ---
@@ -5976,6 +6778,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   },
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
+  boolField('enableChatTurnSummary', true),
   boolField('enableCliStatusLine', false),
   normField('cliStatusLineSlots', normalizeCliStatusLineSlots),
   normField('standalonePort', normalizeStandalonePort),
@@ -15741,7 +16544,9 @@ function createSessionLineChart() {
       for (let i = 0; i < targetKeys.length; i++) {
         const gk = targetKeys[i];
         const colorVar =
-          modelColorByGroup?.get(gk) || MODEL_COLOR_VARS[i % MODEL_COLOR_VARS.length];
+          modelColorByGroup?.get(gk) ||
+          resolvePrismChartModelColor(gk) ||
+          MODEL_COLOR_VARS[i % MODEL_COLOR_VARS.length];
         modelColorMap.set(gk, colorVar);
         const disp = resolveModelDisplayInfo({ modelLabel: gk, label: gk }, displaySettings, {
           fallback: gk,
@@ -15754,6 +16559,7 @@ function createSessionLineChart() {
       if (!modelColorMap.has(gk)) {
         const colorVar =
           modelColorByGroup?.get(gk) ||
+          resolvePrismChartModelColor(gk) ||
           MODEL_COLOR_VARS[modelColorMap.size % MODEL_COLOR_VARS.length];
         modelColorMap.set(gk, colorVar);
       }
@@ -18644,7 +19450,8 @@ function buildQuotaPoolItems(
 function createPoolQuotaRow() {
   const title5h = h('span', { className: 'quota-win-title', text: '5h' });
   const usage5h = h('span', { className: 'quota-win-usage', hidden: true, text: '' });
-  const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h]);
+  const pace5h = h('span', { className: 'quota-pace-pill', hidden: true, text: '' });
+  const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h, pace5h]);
   const meta5h = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fill5h = h('div', { className: 'progress-fill' });
   const fillReserved5h = h('div', { className: 'progress-fill-reserved' });
@@ -18656,7 +19463,8 @@ function createPoolQuotaRow() {
 
   const titleWk = h('span', { className: 'quota-win-title', text: t('quota.weeklyShort') });
   const usageWk = h('span', { className: 'quota-win-usage', hidden: true, text: '' });
-  const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk]);
+  const paceWk = h('span', { className: 'quota-pace-pill', hidden: true, text: '' });
+  const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk, paceWk]);
   const metaWk = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fillWk = h('div', { className: 'progress-fill' });
   const fillReservedWk = h('div', { className: 'progress-fill-reserved' });
@@ -18678,6 +19486,7 @@ function createPoolQuotaRow() {
       left5h,
       title5h,
       usage5h,
+      pace5h,
       meta5h,
       track5h,
       fill5h,
@@ -18686,6 +19495,7 @@ function createPoolQuotaRow() {
       leftWk,
       titleWk,
       usageWk,
+      paceWk,
       metaWk,
       trackWk,
       fillWk,
@@ -18777,6 +19587,47 @@ function syncQuotaWindowMeter({
   });
 }
 
+function syncQuotaPacePill(paceEl, forecast, isPending, hasData) {
+  if (!paceEl) return;
+  if (isPending || !hasData || !forecast || !forecast.status || forecast.status === 'idle') {
+    paceEl.hidden = true;
+    patchText(paceEl, '');
+    patchAttr(paceEl, 'title', null);
+    patchClasses(paceEl, {
+      'tone-ok': false,
+      'tone-tight': false,
+      'tone-exhaust': false,
+    });
+    return;
+  }
+  const status = forecast.status;
+  const labelKey =
+    status === 'exhaust'
+      ? 'quota.pace.exhaust'
+      : status === 'tight'
+        ? 'quota.pace.tight'
+        : 'quota.pace.ok';
+  let tip = '';
+  if (forecast.willExhaust && Number.isFinite(forecast.exhaustInMs)) {
+    const mins = Math.max(1, Math.round(forecast.exhaustInMs / 60_000));
+    const hrs = Math.floor(mins / 60);
+    const remM = mins % 60;
+    const etaStr = hrs > 0 ? `${hrs}h ${remM}m` : `${mins}m`;
+    tip = t('quota.pace.exhaustTip', { eta: etaStr });
+  } else {
+    const endPct = Math.round((Number(forecast.endRemaining) || 0) * 100);
+    tip = t('quota.pace.endTip', { pct: endPct });
+  }
+  paceEl.hidden = false;
+  patchText(paceEl, t(labelKey));
+  patchAttr(paceEl, 'title', tip);
+  patchClasses(paceEl, {
+    'tone-ok': status === 'ok',
+    'tone-tight': status === 'tight',
+    'tone-exhaust': status === 'exhaust',
+  });
+}
+
 /**
  * 同步单个配额池行的 5h 及每周窗口状态。
  */
@@ -18849,6 +19700,7 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     fillEl: refs.fill5h,
     fillReservedEl: refs.fillReserved5h,
   });
+  syncQuotaPacePill(refs.pace5h, poolData?.forecast5h, isPending, has5h);
 
   const customTitle =
     useCustomWeekly && fallbackWeekly?.title
@@ -18895,13 +19747,21 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     fillEl: refs.fillWk,
     fillReservedEl: refs.fillReservedWk,
   });
+  syncQuotaPacePill(
+    refs.paceWk,
+    useCustomWeekly ? null : poolData?.forecastWeekly,
+    isPending,
+    hasWk && !useCustomWeekly
+  );
 }
 
 function quotaPoolRowSig(item, idx) {
   const c5h = item.poolData?.cycle5h;
   const cWk = item.poolData?.cycleWeekly;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  const f5 = item.poolData?.forecast5h?.status || '';
+  const fwk = item.poolData?.forecastWeekly?.status || '';
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${f5}:${fwk}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 /**
@@ -20188,6 +21048,681 @@ const LiveActivityWidget = defineComponent({
 return { buildFallbackRunningConversations, LiveActivityWidget };
 })();
 
+// --- src/components/widgets/ChatTurnSummaryBar.js ---
+const { shouldRenderTurnSummary, resolveDefaultTurnSummaryExpanded, ChatTurnSummaryBar } = (() => {
+/**
+ * @fileoverview Inline end-of-turn multi-agent & orchestrator telemetry card (`ChatTurnSummaryBar.js`).
+ *
+ * Renders inside an in-flow Shadow DOM sibling host (`.wm-turn-summary-host`)
+ * placed immediately after `[data-testid="agent-response"]` in the Antigravity chat canvas.
+ *
+ * Design architecture (aligned with Usage Monitor's MetricMatrix & ContextSegmentMeter grammar):
+ * - Collapsed: Calm single-row telemetry bar with plain typographic hierarchy (no decorative pills)
+ *   and an edge-to-edge proportional rail along the bottom edge.
+ * - Expanded: The full-width proportional rail acts as the architectural divider between header
+ *   and body. Orchestrator turns open into a 2-column side-by-side comparison (Orchestrator vs
+ *   Implementor) with dedicated per-role metric strips; Swarm/Subagent turns open into a
+ *   proportional agent list with color-keyed vertical accents.
+ */
+
+
+const ORCH_ROLE_COLOR = 'var(--accent-primary)';
+const IMPL_ROLE_COLOR = 'var(--metric-info)';
+const AUX_ROLE_COLOR = 'color-mix(in srgb, var(--text-secondary) 42%, transparent)';
+
+const SWARM_BAR_PALETTE = Object.freeze([
+  'var(--accent-primary)',
+  'var(--metric-info)',
+  'var(--metric-ok)',
+  'var(--metric-warn)',
+  'color-mix(in srgb, var(--text-secondary) 65%, transparent)',
+]);
+
+/**
+ * Determine whether a turn summary should be displayed inline in chat.
+ * Renders for orchestrator, swarm, subagent, and non-empty single-model turns.
+ *
+ * @param {object|null|undefined} summary
+ * @returns {boolean}
+ */
+function shouldRenderTurnSummary(summary) {
+  if (!summary || typeof summary !== 'object') return false;
+  if (
+    summary.mode === 'orchestrator' ||
+    summary.mode === 'swarm' ||
+    summary.mode === 'subagent'
+  ) {
+    return true;
+  }
+  if (summary.orchestratorBreakdown) return true;
+  if (Array.isArray(summary.agentBreakdown) && summary.agentBreakdown.length > 1) {
+    return true;
+  }
+  if (summary.mode === 'single') {
+    const steps = Number(summary.totalCompletedSteps || summary.totalSteps || 0);
+    const agentSteps = Array.isArray(summary.agentBreakdown)
+      ? summary.agentBreakdown.reduce(
+          (acc, ag) => acc + Number(ag?.completedSteps || ag?.totalSteps || 0),
+          0
+        )
+      : 0;
+    const hasTokens =
+      Number(summary.totals?.ctx || 0) > 0 ||
+      Number(summary.totals?.outputTokens || 0) > 0 ||
+      Number(summary.totals?.think || 0) > 0 ||
+      Number(summary.totals?.reply || 0) > 0;
+    return steps > 0 || agentSteps > 0 || hasTokens;
+  }
+  return false;
+}
+
+/**
+ * Resolve default expanded state for a turn summary card.
+ * Single-model turns default to expanded (compact 1-row metric strip);
+ * multi-role/multi-agent turns default to collapsed to keep chat scannable.
+ *
+ * @param {object|null|undefined} summary
+ * @returns {boolean}
+ */
+function resolveDefaultTurnSummaryExpanded(summary) {
+  if (!summary || typeof summary !== 'object') return false;
+  return (
+    summary.mode === 'single' &&
+    !summary.orchestratorBreakdown &&
+    (!Array.isArray(summary.agentBreakdown) || summary.agentBreakdown.length <= 1)
+  );
+}
+
+function formatDurationCompact(sec) {
+  const n = Number(sec);
+  if (!Number.isFinite(n) || n <= 0) return '-';
+  if (n >= 60) {
+    const mins = Math.floor(n / 60);
+    const rem = Math.round(n % 60);
+    return `${mins}m${rem > 0 ? `${rem}s` : ''}`;
+  }
+  return n >= 10 ? `${Math.round(n)}s` : `${n.toFixed(1)}s`;
+}
+
+function formatStepCountLabel(steps) {
+  const n = Number(steps || 0);
+  return n === 1 ? '1 step' : `${n} steps`;
+}
+
+function resolveSingleModelLabel(summary) {
+  const agents = Array.isArray(summary?.agentBreakdown) ? summary.agentBreakdown : [];
+  const primary = agents.find((a) => a?.isMain) || agents[0] || null;
+  const label = String(primary?.modelLabel || summary?.modelLabel || '').trim();
+  return label || 'Model';
+}
+
+function resolveModeMeta(summary) {
+  if (summary?.mode === 'swarm') {
+    return { label: t('turnSummary.badgeSwarm'), icon: 'swarm', variant: 'swarm' };
+  }
+  if (summary?.mode === 'subagent') {
+    return { label: t('turnSummary.badgeMultiAgent'), icon: 'swarm', variant: 'subagent' };
+  }
+  if (summary?.mode === 'orchestrator' || summary?.orchestratorBreakdown) {
+    return { label: t('turnSummary.badgeOrchestrator'), icon: 'layers', variant: 'orch' };
+  }
+  if (summary?.mode === 'single') {
+    return { label: resolveSingleModelLabel(summary), icon: 'bolt', variant: 'single' };
+  }
+  return { label: t('turnSummary.badgeMultiAgent'), icon: 'swarm', variant: 'subagent' };
+}
+
+function buildHeaderMetaPlainText(summary) {
+  const ob = summary?.orchestratorBreakdown;
+  const agents = Array.isArray(summary?.agentBreakdown) ? summary.agentBreakdown : [];
+  if (summary?.mode === 'single' && !ob && agents.length <= 1) {
+    const stepCount = Number(
+      summary?.totalCompletedSteps ||
+        summary?.totalSteps ||
+        agents[0]?.completedSteps ||
+        agents[0]?.totalSteps ||
+        0
+    );
+    return formatStepCountLabel(stepCount);
+  }
+  if ((summary?.mode === 'orchestrator' || !agents.length || agents.length <= 1) && ob) {
+    const orch = ob.orchestrator || {};
+    const impl = ob.implementor || {};
+    const orchSteps = Number(orch.completedSteps || orch.totalSteps || 0);
+    const implSteps = Number(impl.completedSteps || impl.totalSteps || 0);
+    const orchPct = Number.isFinite(Number(orch.pct)) ? Number(orch.pct) : 0;
+    const implPct = Number.isFinite(Number(impl.pct)) ? Number(impl.pct) : 0;
+    return t('turnSummary.orchStepSplit', {
+      orchPct,
+      orchSteps,
+      implPct,
+      implSteps,
+    });
+  }
+  const agentCount = agents.length || 1;
+  const stepCount = Number(summary?.totalCompletedSteps || summary?.totalSteps || 0);
+  return t('turnSummary.swarmMeta', { agents: agentCount, steps: stepCount });
+}
+
+function renderHeaderMeta(containerEl, summary) {
+  containerEl.textContent = '';
+  const ob = summary?.orchestratorBreakdown;
+  const agents = Array.isArray(summary?.agentBreakdown) ? summary.agentBreakdown : [];
+  if ((summary?.mode === 'orchestrator' || !agents.length || agents.length <= 1) && ob) {
+    const orch = ob.orchestrator || {};
+    const impl = ob.implementor || {};
+    const orchSteps = Number(orch.completedSteps || orch.totalSteps || 0);
+    const implSteps = Number(impl.completedSteps || impl.totalSteps || 0);
+    const orchPct = Number.isFinite(Number(orch.pct)) ? Number(orch.pct) : 0;
+    const implPct = Number.isFinite(Number(impl.pct)) ? Number(impl.pct) : 0;
+
+    const makeSplitItem = (label, pct, steps, color) => {
+      const dotEl = h('span', { className: 'wm-ts-dot', 'aria-hidden': 'true' });
+      dotEl.style.background = color;
+      return h('span', { className: `wm-ts-split-item${steps === 0 ? ' is-idle' : ''}` }, [
+        dotEl,
+        h('span', { className: 'wm-ts-split-label', text: label }),
+        h('span', { className: 'wm-ts-split-pct', text: ` ${pct}%` }),
+        h('span', { className: 'wm-ts-split-steps', text: ` (${steps})` }),
+      ]);
+    };
+
+    containerEl.appendChild(makeSplitItem('Orch', orchPct, orchSteps, ORCH_ROLE_COLOR));
+    containerEl.appendChild(
+      h('span', { className: 'wm-ts-split-sep', 'aria-hidden': 'true', text: '/' })
+    );
+    containerEl.appendChild(makeSplitItem('Impl', implPct, implSteps, IMPL_ROLE_COLOR));
+    return;
+  }
+
+  containerEl.appendChild(
+    h('span', {
+      className: 'wm-ts-swarm-meta',
+      text: buildHeaderMetaPlainText(summary),
+    })
+  );
+}
+
+function renderQuickTokenTotals(containerEl, totals) {
+  containerEl.textContent = '';
+  if (!totals || typeof totals !== 'object') {
+    patchAttr(containerEl, 'hidden', true);
+    return;
+  }
+  const items = [];
+  const ctx = Number(totals.ctx || 0);
+  const think = Number(totals.think || 0);
+  const reply = Number(totals.reply || 0);
+  const out = Number(totals.outputTokens || 0);
+  const dur = formatDurationCompact(totals.durationSec);
+
+  if (ctx > 0) items.push({ val: formatTokens(ctx), unit: t('turnSummary.ctxShort') });
+  if (think > 0 || reply > 0) {
+    if (think > 0) items.push({ val: formatTokens(think), unit: t('turnSummary.thinkShort') });
+    if (reply > 0) items.push({ val: formatTokens(reply), unit: t('turnSummary.replyShort') });
+  } else if (out > 0) {
+    items.push({ val: formatTokens(out), unit: t('turnSummary.outShort') });
+  }
+  if (dur !== '-') {
+    items.push({ val: dur, unit: '', isTime: true });
+  }
+
+  if (items.length === 0) {
+    patchAttr(containerEl, 'hidden', true);
+    return;
+  }
+  patchAttr(containerEl, 'hidden', false);
+  items.forEach((item) => {
+    const children = [
+      h('span', {
+        className: item.isTime ? 'wm-ts-stat-val is-time' : 'wm-ts-stat-val',
+        text: item.val,
+      }),
+    ];
+    if (item.unit) {
+      children.push(h('span', { className: 'wm-ts-stat-unit', text: ` ${item.unit}` }));
+    }
+    containerEl.appendChild(h('span', { className: 'wm-ts-stat' }, children));
+  });
+}
+
+function buildRailSegments(summary) {
+  const ob = summary?.orchestratorBreakdown;
+  const agents = Array.isArray(summary?.agentBreakdown) ? summary.agentBreakdown : [];
+  if (summary?.mode === 'single' && !ob && agents.length <= 1) {
+    const modelLabel = resolveSingleModelLabel(summary);
+    const steps = Number(
+      summary?.totalCompletedSteps ||
+        summary?.totalSteps ||
+        agents[0]?.completedSteps ||
+        agents[0]?.totalSteps ||
+        0
+    );
+    return [
+      {
+        pct: 100,
+        color: ORCH_ROLE_COLOR,
+        title: `${modelLabel}: ${formatStepCountLabel(steps)}`,
+      },
+    ];
+  }
+  if ((summary?.mode === 'orchestrator' || agents.length <= 1) && ob) {
+    const orchPct = Math.max(0, Math.min(100, Number(ob.orchestrator?.pct || 0)));
+    const implPct = Math.max(0, Math.min(100, Number(ob.implementor?.pct || 0)));
+    const orchSteps = Number(ob.orchestrator?.completedSteps || ob.orchestrator?.totalSteps || 0);
+    const implSteps = Number(ob.implementor?.completedSteps || ob.implementor?.totalSteps || 0);
+    const segs = [];
+    if (orchPct > 0) {
+      segs.push({
+        pct: orchPct,
+        color: ORCH_ROLE_COLOR,
+        title: `${t('turnSummary.roleOrchestrator')}: ${orchSteps} (${orchPct}%)`,
+      });
+    }
+    if (implPct > 0) {
+      segs.push({
+        pct: implPct,
+        color: IMPL_ROLE_COLOR,
+        title: `${t('turnSummary.roleImplementor')}: ${implSteps} (${implPct}%)`,
+      });
+    }
+    return segs;
+  }
+  if (agents.length > 0) {
+    const segs = [];
+    agents.forEach((ag, idx) => {
+      const pct = Math.max(0, Math.min(100, Number(ag?.pct || 0)));
+      if (pct <= 0) return;
+      const steps = Number(ag?.completedSteps || ag?.totalSteps || 0);
+      const name = ag?.isMain
+        ? t('turnSummary.roleMain')
+        : ag?.label || ag?.role || ag?.agentId || 'Agent';
+      segs.push({
+        pct,
+        color: ag?.isAuxiliary
+          ? AUX_ROLE_COLOR
+          : SWARM_BAR_PALETTE[idx % SWARM_BAR_PALETTE.length],
+        title: `${name}: ${steps} (${pct}%)`,
+      });
+    });
+    return segs;
+  }
+  return [];
+}
+
+function createMetricCell(label, valueNode, extraClass = '') {
+  return h('div', { className: `wm-ts-metric${extraClass ? ` ${extraClass}` : ''}` }, [
+    h('span', { className: 'wm-ts-metric-label', text: label }),
+    h('span', { className: 'wm-ts-metric-value' }, Array.isArray(valueNode) ? valueNode : [valueNode]),
+  ]);
+}
+
+function buildRoleMetricCells(stats, isIdle) {
+  const ctxVal = Number(stats?.ctx || 0);
+  const thinkVal = Number(stats?.think || 0);
+  const replyVal = Number(stats?.reply || 0);
+  const outVal = Number(stats?.outputTokens || 0);
+  const durStr = formatDurationCompact(stats?.durationSec);
+  const tps = Number(stats?.tokPerSec);
+  const hasTps = Number.isFinite(tps) && tps > 0;
+
+  const ctxNode =
+    ctxVal > 0
+      ? h('span', { className: 'wm-ts-val-primary', text: formatTokens(ctxVal) })
+      : h('span', { className: 'wm-ts-val-muted', text: isIdle ? '-' : '0' });
+
+  let thinkNode;
+  let replyNode;
+  if (isIdle && thinkVal === 0 && replyVal === 0 && outVal === 0) {
+    thinkNode = h('span', { className: 'wm-ts-val-muted', text: '-' });
+    replyNode = h('span', { className: 'wm-ts-val-muted', text: '-' });
+  } else if (thinkVal === 0 && replyVal === 0 && outVal > 0) {
+    thinkNode = h('span', { className: 'wm-ts-val-muted', text: '-' });
+    replyNode = [
+      h('span', { className: 'wm-ts-val-primary', text: formatTokens(outVal) }),
+      h('span', { className: 'wm-ts-val-unit', text: ` ${t('turnSummary.outShort')}` }),
+    ];
+  } else {
+    thinkNode =
+      thinkVal > 0
+        ? h('span', { className: 'wm-ts-val-primary', text: formatTokens(thinkVal) })
+        : h('span', { className: 'wm-ts-val-muted', text: '0' });
+    replyNode =
+      replyVal > 0
+        ? h('span', { className: 'wm-ts-val-primary', text: formatTokens(replyVal) })
+        : h('span', { className: 'wm-ts-val-muted', text: '0' });
+  }
+
+  const timeNode =
+    durStr !== '-'
+      ? h('span', { className: 'wm-ts-val-secondary', text: durStr })
+      : h('span', { className: 'wm-ts-val-muted', text: '-' });
+
+  const speedNode = hasTps
+    ? [
+        h('span', { className: 'wm-ts-val-speed', text: formatMetric(tps, '') }),
+        h('span', { className: 'wm-ts-val-unit', text: ' t/s' }),
+      ]
+    : h('span', { className: 'wm-ts-val-muted', text: '-' });
+
+  return [
+    createMetricCell(t('turnSummary.colCtx'), ctxNode),
+    createMetricCell(t('turnSummary.colThink'), thinkNode),
+    createMetricCell(t('turnSummary.colReply'), replyNode),
+    createMetricCell('Time', timeNode),
+    createMetricCell('Speed', speedNode, 'is-speed'),
+  ];
+}
+
+function createOrchestratorRoleColumn({ title, subtitle = '', color, stats = {}, isSecond = false }) {
+  const steps = Number(stats.completedSteps || stats.totalSteps || 0);
+  const pct = Number.isFinite(Number(stats.pct)) ? Number(stats.pct) : 0;
+  const isIdle = steps === 0;
+
+  const accentEl = h('span', { className: 'wm-ts-role-accent', 'aria-hidden': 'true' });
+  accentEl.style.background = color;
+
+  const colClasses = [
+    'wm-ts-orch-col',
+    isSecond ? 'is-second' : '',
+    isIdle ? 'is-idle' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const modelText = subtitle || (isIdle ? 'Not invoked' : '');
+
+  return h('div', { className: colClasses }, [
+    h('div', { className: 'wm-ts-role-head' }, [
+      h('div', { className: 'wm-ts-role-ident' }, [
+        accentEl,
+        h('div', { className: 'wm-ts-role-titles' }, [
+          h('span', { className: 'wm-ts-role-name', text: title }),
+          modelText ? h('span', { className: 'wm-ts-role-model', text: modelText }) : null,
+        ]),
+      ]),
+      h('div', { className: 'wm-ts-role-share' }, [
+        h('span', { className: 'wm-ts-share-pct', text: `${pct}%` }),
+        h('span', { className: 'wm-ts-share-steps', text: formatStepCountLabel(steps) }),
+      ]),
+    ]),
+    h('div', { className: 'wm-ts-metrics-grid' }, buildRoleMetricCells(stats, isIdle)),
+  ]);
+}
+
+function createAgentListRow({ title, subtitle = '', auxLabel = '', color, isMuted = false, stats = {} }) {
+  const steps = Number(stats.completedSteps || stats.totalSteps || 0);
+  const pct = Math.max(0, Math.min(100, Number.isFinite(Number(stats.pct)) ? Number(stats.pct) : 0));
+  const isIdle = steps === 0;
+
+  const accentEl = h('span', { className: 'wm-ts-role-accent', 'aria-hidden': 'true' });
+  accentEl.style.background = color;
+
+  const shareFillEl = h('span', { className: 'wm-ts-agent-bar-fill' });
+  shareFillEl.style.width = `${pct}%`;
+  shareFillEl.style.background = color;
+
+  const rowClasses = [
+    'wm-ts-agent-row',
+    isMuted ? 'is-muted' : '',
+    isIdle ? 'is-idle' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return h('div', { className: rowClasses }, [
+    h('div', { className: 'wm-ts-agent-top' }, [
+      h('div', { className: 'wm-ts-role-ident' }, [
+        accentEl,
+        h('div', { className: 'wm-ts-role-titles' }, [
+          h('span', { className: 'wm-ts-role-title-line' }, [
+            h('span', { className: 'wm-ts-role-name', text: title }),
+            auxLabel ? h('span', { className: 'wm-ts-aux-text', text: auxLabel }) : null,
+          ]),
+          subtitle ? h('span', { className: 'wm-ts-role-model', text: subtitle }) : null,
+        ]),
+      ]),
+      h('div', { className: 'wm-ts-agent-share' }, [
+        h('span', { className: 'wm-ts-agent-share-meta' }, [
+          h('span', { className: 'wm-ts-share-pct is-compact', text: `${pct}%` }),
+          h('span', { className: 'wm-ts-share-steps', text: formatStepCountLabel(steps) }),
+        ]),
+        h('span', { className: 'wm-ts-agent-bar-track', 'aria-hidden': 'true' }, [shareFillEl]),
+      ]),
+    ]),
+    h('div', { className: 'wm-ts-metrics-grid is-agent' }, buildRoleMetricCells(stats, isIdle)),
+  ]);
+}
+
+/**
+ * Create an inline end-of-turn summary card component.
+ *
+ * @param {{
+ *   summary: object,
+ *   expanded?: boolean,
+ *   onToggleExpand?: (nextExpanded: boolean) => void,
+ * }} props
+ */
+function ChatTurnSummaryBar({ summary, expanded = undefined, onToggleExpand = null } = {}) {
+  let currentSummary = summary || null;
+  let isExpanded =
+    expanded === undefined ? resolveDefaultTurnSummaryExpanded(currentSummary) : Boolean(expanded);
+
+  const pulseDotEl = h('span', { className: 'wm-ts-pulse', hidden: true });
+  const modeIcon = createSvgIcon('layers', { size: 13 });
+  const modeLabelEl = h('span', { className: 'wm-ts-mode-label' });
+  const modeEl = h('span', { className: 'wm-ts-mode' }, [modeIcon, modeLabelEl]);
+  const headSepEl = h('span', { className: 'wm-ts-head-sep', 'aria-hidden': 'true' });
+  const metaTextEl = h('span', { className: 'wm-ts-meta' });
+  const totalsTextEl = h('span', { className: 'wm-ts-totals' });
+  const chevronIcon = createSvgIcon('chevron-down', { size: 13 });
+  const chevronWrapEl = h('span', { className: 'wm-ts-chevron' }, [chevronIcon]);
+
+  const headerBtnEl = h(
+    'button',
+    {
+      type: 'button',
+      className: 'wm-ts-header',
+      'aria-expanded': isExpanded ? 'true' : 'false',
+      'aria-label': isExpanded ? t('turnSummary.ariaCollapse') : t('turnSummary.ariaExpand'),
+      onMousedown: (e) => {
+        e?.preventDefault?.();
+        e?.stopPropagation?.();
+      },
+      onClick: (e) => {
+        e?.stopPropagation?.();
+        isExpanded = !isExpanded;
+        syncExpandedState();
+        onToggleExpand?.(isExpanded);
+      },
+    },
+    [
+      h('span', { className: 'wm-ts-header-left' }, [
+        pulseDotEl,
+        modeEl,
+        headSepEl,
+        metaTextEl,
+      ]),
+      h('span', { className: 'wm-ts-header-right' }, [
+        totalsTextEl,
+        chevronWrapEl,
+      ]),
+    ]
+  );
+
+  const railEl = h('div', { className: 'wm-ts-rail', 'aria-hidden': 'true' });
+  const bodyEl = h('div', { className: 'wm-ts-body', hidden: !isExpanded });
+  const rootEl = h('div', { className: 'wm-ts-card' }, [headerBtnEl, railEl, bodyEl]);
+
+  function syncExpandedState() {
+    patchClasses(rootEl, { 'is-expanded': isExpanded });
+    patchAttr(headerBtnEl, 'aria-expanded', isExpanded ? 'true' : 'false');
+    patchAttr(
+      headerBtnEl,
+      'aria-label',
+      isExpanded ? t('turnSummary.ariaCollapse') : t('turnSummary.ariaExpand')
+    );
+    patchAttr(bodyEl, 'hidden', !isExpanded);
+    if (isExpanded) {
+      renderExpandedBody();
+    }
+  }
+
+  function renderExpandedBody() {
+    if (!bodyEl || !currentSummary) return;
+    bodyEl.textContent = '';
+
+    const ob = currentSummary.orchestratorBreakdown;
+    const agents = Array.isArray(currentSummary.agentBreakdown)
+      ? currentSummary.agentBreakdown
+      : [];
+    const showAgents =
+      agents.length > 0 &&
+      (currentSummary.mode === 'swarm' ||
+        currentSummary.mode === 'subagent' ||
+        agents.length > 1);
+
+    if (ob) {
+      const orchSection = h('div', { className: 'wm-ts-section' }, [
+        showAgents
+          ? h('div', { className: 'wm-ts-section-title', text: t('turnSummary.orchSection') })
+          : null,
+        h('div', { className: 'wm-ts-orch-grid' }, [
+          createOrchestratorRoleColumn({
+            title: t('turnSummary.roleOrchestrator'),
+            subtitle: ob.orchestrator?.modelLabel || '',
+            color: ORCH_ROLE_COLOR,
+            stats: ob.orchestrator || {},
+            isSecond: false,
+          }),
+          createOrchestratorRoleColumn({
+            title: t('turnSummary.roleImplementor'),
+            subtitle: ob.implementor?.modelLabel || '',
+            color: IMPL_ROLE_COLOR,
+            stats: ob.implementor || {},
+            isSecond: true,
+          }),
+        ]),
+      ]);
+      bodyEl.appendChild(orchSection);
+    }
+
+    if (showAgents) {
+      const agentSection = h('div', { className: `wm-ts-section${ob ? ' has-divider' : ''}` }, [
+        ob ? h('div', { className: 'wm-ts-section-title', text: t('turnSummary.agentsSection') }) : null,
+        h(
+          'div',
+          { className: 'wm-ts-agent-list' },
+          agents.map((ag, idx) => {
+            const displayRole = ag?.isMain
+              ? t('turnSummary.roleMain')
+              : ag?.label || ag?.role || ag?.agentId || 'Agent';
+            const rowColor = ag?.isAuxiliary
+              ? AUX_ROLE_COLOR
+              : SWARM_BAR_PALETTE[idx % SWARM_BAR_PALETTE.length];
+            return createAgentListRow({
+              title: displayRole,
+              subtitle: ag?.modelLabel || '',
+              auxLabel: ag?.isAuxiliary ? t('turnSummary.auxBadge') : '',
+              color: rowColor,
+              isMuted: Boolean(ag?.isAuxiliary),
+              stats: ag || {},
+            });
+          })
+        ),
+      ]);
+      bodyEl.appendChild(agentSection);
+    }
+
+    if (!ob && !showAgents) {
+      const primaryAgent = agents.find((a) => a?.isMain) || agents[0] || {};
+      const stats = {
+        ...primaryAgent,
+        ...(currentSummary.totals || {}),
+      };
+      const stepCount = Number(
+        currentSummary.totalCompletedSteps ||
+          currentSummary.totalSteps ||
+          primaryAgent.completedSteps ||
+          primaryAgent.totalSteps ||
+          0
+      );
+      bodyEl.appendChild(
+        h('div', { className: 'wm-ts-metrics-grid is-single' }, buildRoleMetricCells(stats, stepCount === 0))
+      );
+    }
+  }
+
+  function renderSummary(nextSummary, nextExpanded = undefined) {
+    if (nextSummary !== undefined) {
+      currentSummary = nextSummary;
+    }
+    if (nextExpanded !== undefined) {
+      isExpanded = Boolean(nextExpanded);
+    }
+    if (!currentSummary) return;
+
+    const isRunning = Boolean(currentSummary.isRunning);
+    const modeMeta = resolveModeMeta(currentSummary);
+    const isSingleMode = modeMeta.variant === 'single';
+    patchClasses(rootEl, {
+      'is-running': isRunning,
+      'is-expanded': isExpanded,
+      'is-single': isSingleMode,
+    });
+    patchAttr(pulseDotEl, 'hidden', !isRunning);
+    if (isRunning) {
+      patchAttr(pulseDotEl, 'title', t('turnSummary.liveRunning'));
+    }
+
+    patchSvgIcon(modeIcon, modeMeta.icon);
+    patchText(modeLabelEl, modeMeta.label);
+    patchClasses(modeEl, {
+      'is-orch': modeMeta.variant === 'orch',
+      'is-swarm': modeMeta.variant === 'swarm',
+      'is-subagent': modeMeta.variant === 'subagent',
+      'is-single': isSingleMode,
+    });
+
+    renderHeaderMeta(metaTextEl, currentSummary);
+    renderQuickTokenTotals(totalsTextEl, currentSummary.totals);
+
+    const segs = buildRailSegments(currentSummary);
+    railEl.textContent = '';
+    if (segs.length === 0) {
+      patchAttr(railEl, 'hidden', true);
+    } else {
+      patchAttr(railEl, 'hidden', false);
+      patchAttr(railEl, 'title', buildHeaderMetaPlainText(currentSummary));
+      for (const seg of segs) {
+        const segEl = h('span', { className: 'wm-ts-rail-seg', title: seg.title });
+        segEl.style.width = `${seg.pct}%`;
+        segEl.style.background = seg.color;
+        railEl.appendChild(segEl);
+      }
+    }
+
+    syncExpandedState();
+  }
+
+  renderSummary(currentSummary, isExpanded);
+
+  return {
+    el: rootEl,
+    refs: {
+      update: ({ summary: nextSummary, expanded: nextExpanded } = {}) => {
+        renderSummary(nextSummary, nextExpanded);
+      },
+      isExpanded: () => isExpanded,
+      destroy: () => {
+        rootEl.remove?.();
+      },
+    },
+  };
+}
+return { shouldRenderTurnSummary, resolveDefaultTurnSummaryExpanded, ChatTurnSummaryBar };
+})();
+
 // --- src/registries/widgetRegistry.js ---
 const { OVERVIEW_WIDGET_KEYS, OVERVIEW_WIDGET_REGISTRY, getOverviewModuleOptions, createDynamicWidgetHost } = (() => {
 /**
@@ -21347,6 +22882,8 @@ const CapsuleBarWidget = defineComponent({
         className: 'wm-multi-btn',
         tabindex: '-1',
         'aria-hidden': 'true',
+        translate: 'no',
+        'data-ag-no-i18n': '1',
       },
       [multiDot, multiLabel]
     );
@@ -21372,6 +22909,8 @@ const CapsuleBarWidget = defineComponent({
         className: 'wm-capsule-btn',
         tabindex: '-1',
         'aria-hidden': 'true',
+        translate: 'no',
+        'data-ag-no-i18n': '1',
       },
       [
         capsuleSlots[0].el,
@@ -25678,6 +27217,393 @@ const SettingsGeneralTab = defineComponent({
       h('div', { className: 'form-row' }, [modernUiLabelEl, modernUiSwitch.el, modernUiHintEl]),
     ]);
 
+    // --- Card 1B: Obsidian Prism Optical UI & Host Modules ---
+    let draftPrismPalette = 'obsidian';
+    let draftPrismLightPreset = 'crystal';
+    let draftPrismAccent = 'follow';
+    let draftPrismCorners = 'balanced';
+    let draftPrismMotion = 'ultra';
+    let draftPrismCodeFont = 'default';
+    let draftPrismLigatures = false;
+    let draftPrismHomeRipple = true;
+    let draftPrismSmoothCaret = true;
+    let draftPrismEffortSlider = 'auto';
+    let draftPrismWorkbench = 'on';
+    let draftPrismHomeStudio = 'on';
+    let draftPrismOmni = 'on';
+    let draftPrismMascot = 'off';
+    let draftPrismWallpaper = false;
+
+    const prismStatusEl = h('span', {
+      className: 'text-muted',
+      style: 'font-size: var(--fs-md);',
+      text: '',
+    });
+    const prismTitleEl = h('span', { text: t('settings.prism.title') });
+
+    function applyLocalPrismPreview(partial) {
+      if (isWindowOverlayMode() || typeof document === 'undefined' || !document.documentElement) {
+        return;
+      }
+      applyAppearanceToRoot(
+        document.documentElement,
+        {
+          ...(latestSettings || {}),
+          prismPalette: draftPrismPalette,
+          prismLightPreset: draftPrismLightPreset,
+          prismAccentTone: draftPrismAccent,
+          prismCornerStyle: draftPrismCorners,
+          prismMotionLevel: draftPrismMotion,
+          prismCodeFont: draftPrismCodeFont,
+          prismCodeLigatures: draftPrismLigatures,
+          ...partial,
+        },
+        { includeFontScale: true }
+      );
+    }
+
+    async function savePrismPatch(patch) {
+      applyLocalPrismPreview(patch);
+      patchText(prismStatusEl, t('settings.saving'));
+      try {
+        await saveSettingsPatch(patch);
+        patchText(prismStatusEl, t('settings.saved'));
+        setTimeout(() => {
+          if (prismStatusEl.textContent === t('settings.saved')) patchText(prismStatusEl, '');
+        }, 1400);
+      } catch {
+        if (latestSettings) renderSettings(latestSettings);
+        patchText(prismStatusEl, t('settings.saveFailed'));
+      }
+    }
+
+    const mkPresetBtn = (key, labelKey, patchObj) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          className: 'prism-preset-btn',
+          'data-prism-preset': key,
+          'aria-pressed': 'false',
+          onClick: () => void savePrismPatch(patchObj),
+        },
+        [h('span', { text: t(labelKey) })]
+      );
+
+    const presetFullBtn = mkPresetBtn('full', 'settings.prism.presetFull', {
+      prismMotionLevel: 'ultra',
+      prismHomeRipple: true,
+      prismSmoothCaret: true,
+      prismAmbientIntensity: '100',
+    });
+    const presetFocusBtn = mkPresetBtn('focus', 'settings.prism.presetFocus', {
+      prismMotionLevel: 'standard',
+      prismHomeRipple: false,
+      prismSmoothCaret: true,
+      prismAmbientIntensity: '35',
+    });
+    const presetEcoBtn = mkPresetBtn('eco', 'settings.prism.presetEco', {
+      prismMotionLevel: 'off',
+      prismHomeRipple: false,
+      prismSmoothCaret: false,
+      prismAmbientIntensity: '0',
+    });
+
+    const mkPalCard = (id, titleKey, descKey, dotBg, patchKey, patchVal) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          className: 'prism-palette-card',
+          'data-pal-id': id,
+          'aria-pressed': 'false',
+          onClick: () => void savePrismPatch({ [patchKey]: patchVal }),
+        },
+        [
+          h('span', { className: 'prism-palette-dot', style: `background: ${dotBg};` }),
+          h('span', { style: 'display:flex;flex-direction:column;min-width:0;' }, [
+            h('strong', { style: 'font-size: var(--fs-sm); font-weight: 600;', text: t(titleKey) }),
+            h('span', { className: 'text-muted', style: 'font-size: var(--fs-2xs);', text: t(descKey) }),
+          ]),
+        ]
+      );
+
+    const palObsidianCard = mkPalCard(
+      'obsidian',
+      'settings.prism.palObsidian',
+      'settings.prism.palObsidianDesc',
+      'linear-gradient(135deg, #09090B 0%, #669DF6 100%)',
+      'prismPalette',
+      'obsidian'
+    );
+    const palWarmCard = mkPalCard(
+      'warm',
+      'settings.prism.palWarm',
+      'settings.prism.palWarmDesc',
+      'linear-gradient(135deg, #10100F 0%, #D97757 100%)',
+      'prismPalette',
+      'warm'
+    );
+    const palCrystalCard = mkPalCard(
+      'crystal',
+      'settings.prism.lightCrystal',
+      'settings.prism.lightCrystalDesc',
+      'linear-gradient(135deg, #E8EEF6 0%, #2563EB 100%)',
+      'prismLightPreset',
+      'crystal'
+    );
+    const palAlabasterCard = mkPalCard(
+      'alabaster',
+      'settings.prism.lightAlabaster',
+      'settings.prism.lightAlabasterDesc',
+      'linear-gradient(135deg, #EBE6DC 0%, #C25934 100%)',
+      'prismLightPreset',
+      'alabaster'
+    );
+
+    const prismAccentCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.accent'),
+      modelValue: draftPrismAccent,
+      options: [
+        { value: 'follow', label: t('settings.prism.accentFollow') },
+        { value: 'cobalt', label: t('settings.prism.accentCobalt') },
+        { value: 'iris', label: t('settings.prism.accentIris') },
+        { value: 'amber', label: t('settings.prism.accentAmber') },
+        { value: 'mono', label: t('settings.prism.accentMono') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismAccent = val;
+        void savePrismPatch({ prismAccentTone: val });
+      },
+    });
+
+    const prismCornersCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.corners'),
+      modelValue: draftPrismCorners,
+      options: [
+        { value: 'sharp', label: t('settings.prism.cornersSharp') },
+        { value: 'balanced', label: t('settings.prism.cornersBalanced') },
+        { value: 'soft', label: t('settings.prism.cornersSoft') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismCorners = val;
+        void savePrismPatch({ prismCornerStyle: val });
+      },
+    });
+
+    const prismMotionCtrl = SegmentedControl({
+      ariaLabel: t('settings.prism.motion'),
+      modelValue: draftPrismMotion,
+      options: [
+        { value: 'off', label: t('settings.prism.motionOff') },
+        { value: 'subtle', label: t('settings.prism.motionSubtle') },
+        { value: 'standard', label: t('settings.prism.motionStandard') },
+        { value: 'ultra', label: t('settings.prism.motionUltra') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismMotion = val;
+        void savePrismPatch({ prismMotionLevel: val });
+      },
+    });
+
+    const prismCodeFontSelect = CustomSelect({
+      modelValue: draftPrismCodeFont,
+      icon: 'code',
+      options: [
+        { value: 'default', label: t('settings.prism.fontDefault') },
+        { value: 'jetbrains', label: t('settings.prism.fontJetbrains') },
+        { value: 'cascadia', label: t('settings.prism.fontCascadia') },
+        { value: 'sfmono', label: t('settings.prism.fontSfmono') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismCodeFont = val;
+        void savePrismPatch({ prismCodeFont: val });
+      },
+    });
+
+    const prismMascotSelect = CustomSelect({
+      modelValue: draftPrismMascot,
+      icon: 'sparkles',
+      options: [
+        { value: 'off', label: t('settings.prism.mascotOff') },
+        { value: 'crab', label: t('settings.prism.mascotCrab') },
+        { value: 'quad-minis', label: t('settings.prism.mascotQuad') },
+      ],
+      onUpdateModelValue: (val) => {
+        draftPrismMascot = val;
+        void savePrismPatch({ prismMascot: val });
+      },
+    });
+
+    const mkOptSwitch = (labelKey, onChange) =>
+      ToggleSwitch({
+        ariaLabelKey: labelKey,
+        modelValue: 'on',
+        onUpdateModelValue: (val) => onChange(val !== 'off'),
+      });
+
+    const ligaturesSwitch = mkOptSwitch('settings.prism.ligatures', (on) => {
+      draftPrismLigatures = on;
+      void savePrismPatch({ prismCodeLigatures: on });
+    });
+    const homeRippleSwitch = mkOptSwitch('settings.prism.homeRipple', (on) => {
+      draftPrismHomeRipple = on;
+      void savePrismPatch({ prismHomeRipple: on });
+    });
+    const smoothCaretSwitch = mkOptSwitch('settings.prism.smoothCaret', (on) => {
+      draftPrismSmoothCaret = on;
+      void savePrismPatch({ prismSmoothCaret: on });
+    });
+    const effortSliderSwitch = mkOptSwitch('settings.prism.effortSlider', (on) => {
+      draftPrismEffortSlider = on ? 'auto' : 'off';
+      void savePrismPatch({ prismEffortSlider: draftPrismEffortSlider });
+    });
+    const workbenchSwitch = mkOptSwitch('settings.prism.workbench', (on) => {
+      draftPrismWorkbench = on ? 'on' : 'off';
+      void savePrismPatch({ prismWorkbenchEnhancer: draftPrismWorkbench });
+    });
+    const homeStudioSwitch = mkOptSwitch('settings.prism.homeStudio', (on) => {
+      draftPrismHomeStudio = on ? 'on' : 'off';
+      void savePrismPatch({ prismHomeStudio: draftPrismHomeStudio });
+    });
+    const omniSwitch = mkOptSwitch('settings.prism.omni', (on) => {
+      draftPrismOmni = on ? 'on' : 'off';
+      void savePrismPatch({ prismOmniModule: draftPrismOmni });
+    });
+    const wallpaperSwitch = mkOptSwitch('settings.prism.wallpaper', (on) => {
+      draftPrismWallpaper = on;
+      patchAttr(wallpaperControlsRow, 'hidden', !on);
+      void savePrismPatch({ prismWallpaperEnabled: on });
+    });
+
+    const wallpaperInfoEl = h('span', {
+      className: 'text-muted',
+      style: 'font-size: var(--fs-xs);',
+      text: t('settings.prism.wallpaperNone'),
+    });
+    const wallpaperPickBtn = h(
+      'button',
+      {
+        type: 'button',
+        className: 'btn-secondary',
+        onClick: async () => {
+          try {
+            const res = await callSidecarApi('/api/prism/wallpaper', {
+              method: 'POST',
+              body: { action: 'pick-media' },
+            });
+            if (res?.config?.mediaPath) {
+              patchText(wallpaperInfoEl, res.config.mediaPath);
+            }
+          } catch {
+            // ignore picker errors
+          }
+        },
+      },
+      [h('span', { text: t('settings.prism.wallpaperPick') })]
+    );
+    const wallpaperClearBtn = h(
+      'button',
+      {
+        type: 'button',
+        className: 'btn-secondary',
+        onClick: async () => {
+          try {
+            await callSidecarApi('/api/prism/wallpaper', {
+              method: 'POST',
+              body: { action: 'clear-media' },
+            });
+            patchText(wallpaperInfoEl, t('settings.prism.wallpaperNone'));
+          } catch {
+            // ignore clear errors
+          }
+        },
+      },
+      [h('span', { text: t('settings.prism.wallpaperClear') })]
+    );
+    const wallpaperControlsRow = h(
+      'div',
+      { className: 'form-row', hidden: true, style: 'flex-wrap: wrap; gap: 6px;' },
+      [wallpaperPickBtn, wallpaperClearBtn, wallpaperInfoEl]
+    );
+
+    const prismPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('sparkles', { size: 13 }),
+          prismTitleEl,
+        ]),
+        prismStatusEl,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.presets') }),
+        h('div', { className: 'prism-preset-bar' }, [presetFullBtn, presetFocusBtn, presetEcoBtn]),
+      ]),
+      h('div', { className: 'form-row', style: 'align-items: flex-start;' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.palette') }),
+        h('div', { className: 'prism-palette-swatches' }, [
+          palObsidianCard,
+          palWarmCard,
+          palCrystalCard,
+          palAlabasterCard,
+        ]),
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.accent') }),
+        prismAccentCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.corners') }),
+        prismCornersCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.motion') }),
+        prismMotionCtrl.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.codeFont') }),
+        prismCodeFontSelect.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.ligatures') }),
+        ligaturesSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.homeRipple') }),
+        homeRippleSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.smoothCaret') }),
+        smoothCaretSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.effortSlider') }),
+        effortSliderSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.workbench') }),
+        workbenchSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.homeStudio') }),
+        homeStudioSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.omni') }),
+        omniSwitch.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.mascot') }),
+        prismMascotSelect.el,
+      ]),
+      h('div', { className: 'form-row' }, [
+        h('span', { className: 'form-label', text: t('settings.prism.wallpaper') }),
+        wallpaperSwitch.el,
+      ]),
+      wallpaperControlsRow,
+      h('div', { className: 'prism-attribution-box', text: t('settings.prism.attribution') }),
+    ]);
+
     // --- Card 2: 版本更新 ---
     const updateTitleEl = h('span', { text: t('settings.gen.updateTitle') });
     const updateModeLabelEl = h('span', {
@@ -25827,7 +27753,11 @@ const SettingsGeneralTab = defineComponent({
       h('div', { className: 'cloud-actions-row' }, [syncPricingBtn, updatePluginBtn]),
     ]);
 
-    const rootEl = h('div', { className: 'settings-tab-stack' }, [appearancePanel, cloudPanel]);
+    const rootEl = h('div', { className: 'settings-tab-stack' }, [
+      appearancePanel,
+      prismPanel,
+      cloudPanel,
+    ]);
 
     function renderSettings(settings) {
       if (!settings) return;
@@ -25841,6 +27771,59 @@ const SettingsGeneralTab = defineComponent({
         settings.autoUpdatePlugin
       );
       draftPluginUpdateMode = normalizedUpdateMode === 'auto' ? 'manual' : normalizedUpdateMode;
+
+      draftPrismPalette = settings.prismPalette === 'warm' ? 'warm' : 'obsidian';
+      draftPrismLightPreset = settings.prismLightPreset === 'alabaster' ? 'alabaster' : 'crystal';
+      draftPrismAccent = settings.prismAccentTone || 'follow';
+      draftPrismCorners = settings.prismCornerStyle || 'balanced';
+      draftPrismMotion = settings.prismMotionLevel || 'ultra';
+      draftPrismCodeFont = settings.prismCodeFont || 'default';
+      draftPrismLigatures = settings.prismCodeLigatures === true;
+      draftPrismHomeRipple = settings.prismHomeRipple !== false;
+      draftPrismSmoothCaret = settings.prismSmoothCaret !== false;
+      draftPrismEffortSlider = settings.prismEffortSlider || 'auto';
+      draftPrismWorkbench = settings.prismWorkbenchEnhancer === 'off' ? 'off' : 'on';
+      draftPrismHomeStudio = settings.prismHomeStudio === 'off' ? 'off' : 'on';
+      draftPrismOmni = settings.prismOmniModule === 'off' ? 'off' : 'on';
+      draftPrismMascot = settings.prismMascot || 'off';
+      draftPrismWallpaper = settings.prismWallpaperEnabled === true;
+
+      patchAttr(palObsidianCard, 'aria-pressed', String(draftPrismPalette === 'obsidian'));
+      patchAttr(palWarmCard, 'aria-pressed', String(draftPrismPalette === 'warm'));
+      patchAttr(palCrystalCard, 'aria-pressed', String(draftPrismLightPreset === 'crystal'));
+      patchAttr(palAlabasterCard, 'aria-pressed', String(draftPrismLightPreset === 'alabaster'));
+      patchAttr(
+        presetFullBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'ultra' && draftPrismHomeRipple && draftPrismSmoothCaret)
+      );
+      patchAttr(
+        presetFocusBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'standard' && !draftPrismHomeRipple && draftPrismSmoothCaret)
+      );
+      patchAttr(
+        presetEcoBtn,
+        'aria-pressed',
+        String(draftPrismMotion === 'off' && !draftPrismHomeRipple && !draftPrismSmoothCaret)
+      );
+
+      prismAccentCtrl.setValue(draftPrismAccent);
+      prismCornersCtrl.setValue(draftPrismCorners);
+      prismMotionCtrl.setValue(draftPrismMotion);
+      prismCodeFontSelect.setValue(draftPrismCodeFont);
+      prismMascotSelect.setValue(
+        ['off', 'crab', 'quad-minis'].includes(draftPrismMascot) ? draftPrismMascot : 'crab'
+      );
+      ligaturesSwitch.setValue(draftPrismLigatures ? 'on' : 'off');
+      homeRippleSwitch.setValue(draftPrismHomeRipple ? 'on' : 'off');
+      smoothCaretSwitch.setValue(draftPrismSmoothCaret ? 'on' : 'off');
+      effortSliderSwitch.setValue(draftPrismEffortSlider === 'off' ? 'off' : 'on');
+      workbenchSwitch.setValue(draftPrismWorkbench);
+      homeStudioSwitch.setValue(draftPrismHomeStudio);
+      omniSwitch.setValue(draftPrismOmni);
+      wallpaperSwitch.setValue(draftPrismWallpaper ? 'on' : 'off');
+      patchAttr(wallpaperControlsRow, 'hidden', !draftPrismWallpaper);
 
       languageSwitch.setProps({
         modelValue: draftLanguage,
@@ -25955,6 +27938,19 @@ const SettingsGeneralTab = defineComponent({
       fontScaleSwitch.destroy();
       modernUiSwitch.destroy();
       autoUpdateSelect.destroy();
+      prismAccentCtrl.destroy();
+      prismCornersCtrl.destroy();
+      prismMotionCtrl.destroy();
+      prismCodeFontSelect.destroy();
+      prismMascotSelect.destroy();
+      ligaturesSwitch.destroy();
+      homeRippleSwitch.destroy();
+      smoothCaretSwitch.destroy();
+      effortSliderSwitch.destroy();
+      workbenchSwitch.destroy();
+      homeStudioSwitch.destroy();
+      omniSwitch.destroy();
+      wallpaperSwitch.destroy();
     });
 
     return {
@@ -26159,6 +28155,7 @@ const SettingsStructureTab = defineComponent({
     let draftEnableCliStatusLine = false;
     let draftCliStatusLineSlots = null;
     let draftShowTopbarMulti = true;
+    let draftEnableChatTurnSummary = true;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
@@ -26204,6 +28201,7 @@ const SettingsStructureTab = defineComponent({
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
           showTopbarMultiSession: draftShowTopbarMulti,
+          enableChatTurnSummary: draftEnableChatTurnSummary,
           contextAgentMode: draftContextAgentMode,
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
@@ -26317,6 +28315,10 @@ const SettingsStructureTab = defineComponent({
     const multiToggleLabelEl = h('span', {
       className: 'form-label',
       text: t('settings.str.multiToggle'),
+    });
+    const chatTurnSummaryLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.chatTurnSummaryToggle'),
     });
     const contextAgentModeLabelEl = h('span', {
       className: 'form-label',
@@ -26439,6 +28441,19 @@ const SettingsStructureTab = defineComponent({
         syncMountSectionMeta();
         void persistStructurePatch(mountSection, {
           showTopbarMultiSession: draftShowTopbarMulti,
+        });
+      },
+    });
+
+    const chatTurnSummaryToggle = ToggleSwitch({
+      ariaLabelKey: 'settings.str.chatTurnSummaryToggle',
+      preset: 'enable',
+      modelValue: 'on',
+      onUpdateModelValue: (val) => {
+        draftEnableChatTurnSummary = val !== 'off';
+        syncMountSectionMeta();
+        void persistStructurePatch(mountSection, {
+          enableChatTurnSummary: draftEnableChatTurnSummary,
         });
       },
     });
@@ -26576,6 +28591,7 @@ const SettingsStructureTab = defineComponent({
         draftEnableCliStatusLine = false;
         draftCliStatusLineSlots = null;
         draftShowTopbarMulti = true;
+        draftEnableChatTurnSummary = true;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
         draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
         uiStore.setState({ ctxInspectorAgentId: DEFAULT_CLIENT_CONTEXT_AGENT_MODE });
@@ -26591,6 +28607,7 @@ const SettingsStructureTab = defineComponent({
             enableCliStatusLine: false,
             cliStatusLineSlots: null,
             showTopbarMultiSession: true,
+            enableChatTurnSummary: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
             topbarCapsuleSlots: [...DEFAULT_CLIENT_TOPBAR_SLOTS],
           },
@@ -26612,6 +28629,10 @@ const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-inline-row' }, [
           multiToggleLabelEl,
           multiSessionToggle.el,
+        ]),
+        h('div', { className: 'settings-inline-row' }, [
+          chatTurnSummaryLabelEl,
+          chatTurnSummaryToggle.el,
         ]),
         h('div', { className: 'settings-inline-row' }, [
           contextAgentModeLabelEl,
@@ -26693,6 +28714,9 @@ const SettingsStructureTab = defineComponent({
       }
       multiSessionToggle.setProps({
         modelValue: draftShowTopbarMulti ? 'show' : 'hide',
+      });
+      chatTurnSummaryToggle.setProps({
+        modelValue: draftEnableChatTurnSummary ? 'on' : 'off',
       });
       contextAgentModeToggle.setProps({
         modelValue: draftContextAgentMode,
@@ -27379,6 +29403,7 @@ const SettingsStructureTab = defineComponent({
       draftEnableCliStatusLine = settings.enableCliStatusLine === true;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
       draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
+      draftEnableChatTurnSummary = settings.enableChatTurnSummary !== false;
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
       draftTopbarSlots = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       draftHoverModules = normalizeClientHoverModules(settings.hoverModules);
@@ -27412,6 +29437,7 @@ const SettingsStructureTab = defineComponent({
       patchText(popoverWidthLabelEl, t('settings.str.popoverWidthLabel'));
       popoverWidthStepper.setProps({ ariaLabel: t('settings.str.popoverWidthLabel') });
       patchText(multiToggleLabelEl, t('settings.str.multiToggle'));
+      patchText(chatTurnSummaryLabelEl, t('settings.str.chatTurnSummaryToggle'));
       patchText(contextAgentModeLabelEl, t('settings.str.contextAgentModeLabel'));
       patchText(cliCapsuleLabelEl, t('settings.str.cliCapsuleToggle'));
       patchText(cliSlotsLabelEl, t('settings.str.cliSlotsLabel'));
@@ -29822,7 +31848,7 @@ const ConsumptionView = defineComponent({
       const out = mainModels.map((m) => {
         const seed = getCanonicalModelColorSeed(m);
         const color =
-          modelColorMap?.get(seed) || resolveDeterministicModelColor(seed || m.displayText);
+          modelColorMap?.get(seed) || resolvePrismChartModelColor(seed || m.displayText);
         const tok = Number(m.totalTokens || 0);
         const pct = sumTok > 0 ? (tok / sumTok) * 100 : 0;
         const label = m.displayText || m.label || m.shortName || '—';
@@ -30953,14 +32979,17 @@ const ConsumptionView = defineComponent({
         return merged;
       });
 
-      const modelColorMap = buildDeterministicModelColorMap([
+      const allColorSeeds = [
         ...models,
         ...allSourceMergedModels,
         ...allTopConvMergedModels,
         ...allWorkspaceMergedModels,
         ...allMonthMergedModels,
         ...allTrendMergedModels,
-      ]);
+      ]
+        .map((m) => getCanonicalModelColorSeed(m))
+        .filter(Boolean);
+      const modelColorMap = buildPrismModelColorMap(allColorSeeds);
 
       // 2. 同步历史趋势交互式 SVG 面积图 / 类 GitHub 每日热力图（>90天）与悬停分模型浮层
       const rangeBadgeText = isEnglishLocale()
@@ -33706,7 +35735,7 @@ return { App };
 })();
 
 // --- src/components/layout/WindowOverlayShell.js ---
-const { computeCapsuleLayoutMode, mountWindowOverlay } = (() => {
+const { computeCapsuleLayoutMode, matchDomTurnsToSummaries, mountWindowOverlay } = (() => {
 /**
  * @fileoverview 主窗口双栖挂载外壳 (WindowOverlayShell.js).
  *
@@ -33720,6 +35749,7 @@ const { computeCapsuleLayoutMode, mountWindowOverlay } = (() => {
 
 const CAPSULE_HOST_ID = 'ag-usage-monitor-capsule';
 const PORTAL_HOST_ID = 'ag-usage-monitor-portal';
+const TURN_SUMMARY_HOST_CLASS = 'wm-turn-summary-host';
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
@@ -34480,6 +36510,268 @@ function isImmediatelyBeforeNode(node, refNode) {
   return idx >= 0 && parent.children[idx + 1] === refNode;
 }
 
+function normalizePromptForMatch(raw) {
+  return String(raw || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+const BLOCK_PROMPT_TAGS = new Set([
+  'div',
+  'p',
+  'br',
+  'li',
+  'pre',
+  'blockquote',
+  'section',
+  'article',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+]);
+
+function extractVisiblePromptText(node) {
+  if (!node) return '';
+  const tag = String(node.tagName || node.nodeName || '').toLowerCase();
+  if (tag === 'style' || tag === 'script' || tag === 'svg') return '';
+  if (node.hasAttribute?.('data-find-ignore') || node.getAttribute?.('aria-hidden') === 'true') {
+    return '';
+  }
+  const cls = String(node.className || '');
+  if (/\bsr-only\b/.test(cls)) return '';
+  if (tag === 'br') return ' ';
+  if (tag === '#text' || node.nodeType === 3) {
+    return String(node.nodeValue ?? node.textContent ?? '');
+  }
+  const childNodes = node.childNodes || node.children;
+  if (!childNodes || childNodes.length === 0) {
+    return String(node.textContent || '');
+  }
+  let acc = '';
+  for (const ch of childNodes) {
+    const chTag = String(ch?.tagName || ch?.nodeName || '').toLowerCase();
+    const chText = extractVisiblePromptText(ch);
+    if (!chText) continue;
+    if (acc && BLOCK_PROMPT_TAGS.has(chTag)) {
+      acc += ' ';
+    }
+    acc += chText;
+  }
+  return BLOCK_PROMPT_TAGS.has(tag) ? `${acc} ` : acc;
+}
+
+function findPairedUserMessage(agentResponseEl) {
+  if (!agentResponseEl) return null;
+  const turnContent = agentResponseEl.closest?.('[data-turn-content]');
+  if (turnContent?.querySelector) {
+    const msg = turnContent.querySelector('[data-testid="user-message"]');
+    if (msg) return msg;
+  }
+  let prev = agentResponseEl.previousElementSibling;
+  while (prev) {
+    if (prev.getAttribute?.('data-testid') === 'user-message') return prev;
+    const nested = prev.querySelector?.('[data-testid="user-message"]');
+    if (nested) return nested;
+    prev = prev.previousElementSibling;
+  }
+  return null;
+}
+
+function extractUserMessagePromptText(userMsgEl) {
+  if (!userMsgEl) return '';
+  const contentEl = userMsgEl.querySelector?.('[data-testid="user-message-content"]') || userMsgEl;
+  return normalizePromptForMatch(extractVisiblePromptText(contentEl));
+}
+
+function findActiveConversationContainer(routeCascadeId = '') {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+    return null;
+  }
+  const targetId = String(routeCascadeId || '').trim().toLowerCase();
+  const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+  const visibleViews = [];
+  for (const viewEl of views) {
+    if (!viewEl || isInsideOwnOverlay(viewEl)) continue;
+    if (viewEl.hasAttribute?.('hidden')) continue;
+    if (viewEl.getBoundingClientRect) {
+      const r = viewEl.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) continue;
+    }
+    const cid = String(viewEl.getAttribute?.('data-cascade-id') || '').trim().toLowerCase();
+    if (targetId && cid === targetId) return viewEl;
+    visibleViews.push(viewEl);
+  }
+  if (visibleViews.length > 0) {
+    const activeEl = document.activeElement || null;
+    if (activeEl) {
+      const focused = visibleViews.find((v) => v.contains?.(activeEl));
+      if (focused) return focused;
+    }
+    return visibleViews[0];
+  }
+  if (isIdeExtensionChatFrame()) {
+    return document.body || document.documentElement || null;
+  }
+  return null;
+}
+
+function collectChatDomTurns(container) {
+  if (!container || typeof container.querySelectorAll !== 'function') return [];
+  const nodes = container.querySelectorAll(
+    '[data-testid="user-message"], [data-testid="agent-response"]'
+  );
+  const turns = [];
+  let activeTurnUserMsg = null;
+  let currentTurnEntry = null;
+  for (const el of nodes) {
+    if (!el || isInsideOwnOverlay(el)) continue;
+    const testId = el.getAttribute?.('data-testid');
+    if (testId === 'user-message') {
+      activeTurnUserMsg = el;
+      currentTurnEntry = null;
+      continue;
+    }
+    if (testId === 'agent-response') {
+      const pairedUserMsg = findPairedUserMessage(el) || activeTurnUserMsg;
+      const turnContentEl = el.closest?.('[data-turn-content]') || null;
+      const isSameTurn = Boolean(
+        currentTurnEntry &&
+          ((pairedUserMsg && pairedUserMsg === currentTurnEntry.userMsgEl) ||
+            (!pairedUserMsg &&
+              (!turnContentEl || turnContentEl === currentTurnEntry.turnContentEl)))
+      );
+      if (isSameTurn) {
+        currentTurnEntry.agentResponseEl = el;
+      } else {
+        const entry = {
+          agentResponseEl: el,
+          userMsgEl: pairedUserMsg,
+          turnContentEl,
+          promptText: extractUserMessagePromptText(pairedUserMsg),
+          domIndex: turns.length,
+        };
+        turns.push(entry);
+        currentTurnEntry = entry;
+      }
+    }
+  }
+  return turns;
+}
+
+function preparePromptMatchVariants(raw) {
+  const withoutEllipsis = String(raw || '').replace(/(?:\u2026|\.\.\.)+$/g, '');
+  const full = normalizePromptForMatch(withoutEllipsis);
+  const hasMentionToken = /@\[[^\]]*\]/.test(withoutEllipsis);
+  const stripped = hasMentionToken
+    ? normalizePromptForMatch(withoutEllipsis.replace(/@\[[^\]]*\]/g, ' '))
+    : '';
+  return { full, stripped, hasMentionToken };
+}
+
+function doesPromptMatchSummary(normDom, rawSummaryPrompt) {
+  if (!normDom) return false;
+  const { full, stripped, hasMentionToken } = preparePromptMatchVariants(rawSummaryPrompt);
+  const candidates = [];
+  if (full) candidates.push({ text: full, isStripped: false });
+  if (stripped && stripped !== full) candidates.push({ text: stripped, isStripped: true });
+
+  for (const { text: cand, isStripped } of candidates) {
+    if (normDom === cand) return true;
+    if (cand.length >= 4 && normDom.startsWith(cand)) return true;
+    if (normDom.length >= 4 && cand.startsWith(normDom)) return true;
+    if (cand.length >= 8) {
+      const anchor = cand.slice(0, Math.min(64, cand.length));
+      if (normDom.includes(anchor)) return true;
+    }
+    if (normDom.length >= 8) {
+      const domAnchor = normDom.slice(0, Math.min(64, normDom.length));
+      if (cand.includes(domAnchor)) return true;
+    }
+    if (
+      (isStripped || hasMentionToken) &&
+      cand.length >= 3 &&
+      (normDom === cand || normDom.endsWith(` ${cand}`))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Match DOM `[data-testid="agent-response"]` nodes to `activeConversation.turnSummaries`
+ * using chronological normalized prompt matching (handling truncated `…` summaries and
+ * `@[...]` mention chips) with reverse-alignment fallback for empty/media-only prompts
+ * or the latest active turn.
+ *
+ * @param {Array<{ agentResponseEl?: object, promptText?: string, domIndex?: number }>} domTurns
+ * @param {Array<object>} turnSummaries
+ * @returns {Array<{ domTurn: object, summary: object, domIndex: number, summaryIndex: number }>}
+ */
+function matchDomTurnsToSummaries(domTurns, turnSummaries) {
+  if (!Array.isArray(domTurns) || !Array.isArray(turnSummaries)) return [];
+  if (domTurns.length === 0 || turnSummaries.length === 0) return [];
+
+  const matchedSummaryByDom = new Map();
+  const matchedDomBySummary = new Map();
+  let sumCursor = 0;
+
+  // Pass 1: Chronological prompt match
+  for (let i = 0; i < domTurns.length; i += 1) {
+    const normDom = normalizePromptForMatch(domTurns[i]?.promptText);
+    if (!normDom) continue;
+    for (let j = sumCursor; j < turnSummaries.length; j += 1) {
+      if (matchedDomBySummary.has(j)) continue;
+      const rawSumPrompt = turnSummaries[j]?.turnPromptClean;
+      if (!normalizePromptForMatch(rawSumPrompt)) continue;
+      if (doesPromptMatchSummary(normDom, rawSumPrompt)) {
+        matchedSummaryByDom.set(i, j);
+        matchedDomBySummary.set(j, i);
+        sumCursor = j + 1;
+        break;
+      }
+    }
+  }
+
+  // Pass 2: Reverse alignment fallback for empty/media-only prompts or unmatched latest turn
+  let j = turnSummaries.length - 1;
+  for (let i = domTurns.length - 1; i >= 0 && j >= 0; i -= 1) {
+    if (matchedSummaryByDom.has(i)) {
+      j = Math.min(j, matchedSummaryByDom.get(i) - 1);
+      continue;
+    }
+    while (j >= 0 && matchedDomBySummary.has(j)) {
+      j -= 1;
+    }
+    if (j < 0) break;
+    const normDom = normalizePromptForMatch(domTurns[i]?.promptText);
+    const normSum = normalizePromptForMatch(turnSummaries[j]?.turnPromptClean);
+    if (!normDom || !normSum) {
+      matchedSummaryByDom.set(i, j);
+      matchedDomBySummary.set(j, i);
+      j -= 1;
+    }
+  }
+
+  const out = [];
+  for (let i = 0; i < domTurns.length; i += 1) {
+    if (!matchedSummaryByDom.has(i)) continue;
+    const sIdx = matchedSummaryByDom.get(i);
+    out.push({
+      domTurn: domTurns[i],
+      summary: turnSummaries[sIdx],
+      domIndex: i,
+      summaryIndex: sIdx,
+    });
+  }
+  return out;
+}
+
 function isIdeExtensionChatFrame() {
   try {
     if (typeof window === 'undefined') return false;
@@ -34563,6 +36855,7 @@ function findNativeTopRightAnchor() {
 
 const SIDEBAR_EXTENSION_LABEL_RE =
   /^usage\s*(?:&\s*speed\s*)?monitor$/i;
+const SWARM_SIDEBAR_LABEL_RE = /^swarm(?:\s+ui)?$/i;
 const PLUGINS_MENU_ITEM_RE = /^plugins\b/i;
 let activeSidebarOpenTimers = [];
 
@@ -34608,7 +36901,9 @@ function isSidebarTabActive(el) {
 }
 
 function isInsideOwnOverlay(el) {
-  return Boolean(el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}`));
+  return Boolean(
+    el?.closest?.(`#${CAPSULE_HOST_ID}, #${PORTAL_HOST_ID}, .${TURN_SUMMARY_HOST_CLASS}`)
+  );
 }
 
 function isInsideChatLink(el) {
@@ -34777,6 +37072,9 @@ function findOpenMenuItem(pattern, beforeEls = null, beforeBodyChildren = null) 
   return null;
 }
 
+const EXCLUDED_TRIGGER_LABEL_RE =
+  /\b(?:fullscreen|full[\s-]?screen|maximize|unmaximize|minimize|restore|expand|collapse|close|split|pin|unpin)\b|toggle[-_\s]?(?:aux|side)/i;
+
 function findPluginsMenuTrigger(capsuleHostEl = null) {
   if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
     return null;
@@ -34788,29 +37086,40 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
       titlebar?.querySelector?.(':scope > div.shrink-0') ||
       titlebar?.lastElementChild ||
       capsuleHostEl?.parentElement ||
-      auxToggle?.parentElement ||
       null;
+
+    const isExcludedTrigger = (el) => {
+      if (!el || el === auxToggle) return true;
+      const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('data-testid') || ''}`;
+      return EXCLUDED_TRIGGER_LABEL_RE.test(label);
+    };
 
     const collectButtons = (root) => {
       if (!root?.querySelectorAll) return [];
       return Array.from(root.querySelectorAll('button, [role="button"]')).filter(
-        (el) => el && el !== auxToggle && !isInsideOwnOverlay(el) && isHostElementVisible(el)
+        (el) => el && !isExcludedTrigger(el) && !isInsideOwnOverlay(el) && isHostElementVisible(el)
       );
     };
 
-    const isMenuTriggerAttr = (el) => {
+    const hasMenuPopupAttr = (el) => {
       const hasPopup = String(el.getAttribute?.('aria-haspopup') || '').toLowerCase();
-      if (hasPopup === 'menu' || hasPopup === 'true') return true;
-      const dataState = el.getAttribute?.('data-state');
-      if (dataState === 'open' || dataState === 'closed') return true;
+      return hasPopup === 'menu' || hasPopup === 'true';
+    };
+
+    const hasMenuLabelAttr = (el) => {
       const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''} ${el.getAttribute?.('data-testid') || ''}`;
-      return /\b(?:overview|plugins?|more|menu|pane|sidebar)\b/i.test(label);
+      return /\b(?:overview|plugins?|more|menu)\b/i.test(label);
+    };
+
+    const hasOpenClosedStateAttr = (el) => {
+      const dataState = el.getAttribute?.('data-state');
+      return dataState === 'open' || dataState === 'closed';
     };
 
     const primaryCandidates = [
-      ...collectButtons(auxToggle?.parentElement),
       ...collectButtons(capsuleHostEl?.parentElement),
       ...collectButtons(rightGroup),
+      ...collectButtons(titlebar),
     ];
     const seen = new Set();
     const uniquePrimary = primaryCandidates.filter((el) => {
@@ -34819,45 +37128,51 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
       return true;
     });
 
-    const attrMatch = uniquePrimary.find(isMenuTriggerAttr);
-    if (attrMatch) return attrMatch;
+    const popupMatch = uniquePrimary.find(hasMenuPopupAttr);
+    if (popupMatch) return popupMatch;
+
+    const labelMatch = uniquePrimary.find(hasMenuLabelAttr);
+    if (labelMatch) return labelMatch;
+
+    if (capsuleHostEl) {
+      let next = capsuleHostEl.nextElementSibling;
+      while (next) {
+        if (!isExcludedTrigger(next) && !isInsideOwnOverlay(next) && isHostElementVisible(next)) {
+          const btn =
+            next.tagName?.toLowerCase() === 'button' || next.getAttribute?.('role') === 'button'
+              ? next
+              : next.querySelector?.('button, [role="button"]');
+          if (btn && !isExcludedTrigger(btn) && !isInsideOwnOverlay(btn) && isHostElementVisible(btn)) {
+            return btn;
+          }
+        }
+        next = next.nextElementSibling;
+      }
+    }
+
+    const stateMatch = uniquePrimary.find(hasOpenClosedStateAttr);
+    if (stateMatch) return stateMatch;
+
+    if (uniquePrimary.length > 0) {
+      return uniquePrimary[0];
+    }
 
     if (auxToggle) {
-      if (capsuleHostEl) {
-        let next = capsuleHostEl.nextElementSibling;
-        while (next) {
-          if (next !== auxToggle && !isInsideOwnOverlay(next) && isHostElementVisible(next)) {
-            const btn =
-              next.tagName?.toLowerCase() === 'button' || next.getAttribute?.('role') === 'button'
-                ? next
-                : next.querySelector?.('button, [role="button"]');
-            if (btn && btn !== auxToggle && !isInsideOwnOverlay(btn) && isHostElementVisible(btn)) {
-              return btn;
-            }
-          }
-          next = next.nextElementSibling;
-        }
-      }
-
       const prev = auxToggle.previousElementSibling;
-      if (prev && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
+      if (prev && !isExcludedTrigger(prev) && !isInsideOwnOverlay(prev) && isHostElementVisible(prev)) {
         const prevBtn =
           prev.tagName?.toLowerCase() === 'button' || prev.getAttribute?.('role') === 'button'
             ? prev
             : prev.querySelector?.('button, [role="button"]');
-        if (prevBtn && !isInsideOwnOverlay(prevBtn) && isHostElementVisible(prevBtn)) {
+        if (prevBtn && !isExcludedTrigger(prevBtn) && !isInsideOwnOverlay(prevBtn) && isHostElementVisible(prevBtn)) {
           return prevBtn;
         }
       }
 
-      if (uniquePrimary.length > 0) {
-        return uniquePrimary[uniquePrimary.length - 1];
+      const auxParentBtns = collectButtons(auxToggle.parentElement);
+      if (auxParentBtns.length > 0) {
+        return auxParentBtns[auxParentBtns.length - 1];
       }
-    }
-
-    if (titlebar) {
-      const tbMatch = collectButtons(titlebar).find(isMenuTriggerAttr);
-      if (tbMatch) return tbMatch;
     }
   } catch {
     return null;
@@ -34865,7 +37180,7 @@ function findPluginsMenuTrigger(capsuleHostEl = null) {
   return null;
 }
 
-function findSidebarExtensionTab() {
+function findSidebarExtensionTab(labelPattern = SIDEBAR_EXTENSION_LABEL_RE) {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
     return null;
   }
@@ -34877,9 +37192,9 @@ function findSidebarExtensionTab() {
       const title = normalizeMenuLabel(el.getAttribute?.('title'));
       const text = normalizeMenuLabel(el.textContent);
       if (
-        SIDEBAR_EXTENSION_LABEL_RE.test(aria) ||
-        SIDEBAR_EXTENSION_LABEL_RE.test(title) ||
-        SIDEBAR_EXTENSION_LABEL_RE.test(text)
+        labelPattern.test(aria) ||
+        labelPattern.test(title) ||
+        labelPattern.test(text)
       ) {
         return el;
       }
@@ -34914,10 +37229,10 @@ function openPluginsSubmenuElement(pluginsItem, attemptIndex = 0) {
   }
 }
 
-function openSidebarExtension(capsuleHostEl = null) {
+function openSidebarExtension(capsuleHostEl = null, labelPattern = SIDEBAR_EXTENSION_LABEL_RE) {
   clearPendingSidebarOpenTimers();
 
-  const immediateMenuItem = findOpenMenuItem(SIDEBAR_EXTENSION_LABEL_RE, null, null);
+  const immediateMenuItem = findOpenMenuItem(labelPattern, null, null);
   if (immediateMenuItem) {
     triggerHostElementClick(immediateMenuItem);
     return true;
@@ -34929,7 +37244,7 @@ function openSidebarExtension(capsuleHostEl = null) {
       typeof document !== 'undefined' && document.body?.children
         ? new Set(Array.from(document.body.children))
         : null;
-    const beforeUsageEls = new Set(findAllExactMenuCandidates(SIDEBAR_EXTENSION_LABEL_RE, document));
+    const beforeTargetEls = new Set(findAllExactMenuCandidates(labelPattern, document));
     const beforePluginsEls = new Set(findAllExactMenuCandidates(PLUGINS_MENU_ITEM_RE, document));
 
     scheduleSidebarOpenTimer(() => {
@@ -34943,13 +37258,13 @@ function openSidebarExtension(capsuleHostEl = null) {
       let pluginsHoverAttempts = 0;
       const pollStep = () => {
         attempts += 1;
-        const usageItem = findOpenMenuItem(
-          SIDEBAR_EXTENSION_LABEL_RE,
-          beforeUsageEls,
+        const targetItem = findOpenMenuItem(
+          labelPattern,
+          beforeTargetEls,
           beforeBodyChildren
         );
-        if (usageItem) {
-          triggerHostElementClick(usageItem);
+        if (targetItem) {
+          triggerHostElementClick(targetItem);
           clearPendingSidebarOpenTimers();
           return;
         }
@@ -34980,7 +37295,7 @@ function openSidebarExtension(capsuleHostEl = null) {
     return true;
   }
 
-  const existingTab = findSidebarExtensionTab();
+  const existingTab = findSidebarExtensionTab(labelPattern);
   if (existingTab) {
     if (!isSidebarTabActive(existingTab)) {
       triggerHostElementClick(existingTab);
@@ -35470,9 +37785,32 @@ function mountWindowOverlay() {
       updateDot,
     ]
   );
+  const swarmBtn = h(
+    'button',
+    {
+      type: 'button',
+      className: 'wm-swarm-btn',
+      'aria-label': t('capsule.ariaSwarm'),
+      title: t('capsule.ariaSwarm'),
+      onClick: (e) => {
+        e.stopPropagation();
+        setTooltipOpen(false);
+        if (multiOpen && !multiPinned) {
+          setMultiOpen(false);
+        }
+        if (popoverOpen) {
+          setPopoverOpen(false);
+        }
+        openSidebarExtension(capsuleHost, SWARM_SIDEBAR_LABEL_RE);
+      },
+    },
+    [createSvgIcon('swarm', { size: 14 })]
+  );
+
   capsuleShadow.appendChild(multiBtn);
   capsuleShadow.appendChild(capsuleBtn);
   capsuleShadow.appendChild(topbarUpdateBtn);
+  capsuleShadow.appendChild(swarmBtn);
 
   // --- 2. 创建 Body 顶层浮层 Portal Shadow Host ---
   const portalHost = document.createElement('div');
@@ -35612,9 +37950,16 @@ function mountWindowOverlay() {
     return appInstance;
   }
 
+  const turnSummaryHosts = new Map();
+  const turnSummaryExpandedState = new Map();
+  let isSyncingTurnSummaries = false;
+
   function syncPortalAppearance(settings) {
     applyAppearanceToRoot(capsuleHost, settings, { includeFontScale: false });
     applyAppearanceToRoot(portalHost, settings, { includeFontScale: true });
+    for (const entry of turnSummaryHosts.values()) {
+      applyAppearanceToRoot(entry.host, settings, { includeFontScale: true });
+    }
     const scaleKey = normalizeClientFontScale(settings?.fontScale);
     const isModernUi = resolveSettingsModernUi(settings);
     const colorScheme = portalHost.getAttribute?.('data-color-scheme') || 'light';
@@ -35686,6 +38031,9 @@ function mountWindowOverlay() {
           for (const k of mirroredThemeVars.keys()) {
             portalHost.style.removeProperty?.(k);
             capsuleHost.style.removeProperty?.(k);
+            for (const entry of turnSummaryHosts.values()) {
+              entry.host.style.removeProperty?.(k);
+            }
           }
           mirroredThemeVars.clear();
         }
@@ -35743,6 +38091,9 @@ function mountWindowOverlay() {
           if (prevVal !== val) {
             portalHost.style.setProperty?.(cssVar, val);
             capsuleHost.style.setProperty?.(cssVar, val);
+            for (const entry of turnSummaryHosts.values()) {
+              entry.host.style.setProperty?.(cssVar, val);
+            }
             mirroredThemeVars.set(cssVar, val);
           }
         } else if (prevVal) {
@@ -35755,6 +38106,13 @@ function mountWindowOverlay() {
             capsuleHost.style.removeProperty(cssVar);
           } else {
             capsuleHost.style.setProperty?.(cssVar, '');
+          }
+          for (const entry of turnSummaryHosts.values()) {
+            if (typeof entry.host.style.removeProperty === 'function') {
+              entry.host.style.removeProperty(cssVar);
+            } else {
+              entry.host.style.setProperty?.(cssVar, '');
+            }
           }
           mirroredThemeVars.delete(cssVar);
         }
@@ -35774,6 +38132,251 @@ function mountWindowOverlay() {
         themeObserver.observe(wb, { attributes: true, attributeFilter: ['class', 'style'] });
       } catch {
         // 忽略工作台属性观察异常
+      }
+    }
+  }
+
+  function clearAllTurnSummaryHosts() {
+    isSyncingTurnSummaries = true;
+    try {
+      for (const entry of turnSummaryHosts.values()) {
+        try {
+          entry.widget?.refs?.destroy?.();
+        } catch {}
+        try {
+          entry.host?.remove?.();
+        } catch {}
+      }
+      turnSummaryHosts.clear();
+      if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+        for (const stray of document.querySelectorAll(`.${TURN_SUMMARY_HOST_CLASS}`)) {
+          try {
+            stray.remove?.();
+          } catch {}
+        }
+      }
+    } finally {
+      isSyncingTurnSummaries = false;
+    }
+  }
+
+  function syncTurnSummaryHostAppearance(host, settings) {
+    applyAppearanceToRoot(host, settings, { includeFontScale: true });
+    for (const [cssVar, val] of mirroredThemeVars.entries()) {
+      host.style.setProperty?.(cssVar, val);
+    }
+  }
+
+  function findChatScrollContainer(startEl) {
+    if (!startEl) return null;
+    const docRoot = typeof document !== 'undefined' ? document.documentElement : null;
+    let node = startEl;
+    while (node && node !== docRoot) {
+      const sh = Number(node.scrollHeight || 0);
+      const ch = Number(node.clientHeight || 0);
+      if (sh > ch + 4) {
+        let ovY = '';
+        try {
+          const cs =
+            typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+              ? window.getComputedStyle(node)
+              : null;
+          ovY = String(cs?.overflowY || node.style?.overflowY || '').toLowerCase();
+        } catch {
+          ovY = String(node.style?.overflowY || '').toLowerCase();
+        }
+        if (!ovY || ovY === 'auto' || ovY === 'scroll' || ovY === 'overlay') {
+          return node;
+        }
+      }
+      node = node.parentElement || node.parentNode || null;
+    }
+    return null;
+  }
+
+  function syncChatTurnSummaries() {
+    if (disposed) return;
+    const telemetry = telemetryStore.getState().telemetry;
+    const settings = telemetry?.settings;
+    const mountMode = normalizeClientWindowMountMode(
+      settings?.windowMountMode ?? readInjectedWindowBridge()?.mountMode,
+      settings?.enableWindowOverlay
+    );
+    if (
+      settings?.enableChatTurnSummary === false ||
+      settings?.enableWindowOverlay === false ||
+      mountMode === 'sidebar'
+    ) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const activeConv = telemetry?.activeConversation;
+    const cascadeId = String(activeConv?.cascadeId || '').trim();
+    const summaries = Array.isArray(activeConv?.turnSummaries) ? activeConv.turnSummaries : [];
+    if (!cascadeId || summaries.length === 0) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const container = findActiveConversationContainer(cascadeId);
+    if (!container) {
+      if (turnSummaryHosts.size > 0) {
+        clearAllTurnSummaryHosts();
+      }
+      return;
+    }
+
+    const domTurns = collectChatDomTurns(container);
+    const matched = matchDomTurnsToSummaries(domTurns, summaries);
+    const desired = new Map();
+    for (const item of matched) {
+      if (!shouldRenderTurnSummary(item.summary)) continue;
+      const turnIdx = item.summary.turnIndex ?? item.summary.rootTurnIndex ?? item.summaryIndex;
+      const turnKey = `${cascadeId}:${turnIdx}`;
+      desired.set(turnKey, {
+        agentResponseEl: item.domTurn.agentResponseEl,
+        summary: item.summary,
+      });
+    }
+
+    const desiredEntries = Array.from(desired.entries());
+    const lastDesiredEntry = desiredEntries[desiredEntries.length - 1] || null;
+    const scroller = findChatScrollContainer(lastDesiredEntry?.[1]?.agentResponseEl || container);
+    const distFromBottomBefore = scroller
+      ? Math.max(
+          0,
+          Number(scroller.scrollHeight || 0) -
+            Number(scroller.clientHeight || 0) -
+            Number(scroller.scrollTop || 0)
+        )
+      : Infinity;
+    const wasNearBottom = Boolean(scroller && distFromBottomBefore <= 120);
+    let insertedLatestTurnHost = false;
+
+    isSyncingTurnSummaries = true;
+    try {
+      for (const [key, entry] of turnSummaryHosts.entries()) {
+        const next = desired.get(key);
+        if (!next || next.agentResponseEl !== entry.agentResponseEl) {
+          try {
+            entry.widget?.refs?.destroy?.();
+          } catch {}
+          try {
+            entry.host?.remove?.();
+          } catch {}
+          turnSummaryHosts.delete(key);
+        }
+      }
+
+      for (let idx = 0; idx < desiredEntries.length; idx += 1) {
+        const [turnKey, { agentResponseEl, summary }] = desiredEntries[idx];
+        const parent = agentResponseEl?.parentElement || agentResponseEl?.parentNode;
+        if (!parent) continue;
+        const isLatestEntry = Boolean(summary?.isLatestTurn || idx === desiredEntries.length - 1);
+        const expanded = turnSummaryExpandedState.has(turnKey)
+          ? Boolean(turnSummaryExpandedState.get(turnKey))
+          : resolveDefaultTurnSummaryExpanded(summary);
+        const existing = turnSummaryHosts.get(turnKey);
+        if (existing) {
+          if (!existing.host.isConnected || !isImmediatelyBeforeNode(agentResponseEl, existing.host)) {
+            if (!existing.host.isConnected && isLatestEntry) {
+              insertedLatestTurnHost = true;
+            }
+            parent.insertBefore(existing.host, agentResponseEl.nextSibling || null);
+          }
+          syncTurnSummaryHostAppearance(existing.host, settings);
+          existing.widget.refs.update({ summary, expanded });
+          continue;
+        }
+
+        if (isLatestEntry) {
+          insertedLatestTurnHost = true;
+        }
+
+        const host = document.createElement('div');
+        host.className = TURN_SUMMARY_HOST_CLASS;
+        host.setAttribute('data-wm-turn-key', turnKey);
+        host.addEventListener?.('mousedown', (e) => e.stopPropagation?.());
+        host.addEventListener?.('click', (e) => e.stopPropagation?.());
+        host.addEventListener?.('keydown', (e) => {
+          if (e?.key !== 'Escape') {
+            e.stopPropagation?.();
+          }
+        });
+        const shadow = host.attachShadow({ mode: 'open' });
+        attachShadowStyles(shadow, stylesCss, { slimCapsule: true });
+        syncTurnSummaryHostAppearance(host, settings);
+        const widget = ChatTurnSummaryBar({
+          summary,
+          expanded,
+          onToggleExpand: (nextExpanded) => {
+            turnSummaryExpandedState.set(turnKey, Boolean(nextExpanded));
+            if (nextExpanded) {
+              const scrollExpandedIntoView = () => {
+                if (disposed || !host.isConnected) return;
+                const expandScroller = findChatScrollContainer(host);
+                if (
+                  expandScroller &&
+                  typeof host.getBoundingClientRect === 'function' &&
+                  typeof expandScroller.getBoundingClientRect === 'function'
+                ) {
+                  const hr = host.getBoundingClientRect();
+                  const sr = expandScroller.getBoundingClientRect();
+                  if (hr && sr && hr.bottom > sr.bottom - 4) {
+                    expandScroller.scrollTop =
+                      Number(expandScroller.scrollTop || 0) + (hr.bottom - sr.bottom) + 12;
+                  }
+                } else {
+                  host.scrollIntoView?.({ block: 'nearest' });
+                }
+              };
+              if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(scrollExpandedIntoView);
+              } else {
+                scrollExpandedIntoView();
+              }
+            }
+          },
+        });
+        shadow.appendChild(widget.el);
+        parent.insertBefore(host, agentResponseEl.nextSibling || null);
+        turnSummaryHosts.set(turnKey, {
+          host,
+          shadow,
+          widget,
+          agentResponseEl,
+          turnKey,
+        });
+      }
+
+      if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
+        const trackedHosts = new Set(Array.from(turnSummaryHosts.values()).map((e) => e.host));
+        for (const el of document.querySelectorAll(`.${TURN_SUMMARY_HOST_CLASS}`)) {
+          if (!trackedHosts.has(el)) {
+            try {
+              el.remove?.();
+            } catch {}
+          }
+        }
+      }
+    } finally {
+      isSyncingTurnSummaries = false;
+    }
+
+    if (insertedLatestTurnHost && wasNearBottom && scroller) {
+      const pinBottom = () => {
+        if (!disposed && scroller.isConnected !== false) {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
+      };
+      pinBottom();
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(pinBottom);
       }
     }
   }
@@ -36652,6 +39255,7 @@ function mountWindowOverlay() {
       renderHoverWidgets();
       positionFloatingElements();
     }
+    syncChatTurnSummaries();
   }
 
   let lastAppliedMountMode = normalizeClientWindowMountMode(
@@ -36716,6 +39320,8 @@ function mountWindowOverlay() {
     () => {
       patchAttr(multiBtn, 'aria-label', t('capsule.ariaMulti'));
       patchAttr(capsuleBtn, 'aria-label', t('capsule.ariaMonitor'));
+      patchAttr(swarmBtn, 'aria-label', t('capsule.ariaSwarm'));
+      patchAttr(swarmBtn, 'title', t('capsule.ariaSwarm'));
       patchAttr(topbarUpdateBtn, 'aria-label', t('capsule.ariaUpdateTitle'));
       patchAttr(topbarUpdateBtn, 'title', t('capsule.ariaUpdateTitle'));
       patchAttr(multiPanelEl, 'aria-label', t('multi.ariaDialog'));
@@ -36824,6 +39430,7 @@ function mountWindowOverlay() {
     if (!isDockPlacementSynced(dock)) {
       scheduleDockSync();
     }
+    syncChatTurnSummaries();
   }
   function scheduleHostDomMutationCheck() {
     if (disposed) return;
@@ -36877,10 +39484,17 @@ function mountWindowOverlay() {
       }
       if (document.body) {
         hostDomObserver = new MutationObserver((records) => {
+          if (isSyncingTurnSummaries) return;
           if (
             Array.isArray(records) &&
             records.length > 0 &&
-            records.every((r) => r?.target === capsuleHost || r?.target === portalHost)
+            records.every(
+              (r) =>
+                r?.target === capsuleHost ||
+                r?.target === portalHost ||
+                r?.target?.classList?.contains?.(TURN_SUMMARY_HOST_CLASS) ||
+                r?.target?.closest?.(`.${TURN_SUMMARY_HOST_CLASS}`)
+            )
           ) {
             return;
           }
@@ -36916,6 +39530,7 @@ function mountWindowOverlay() {
     if (!isDockPlacementSynced(dock)) {
       ensureCapsuleDocked();
     }
+    syncChatTurnSummaries();
   }, 1200);
 
   ensureCapsuleDocked();
@@ -37099,6 +39714,8 @@ function mountWindowOverlay() {
       window.removeEventListener?.('popstate', onPopState);
       navigator?.windowControlsOverlay?.removeEventListener?.('geometrychange', onWindowResize);
       restorePatchedActionToolbar();
+      clearAllTurnSummaryHosts();
+      turnSummaryExpandedState.clear();
       try {
         multiRunningWidget.destroy();
       } catch {}
@@ -37123,7 +39740,7 @@ function mountWindowOverlay() {
   window[WINDOW_OVERLAY_KEY] = handle;
   return handle;
 }
-return { computeCapsuleLayoutMode, mountWindowOverlay };
+return { computeCapsuleLayoutMode, matchDomTurnsToSummaries, mountWindowOverlay };
 })();
 
 // --- src/main.js ---
@@ -37189,12 +39806,16 @@ async function bootstrapApp(mountTarget = document.getElementById('app-root')) {
     // ignore observer setup errors in constrained environments
   }
 
+  const stopThemeMessageSync = installPrismHostMessageThemeSync(
+    () => telemetryStore.getState().telemetry?.settings
+  );
   const stopPolling = startAsyncTelemetryLoop(2000);
   return {
     appInstance,
     stopPolling: () => {
       hostThemeObserver?.disconnect?.();
       colorSchemeMql?.removeEventListener?.('change', onHostThemeChange);
+      stopThemeMessageSync();
       unsubAppearance();
       stopPolling();
     },

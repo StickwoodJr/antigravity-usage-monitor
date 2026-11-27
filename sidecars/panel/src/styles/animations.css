@@ -1,5 +1,5 @@
 /*
- * Fast, hardware-accelerated transitions (120ms-160ms) with zero sluggish bounce.
+ * Obsidian Prism damped-spring & hardware-accelerated transitions with 0fps blur pause.
  */
 
 @keyframes anim-spin {
@@ -24,11 +24,11 @@
 @keyframes anim-view-fade {
   from {
     opacity: 0;
-    transform: translate3d(0, 3px, 0);
+    transform: translate3d(0, 4px, 0) scale(0.992);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -42,7 +42,7 @@
 }
 
 .view-pane {
-  animation: anim-view-fade var(--dur-fast) var(--ease-fast);
+  animation: anim-view-fade var(--dur-fast) var(--ag-ease-spring, var(--ease-fast));
 }
 
 .is-spinning .svg-icon {

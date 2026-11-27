@@ -12,54 +12,54 @@
 :root[data-modern-ui="true"],
 :host([data-modern-ui="true"]),
 [data-modern-ui="true"] {
-  --radius-sm: 10px;
-  --radius-xs: 7px;
-  --ease-modern: cubic-bezier(0.16, 1, 0.3, 1);
+  --radius-sm: var(--ag-cs-r-lg, 10px);
+  --radius-xs: var(--ag-cs-r-md, 6px);
+  --ease-modern: var(--ag-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
   --dur-fast: 180ms;
   --dur-normal: 240ms;
   --modern-canvas-bg: var(--surface-bg);
-  --modern-surface-card: color-mix(in srgb, var(--surface-panel) 95.2%, #ffffff 4.8%);
-  --modern-surface-subtle: color-mix(in srgb, var(--text-primary) 5.2%, transparent);
-  --modern-surface-hover: color-mix(in srgb, var(--accent-primary) 11%, color-mix(in srgb, var(--text-primary) 4%, transparent));
-  --modern-pill-select-bg: color-mix(in srgb, var(--text-primary) 8.5%, var(--modern-surface-card));
+  --modern-surface-card: var(--ag-cs-tonal-2, color-mix(in srgb, var(--surface-panel) 95.2%, #ffffff 4.8%));
+  --modern-surface-subtle: var(--ag-cs-tonal-1, color-mix(in srgb, var(--text-primary) 5.2%, transparent));
+  --modern-surface-hover: color-mix(in srgb, var(--accent-primary) 11%, var(--modern-surface-card));
+  --modern-pill-select-bg: var(--ag-cs-pill-bg, color-mix(in srgb, var(--text-primary) 8.5%, var(--modern-surface-card)));
   --modern-pill-select-hover: color-mix(in srgb, var(--text-primary) 12.5%, var(--modern-surface-card));
   --modern-pill-select-open: color-mix(in srgb, var(--text-primary) 15%, var(--modern-surface-card));
-  --modern-card-shadow: none;
-  --modern-nav-track-bg: var(--modern-surface-card);
-  --modern-inline-track-bg: color-mix(in srgb, var(--text-primary) 4.2%, transparent);
-  --modern-glider-bg: color-mix(in srgb, var(--accent-primary) 17%, color-mix(in srgb, var(--text-primary) 4%, transparent));
-  --modern-glider-shadow: none;
-  --modern-progress-track: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --modern-card-shadow: var(--_sp, none);
+  --modern-nav-track-bg: var(--_k1, var(--modern-surface-card));
+  --modern-inline-track-bg: var(--_k1, color-mix(in srgb, var(--text-primary) 4.2%, transparent));
+  --modern-glider-bg: var(--_k2, color-mix(in srgb, var(--accent-primary) 17%, color-mix(in srgb, var(--text-primary) 4%, transparent)));
+  --modern-glider-shadow: var(--_ks2, none);
+  --modern-progress-track: var(--ag-cs-tonal-0, color-mix(in srgb, var(--text-primary) 8%, transparent));
   --modern-stripe-bg: rgb(255 255 255 / 0.022);
   --text-secondary: color-mix(in srgb, var(--text-primary) 80%, transparent);
   --text-muted: color-mix(in srgb, var(--text-primary) 62%, transparent);
   --modern-active-accent: color-mix(in srgb, var(--accent-primary) 86%, var(--text-primary) 14%);
-  --shadow-popover: 0 10px 28px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.14);
-  --shadow-overlay: 0 22px 52px rgb(0 0 0 / 0.42), 0 4px 16px rgb(0 0 0 / 0.20);
+  --shadow-popover: var(--_cp, 0 10px 28px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.14));
+  --shadow-overlay: var(--_gs, 0 22px 52px rgb(0 0 0 / 0.42), 0 4px 16px rgb(0 0 0 / 0.20));
 }
 
 :root[data-modern-ui="true"][data-color-scheme="light"],
 :host([data-modern-ui="true"][data-color-scheme="light"]),
 [data-modern-ui="true"][data-color-scheme="light"] {
-  --modern-canvas-bg: color-mix(in srgb, var(--surface-bg) 95.5%, hsl(216 34% 48%) 4.5%);
+  --modern-canvas-bg: var(--surface-bg);
   --modern-surface-card: #ffffff;
-  --modern-surface-subtle: hsl(216 42% 97.2%);
-  --modern-surface-hover: hsl(216 56% 94.4%);
-  --modern-pill-select-bg: hsl(220 14% 94%);
-  --modern-pill-select-hover: hsl(220 14% 90.5%);
-  --modern-pill-select-open: hsl(220 14% 88.5%);
-  --modern-card-shadow: 0 1px 3px rgb(15 23 42 / 0.045), 0 4px 14px rgb(15 23 42 / 0.028);
-  --modern-nav-track-bg: hsl(216 28% 94.2%);
-  --modern-inline-track-bg: hsl(216 32% 96.2%);
+  --modern-surface-subtle: var(--surface-subtle, hsl(216 42% 97.2%));
+  --modern-surface-hover: var(--surface-hover, hsl(216 56% 94.4%));
+  --modern-pill-select-bg: var(--ag-cs-pill-bg, hsl(220 14% 94%));
+  --modern-pill-select-hover: color-mix(in srgb, var(--text-primary) 9%, var(--modern-surface-card));
+  --modern-pill-select-open: color-mix(in srgb, var(--text-primary) 13%, var(--modern-surface-card));
+  --modern-card-shadow: var(--_bs, 0 1px 3px rgb(15 23 42 / 0.045), 0 4px 14px rgb(15 23 42 / 0.028));
+  --modern-nav-track-bg: var(--_k1, hsl(216 28% 94.2%));
+  --modern-inline-track-bg: var(--_k1, hsl(216 32% 96.2%));
   --modern-glider-bg: #ffffff;
-  --modern-glider-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 1px 1px rgb(15 23 42 / 0.04);
-  --modern-progress-track: hsl(216 28% 93.4%);
-  --modern-stripe-bg: hsl(216 40% 97.8%);
+  --modern-glider-shadow: var(--_ks2, 0 1px 2px rgb(15 23 42 / 0.08), 0 1px 1px rgb(15 23 42 / 0.04));
+  --modern-progress-track: var(--ag-cs-tonal-0, hsl(216 28% 93.4%));
+  --modern-stripe-bg: color-mix(in srgb, var(--surface-subtle) 68%, var(--surface-panel));
   --text-secondary: color-mix(in srgb, var(--text-primary) 72%, transparent);
   --text-muted: color-mix(in srgb, var(--text-primary) 58%, transparent);
   --modern-active-accent: var(--accent-primary);
-  --shadow-popover: 0 10px 28px rgb(15 23 42 / 0.10), 0 2px 8px rgb(15 23 42 / 0.05);
-  --shadow-overlay: 0 20px 48px rgb(15 23 42 / 0.14), 0 4px 14px rgb(15 23 42 / 0.06);
+  --shadow-popover: var(--_cp, 0 10px 28px rgb(15 23 42 / 0.10), 0 2px 8px rgb(15 23 42 / 0.05));
+  --shadow-overlay: var(--_gs, 0 20px 48px rgb(15 23 42 / 0.14), 0 4px 14px rgb(15 23 42 / 0.06));
 }
 
 @keyframes anim-modern-view-in {

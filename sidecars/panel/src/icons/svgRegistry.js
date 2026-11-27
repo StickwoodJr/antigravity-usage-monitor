@@ -131,4 +131,17 @@ export const SVG_ICON_DEFS = Object.freeze({
     { tag: 'circle', attrs: { cx: '6', cy: '12', r: '1.05', fill: 'currentColor', stroke: 'none' } },
     { tag: 'circle', attrs: { cx: '10', cy: '12', r: '1.05', fill: 'currentColor', stroke: 'none' } },
   ],
+  swarm: [
+    { tag: 'circle', attrs: { cx: '8', cy: '3.4', r: '1.9' } },
+    { tag: 'circle', attrs: { cx: '3.6', cy: '11.8', r: '1.9' } },
+    { tag: 'circle', attrs: { cx: '12.4', cy: '11.8', r: '1.9' } },
+    { tag: 'path', attrs: { d: 'M7.1 5.1L4.5 10.1M8.9 5.1l2.6 5M5.5 11.8h5' } },
+  ],
+  code: [
+    { tag: 'path', attrs: { d: 'M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9.2 3.2L6.8 12.8' } },
+  ],
+  sparkles: [
+    { tag: 'path', attrs: { d: 'M8 1.8l1.2 3.8L13 6.8l-3.8 1.2L8 11.8 6.8 8 3 6.8l3.8-1.2L8 1.8z' } },
+    { tag: 'path', attrs: { d: 'M12.8 10.8l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6.6-1.6z' } },
+  ],
 });

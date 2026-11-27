@@ -429,4 +429,102 @@ export function applyAppearanceToRoot(targetEl, settings, { includeFontScale = t
     setOrClearStyleVar(targetEl, '--ui-panel-scale', '');
     removeAttrIfPresent(targetEl, 'data-font-scale');
   }
+
+  // Obsidian Prism Optical Theme & Motion Attributes (unified across Sidebar, Capsule, Portal, Standalone)
+  const prismPalette = settings?.prismPalette === 'warm' ? 'warm' : 'obsidian';
+  const prismLightPreset = settings?.prismLightPreset === 'alabaster' ? 'alabaster' : 'crystal';
+  const prismAccent = ['follow', 'cobalt', 'iris', 'amber', 'mono'].includes(settings?.prismAccentTone)
+    ? settings.prismAccentTone
+    : 'follow';
+  const prismCorners = ['sharp', 'balanced', 'soft'].includes(settings?.prismCornerStyle)
+    ? settings.prismCornerStyle
+    : 'balanced';
+  const prismCodeFont = ['default', 'jetbrains', 'cascadia', 'sfmono'].includes(settings?.prismCodeFont)
+    ? settings.prismCodeFont
+    : 'default';
+  const prismMotion = ['off', 'subtle', 'standard', 'ultra'].includes(settings?.prismMotionLevel)
+    ? settings.prismMotionLevel
+    : 'ultra';
+  const prismLigatures = settings?.prismCodeLigatures === true ? '1' : '0';
+
+  setAttrIfChanged(targetEl, 'data-prism-palette', prismPalette);
+  setAttrIfChanged(targetEl, 'data-prism-light-preset', prismLightPreset);
+  setAttrIfChanged(targetEl, 'data-prism-accent', prismAccent);
+  setAttrIfChanged(targetEl, 'data-prism-corners', prismCorners);
+  setAttrIfChanged(targetEl, 'data-prism-code-font', prismCodeFont);
+  setAttrIfChanged(targetEl, 'data-prism-ligatures', prismLigatures);
+  setAttrIfChanged(targetEl, 'data-ag-cs-motion', prismMotion);
+}
+
+const ALLOWED_SIDECAR_THEME_VARS = new Set([
+  '--background', '--content', '--shell', '--body-background',
+  '--sidebar', '--sidebar-muted', '--sidebar-secondary',
+  '--card', '--card-border', '--border', '--secondary', '--secondary-foreground',
+  '--muted', '--muted-foreground', '--foreground', '--placeholder',
+  '--primary', '--primary-foreground', '--accent', '--link',
+  '--error', '--warning', '--success', '--scrim',
+  '--ag-cs-tonal-0', '--ag-cs-tonal-1', '--ag-cs-tonal-2', '--ag-cs-tonal-3', '--ag-cs-tonal-4',
+  '--font-sans',
+]);
+
+/**
+ * Listen for Obsidian Prism host `postMessage` theme sync packets inside Sidebar `iframe`
+ * (zero white flash when host theme switches) and attach 0fps idle/blur pause attributes.
+ *
+ * @param {() => object|null|undefined} [getSettingsFn]
+ * @returns {() => void}
+ */
+export function installPrismHostMessageThemeSync(getSettingsFn = null) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => {};
+  }
+  const rootEl = document.documentElement;
+  if (!rootEl) return () => {};
+
+  const onMessage = (event) => {
+    const data = event?.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type !== 'ag-prism:theme-vars' && data.type !== 'obsidian-prism:theme') return;
+    if (data.theme === 'light' || data.theme === 'dark') {
+      setAttrIfChanged(rootEl, 'data-color-scheme', data.theme);
+    }
+    if (data.palette === 'obsidian' || data.palette === 'warm') {
+      setAttrIfChanged(rootEl, 'data-prism-palette', data.palette);
+    }
+    if (data.lightPreset === 'crystal' || data.lightPreset === 'alabaster') {
+      setAttrIfChanged(rootEl, 'data-prism-light-preset', data.lightPreset);
+    }
+    if (data.vars && typeof data.vars === 'object') {
+      for (const [k, v] of Object.entries(data.vars)) {
+        if (!ALLOWED_SIDECAR_THEME_VARS.has(k)) continue;
+        if (typeof v !== 'string' || v.length > 256 || /[;{}]/.test(v)) continue;
+        setOrClearStyleVar(rootEl, k, v.trim());
+      }
+    }
+  };
+
+  const syncIdlePause = () => {
+    const isHidden = document.visibilityState === 'hidden' || document.hidden === true;
+    const isBlurred = typeof document.hasFocus === 'function' ? !document.hasFocus() : false;
+    if (isHidden || isBlurred) {
+      setAttrIfChanged(rootEl, 'data-prism-win-blur', '1');
+    } else {
+      removeAttrIfPresent(rootEl, 'data-prism-win-blur');
+      if (typeof getSettingsFn === 'function') {
+        applyAppearanceToRoot(rootEl, getSettingsFn(), { includeFontScale: true });
+      }
+    }
+  };
+
+  window.addEventListener?.('message', onMessage);
+  window.addEventListener?.('blur', syncIdlePause);
+  window.addEventListener?.('focus', syncIdlePause);
+  document.addEventListener?.('visibilitychange', syncIdlePause);
+
+  return () => {
+    window.removeEventListener?.('message', onMessage);
+    window.removeEventListener?.('blur', syncIdlePause);
+    window.removeEventListener?.('focus', syncIdlePause);
+    document.removeEventListener?.('visibilitychange', syncIdlePause);
+  };
 }

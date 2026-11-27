@@ -19,6 +19,7 @@ import {
 import { isLocalHostRequest, readLocalAsync } from './http-helpers.mjs';
 import { revealLocalExportFile, writeLocalExportFile } from './file-exporter.mjs';
 import { clearScannerRuntimeMemos } from './local-scanner.mjs';
+import { createPrismCdpHost } from './prism-cdp-host.mjs';
 import {
   SETTINGS_FILE,
   clearRuntimeCaches,
@@ -70,13 +71,34 @@ import {
   ensureCliStatusLineConfigured,
   getCliStatusLineRuntimeStatus,
 } from './cli-statusline-config.mjs';
+import { mapPrismPatchToSettingsPatch } from '../shared/settings-normalization.mjs';
+import { buildPrismHomeSnapshot } from './prism-home-adapter.mjs';
 
 export const bootBundleVersion = computeRuntimeCodeVersion();
 
 let standalonePortListener = null;
+let prismSettingsSyncListener = null;
+let prismWallpaperHandler = null;
+let prismOmniStatusProvider = null;
 
 export function setStandalonePortListener(listener) {
   standalonePortListener = typeof listener === 'function' ? listener : null;
+}
+
+export function setPrismBridgeHooks({
+  onSettingsChanged = null,
+  onWallpaperAction = null,
+  getOmniStatus = null,
+} = {}) {
+  if (onSettingsChanged !== undefined) {
+    prismSettingsSyncListener = typeof onSettingsChanged === 'function' ? onSettingsChanged : null;
+  }
+  if (onWallpaperAction !== undefined) {
+    prismWallpaperHandler = typeof onWallpaperAction === 'function' ? onWallpaperAction : null;
+  }
+  if (getOmniStatus !== undefined) {
+    prismOmniStatusProvider = typeof getOmniStatus === 'function' ? getOmniStatus : null;
+  }
 }
 
 export { isLocalHostRequest, readLocalAsync };
@@ -97,7 +119,7 @@ function projectDisplayStep(st) {
     outputTokens, thinkingTokens, responseTokens, cacheHitPct, costUsd, inCostUsd,
     cacheCostUsd, outCostUsd, agentId, agentCascadeId, agentKind, agentOrdinal,
     agentCustomRole, agentLabel, agentBadge, agentRole, agentIndex, isSubagent,
-    isSideQuestion, sideIndex, turnIndex, isTurnStart, isLatestTurn, turnPrompt,
+    isSideQuestion, sideIndex, orchestratorRole, hasVisibleText, turnIndex, isTurnStart, isLatestTurn, turnPrompt,
     turnPromptClean, turnHasMedia, turnMediaOnly, rootTurnIndex, isRootTurnStart,
     isRootLatestTurn, rootTurnPrompt, rootTurnPromptClean, rootTurnHasMedia,
     rootTurnMediaOnly,
@@ -111,7 +133,7 @@ function projectDisplayStep(st) {
     outputTokens, thinkingTokens, responseTokens, cacheHitPct, costUsd, inCostUsd,
     cacheCostUsd, outCostUsd, agentId, agentCascadeId, agentKind, agentOrdinal,
     agentCustomRole, agentLabel, agentBadge, agentRole, agentIndex, isSubagent,
-    isSideQuestion, sideIndex, turnIndex, isTurnStart, isLatestTurn, turnPrompt,
+    isSideQuestion, sideIndex, orchestratorRole, hasVisibleText, turnIndex, isTurnStart, isLatestTurn, turnPrompt,
     turnPromptClean, turnHasMedia, turnMediaOnly, rootTurnIndex, isRootTurnStart,
     isRootLatestTurn, rootTurnPrompt, rootTurnPromptClean, rootTurnHasMedia,
     rootTurnMediaOnly,
@@ -400,6 +422,13 @@ export function executeSettingsAction(data) {
       // 忽略独立端口热重载回调异常
     }
   }
+  if (typeof prismSettingsSyncListener === 'function') {
+    try {
+      void prismSettingsSyncListener(updated, current);
+    } catch {
+      // Ignore Prism settings broadcast errors
+    }
+  }
   return {
     ok: true,
     status: 200,
@@ -527,6 +556,13 @@ export function executeResetSettingsAction() {
       standalonePortListener(Number(updated.standalonePort || 0));
     } catch {
       // 忽略独立端口热重载回调异常
+    }
+  }
+  if (typeof prismSettingsSyncListener === 'function') {
+    try {
+      void prismSettingsSyncListener(updated, current);
+    } catch {
+      // Ignore Prism settings broadcast errors
     }
   }
   return {
@@ -773,6 +809,78 @@ export function executeRevealFileAction(data, opts = {}) {
   };
 }
 
+export async function executePrismHomeSnapshotAction(data = undefined, opts = {}) {
+  const epCtx = resolveActionEndpoint(data, opts);
+  if (!epCtx.ok) {
+    return buildEndpointErrorResponse(epCtx);
+  }
+  const snapshot = await buildPrismHomeSnapshot({
+    range: data?.range || 'all',
+    workspace: data?.workspace || 'all',
+    includeArchived: data?.includeArchived !== 'false' && data?.includeArchived !== false,
+    force: data?.force === '1' || data?.force === true,
+    conversationId: String(data?.conversationId || '').trim(),
+    endpoint: epCtx.endpoint,
+  });
+  return {
+    status: 200,
+    contentType: 'application/json',
+    headers: { 'Cache-Control': 'no-store' },
+    body: JSON.stringify(snapshot),
+  };
+}
+
+export function executePrismSettingsSyncAction(data = undefined) {
+  const mappedPatch = mapPrismPatchToSettingsPatch(data);
+  if (Object.keys(mappedPatch).length === 0) {
+    const current = loadSettings();
+    return {
+      ok: true,
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Cache-Control': 'no-store' },
+      updated: current,
+      body: JSON.stringify(current),
+    };
+  }
+  return executeSettingsAction(mappedPatch);
+}
+
+export async function executePrismWallpaperAction(data = undefined) {
+  if (typeof prismWallpaperHandler !== 'function') {
+    return {
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Cache-Control': 'no-store' },
+      body: JSON.stringify({
+        ok: true,
+        available: false,
+        config: { enabled: false },
+      }),
+    };
+  }
+  const res = await prismWallpaperHandler(data || {});
+  return {
+    status: Number(res?.status || 200),
+    contentType: 'application/json',
+    headers: { 'Cache-Control': 'no-store' },
+    body: JSON.stringify(res?.body ?? res ?? { ok: true }),
+  };
+}
+
+export function executePrismOmniStatusAction() {
+  const status =
+    typeof prismOmniStatusProvider === 'function'
+      ? prismOmniStatusProvider()
+      : { ok: true, active: false, port: 0 };
+  return {
+    status: 200,
+    contentType: 'application/json',
+    headers: { 'Cache-Control': 'no-store' },
+    body: JSON.stringify(status),
+  };
+}
+
 const BRIDGE_ROUTE_LOOKUP = new Map(
   BRIDGE_API_ROUTE_DEFS.map((r) => [`${r.method}:${r.path}`, r.action])
 );
@@ -831,6 +939,14 @@ export async function dispatchBridgeApiRequest(pathname, method, data, opts = un
       return executeRevealFileAction(data, opts);
     case 'quota_reservation_log':
       return executeQuotaReservationLogAction();
+    case 'prism_home_snapshot':
+      return executePrismHomeSnapshotAction(data, opts);
+    case 'prism_settings_sync':
+      return executePrismSettingsSyncAction(data);
+    case 'prism_wallpaper':
+      return executePrismWallpaperAction(data);
+    case 'prism_omni_status':
+      return executePrismOmniStatusAction();
     default:
       return {
         status: 404,
@@ -863,7 +979,7 @@ export function bootWindowBridgeRuntime({ allowDynamicLs = false, onRestart = nu
     ensureLsEndpointDiscovered({ force: false }).catch(() => {});
   }
 
-  return startDefaultWindowBridge({
+  const bridgeController = startDefaultWindowBridge({
     handleApiRequest: (pathname, method, data, ctx) =>
       dispatchBridgeApiRequest(pathname, method, data, {
         onRestart: triggerRestart,
@@ -873,5 +989,33 @@ export function bootWindowBridgeRuntime({ allowDynamicLs = false, onRestart = nu
     bootBundleVersion,
     onVersionDrift: triggerRestart,
   });
+
+  if (process.env.AG_USAGE_DISABLE_PRISM_CDP === '1' || !bridgeController) {
+    return bridgeController;
+  }
+
+  const prismHost = createPrismCdpHost({
+    onTargetEvent: () => {
+      try {
+        bridgeController?.syncAllWindows?.({ forceReinject: false });
+      } catch {}
+    },
+    onOpenMonitor: () => {
+      if (standalonePortListener) {
+        // Standalone listener already notified at boot; UI opens via overlay/standalone route
+      }
+    },
+  });
+  prismHost.start();
+
+  const origStop = bridgeController.stop?.bind(bridgeController);
+  return {
+    ...bridgeController,
+    getPrismHostStatus: () => prismHost.getStatus(),
+    stop: async (opts) => {
+      await prismHost.stop().catch(() => {});
+      if (origStop) return await origStop(opts);
+    },
+  };
 }
 
